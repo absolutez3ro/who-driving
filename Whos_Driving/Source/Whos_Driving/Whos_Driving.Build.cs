@@ -18,8 +18,8 @@ public class Whos_Driving : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-            "GameplayTasks",
-            "Slate"
+			"Slate",
+			"AnimGraphRuntime"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

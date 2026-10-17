@@ -11,6 +11,8 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class UGVehicleCombatComponent;
+class UBoxComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -59,9 +61,22 @@ protected:
 	float MaxPitch = 80.0f;
 
 	float CameraPitch = 0.0f;
+	float vehicleCameraYaw = 0.0f;
 	
 public:
 	AWhos_DrivingCharacter();
+	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UGVehicleCombatComponent* GetCombatComponent() const { return combatComponent; }
+	USceneComponent* GetCameraRoot() const { return CameraRoot; }
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UGVehicleCombatComponent> combatComponent;
+	UPROPERTY(VisibleAnywhere, Category = "Combat")
+	TObjectPtr<UBoxComponent> combatBody;
+	UPROPERTY(VisibleAnywhere, Category = "Combat")
+	TObjectPtr<UBoxComponent> combatHead;
 
 protected:
 
@@ -96,6 +111,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoAim(float Yaw, float Pitch);
+
+	void ResetVehicleLook();
 
 	/** Returns the first person mesh **/
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }

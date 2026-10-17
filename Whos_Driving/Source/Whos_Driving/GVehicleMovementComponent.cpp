@@ -2,6 +2,7 @@
 
 
 #include "GVehicleMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
 {
@@ -42,4 +43,89 @@ void UGVehicleMovementComponent::DisableWheel(int32 wheelIndex)
 	SetWheelMaxBrakeTorque(wheelIndex, 0.0f);
 	SetWheelMaxSteerAngle(wheelIndex, 0.0f);
 	SetWheelHandbrakeTorque(wheelIndex, 0.0f);
+}
+
+void UGVehicleMovementComponent::StopDrivingInput()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	ClearAllInput();
+	bWindowDrivingLocked = false;
+	windowThrottle = 0.0f;
+	ReplicatedState = FVehicleReplicatedState();
+	ReplicatedState.BrakeInput = 1.0f;
+	ReplicatedState.HandbrakeInput = 1.0f;
+	BrakeInput = 1.0f;
+	HandbrakeInput = 1.0f;
+	SetHandbrakeInput(true);
+	SetTargetGear(0, true);
+}
+
+void UGVehicleMovementComponent::UpdateState(float deltaTime)
+{
+	// An unpossessed vehicle otherwise reuses the previous driver's replicated throttle.
+	if (bRequiresControllerForInputs && GetOwner() && GetOwner()->HasAuthority() && !GetController())
+	{
+		StopDrivingInput();
+	}
+	if (bWindowDrivingLocked) { ApplyWindowDrivingLock(); }
+	Super::UpdateState(deltaTime);
+	if (bWindowDrivingLocked)
+	{
+		ApplyWindowDrivingLock();
+	}
+}
+
+void UGVehicleMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UGVehicleMovementComponent, bWindowDrivingLocked);
+	DOREPLIFETIME(UGVehicleMovementComponent, windowThrottle);
+}
+
+void UGVehicleMovementComponent::SetWindowDrivingLock(bool bLocked)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bWindowDrivingLocked == bLocked) { return; }
+	if (bLocked)
+	{
+		windowThrottle = FMath::Clamp(GetController() && GetController()->IsLocalController() ? GetThrottleInput() : ReplicatedState.ThrottleInput, 0.0f, 1.0f);
+	}
+	bWindowDrivingLocked = bLocked;
+	OnRep_WindowDrivingLock();
+	GetOwner()->ForceNetUpdate();
+}
+
+void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
+{
+	if (bWindowDrivingLocked)
+	{
+		ApplyWindowDrivingLock();
+		return;
+	}
+	// Releases received while outside must not leave a latched throttle on return.
+	ClearRawInput();
+	if (GetController())
+	{
+		ThrottleInput = SteeringInput = BrakeInput = HandbrakeInput = 0.0f;
+		ReplicatedState.ThrottleInput = ReplicatedState.SteeringInput = 0.0f;
+		ReplicatedState.BrakeInput = ReplicatedState.HandbrakeInput = 0.0f;
+	}
+}
+
+void UGVehicleMovementComponent::ApplyWindowDrivingLock()
+{
+	SetThrottleInput(windowThrottle);
+	SetSteeringInput(0.0f);
+	SetBrakeInput(0.0f);
+	SetHandbrakeInput(false);
+	SteeringInput = 0.0f;
+	BrakeInput = 0.0f;
+	HandbrakeInput = 0.0f;
+	ThrottleInput = windowThrottle;
+	ReplicatedState.SteeringInput = 0.0f;
+	ReplicatedState.BrakeInput = 0.0f;
+	ReplicatedState.HandbrakeInput = 0.0f;
+	ReplicatedState.ThrottleInput = windowThrottle;
 }
