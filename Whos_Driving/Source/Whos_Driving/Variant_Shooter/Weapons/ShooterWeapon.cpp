@@ -11,6 +11,7 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
+#include "Net/UnrealNetwork.h"
 
 AShooterWeapon::AShooterWeapon()
 {
@@ -41,17 +42,32 @@ void AShooterWeapon::BeginPlay()
 	Super::BeginPlay();
 
 	// subscribe to the owner's destroyed delegate
-	GetOwner()->OnDestroyed.AddDynamic(this, &AShooterWeapon::OnOwnerDestroyed);
+	if (GetOwner())
+	{
+		GetOwner()->OnDestroyed.AddDynamic(this, &AShooterWeapon::OnOwnerDestroyed);
+	}
 
 	// cast the weapon owner
 	WeaponOwner = Cast<IShooterWeaponHolder>(GetOwner());
 	PawnOwner = Cast<APawn>(GetOwner());
 
 	// fill the first ammo clip
-	CurrentBullets = MagazineSize;
+	if (HasAuthority() || !GetIsReplicated())
+	{
+		CurrentBullets = MagazineSize;
+	}
 
 	// attach the meshes to the owner
-	WeaponOwner->AttachWeaponMeshes(this);
+	if (WeaponOwner)
+	{
+		WeaponOwner->AttachWeaponMeshes(this);
+	}
+}
+
+void AShooterWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AShooterWeapon, CurrentBullets);
 }
 
 void AShooterWeapon::EndPlay(EEndPlayReason::Type EndPlayReason)

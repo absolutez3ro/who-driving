@@ -5,6 +5,11 @@
 	"Description": "",
 	"Modules": [
 		{
+			"Name": "WhosDrivingCombatEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		},
+		{
 			"Name": "Whos_Driving",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
@@ -35,6 +40,14 @@
 		},
 		{
 			"Name": "ChaosVehiclesPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "ModelContextProtocol",
+			"Enabled": true
+		},
+		{
+			"Name": "MCPClientToolset",
 			"Enabled": true
 		}
 	]

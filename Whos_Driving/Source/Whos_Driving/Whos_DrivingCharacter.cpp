@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Whos_DrivingCharacter.h"
+#include "GPlayerCar.h"
+#include "G_Vehicle_Combat_Component.h"
+#include "Components/BoxComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -8,6 +11,7 @@
 #include "EnhancedInputComponent.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "Whos_Driving.h"
 
 AWhos_DrivingCharacter::AWhos_DrivingCharacter()
@@ -45,10 +49,27 @@ AWhos_DrivingCharacter::AWhos_DrivingCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+	combatComponent = CreateDefaultSubobject<UGVehicleCombatComponent>(TEXT("Vehicle Combat"));
+	combatBody = CreateDefaultSubobject<UBoxComponent>(TEXT("Combat Body"));
+	combatHead = CreateDefaultSubobject<UBoxComponent>(TEXT("Combat Head"));
+	combatBody->SetupAttachment(GetMesh(), TEXT("spine_03"));
+	combatHead->SetupAttachment(GetMesh(), TEXT("head"));
+	combatBody->InitBoxExtent(FVector(20.0f, 27.0f, 28.0f));
+	combatHead->InitBoxExtent(FVector(13.0f));
+	for (UBoxComponent* hitBox : { combatBody.Get(), combatHead.Get() })
+	{
+		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+		hitBox->SetGenerateOverlapEvents(false);
+	}
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+}
 
-	bUseControllerRotationYaw = false;
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationRoll = false;
+float AWhos_DrivingCharacter::TakeDamage(float damageAmount, const FDamageEvent& damageEvent,
+	AController* eventInstigator, AActor* damageCauser)
+{
+	return combatComponent->ApplyDamage(damageAmount, eventInstigator);
 }
 
 void AWhos_DrivingCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -64,8 +85,8 @@ void AWhos_DrivingCharacter::SetupPlayerInputComponent(UInputComponent* PlayerIn
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AWhos_DrivingCharacter::MoveInput);
 
 		// Looking/Aiming
-		//EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AWhos_DrivingCharacter::LookInput);
-		//EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AWhos_DrivingCharacter::LookInput);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AWhos_DrivingCharacter::LookInput);
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AWhos_DrivingCharacter::LookInput);
 	}
 	else
 	{
@@ -96,13 +117,37 @@ void AWhos_DrivingCharacter::LookInput(const FInputActionValue& Value)
 
 void AWhos_DrivingCharacter::DoAim(float Yaw, float Pitch)
 {
-	AddActorLocalRotation(FRotator(0.0f, Yaw * CameraSensitivity, 0.0f));
+	if (Cast<AGPlayerCar>(GetAttachParentActor()))
+	{
+		vehicleCameraYaw = FRotator::NormalizeAxis(vehicleCameraYaw + Yaw * CameraSensitivity);
+		CameraPitch = FMath::Clamp(CameraPitch + Pitch * CameraSensitivity, -MaxPitch, MaxPitch);
+		CameraRoot->SetRelativeRotation(FRotator(CameraPitch, vehicleCameraYaw, 0.0f));
+		return;
+	}
+	const FRotator actorRotation = GetActorRotation();
+	const FRotator viewRotation(0.0f, actorRotation.Yaw + Yaw * CameraSensitivity, 0.0f);
+	if (Controller)
+	{
+		Controller->SetControlRotation(viewRotation);
+	}
+	SetActorRotation(viewRotation);
 	CameraPitch = FMath::Clamp(CameraPitch + Pitch * CameraSensitivity, -MaxPitch, MaxPitch);
 	CameraRoot->SetRelativeRotation(FRotator(CameraPitch, 0.0f, 0.0f));
 }
 
+void AWhos_DrivingCharacter::ResetVehicleLook()
+{
+	vehicleCameraYaw = 0.0f;
+	CameraPitch = 0.0f;
+	CameraRoot->SetRelativeRotation(FRotator::ZeroRotator);
+}
+
 void AWhos_DrivingCharacter::DoMove(float Right, float Forward)
 {
+	if (Cast<AGPlayerCar>(GetAttachParentActor()))
+	{
+		return;
+	}
 	if (GetController())
 	{
 		// pass the move inputs
@@ -113,8 +158,10 @@ void AWhos_DrivingCharacter::DoMove(float Right, float Forward)
 
 void AWhos_DrivingCharacter::DoJumpStart()
 {
-	// pass Jump to the character
-	Jump();
+	if (!Cast<AGPlayerCar>(GetAttachParentActor()))
+	{
+		Jump();
+	}
 }
 
 void AWhos_DrivingCharacter::DoJumpEnd()

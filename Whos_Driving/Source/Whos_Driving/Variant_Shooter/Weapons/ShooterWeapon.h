@@ -47,6 +47,7 @@ protected:
 	int32 MagazineSize = 10;
 
 	/** Number of bullets in the current magazine */
+	UPROPERTY(Replicated)
 	int32 CurrentBullets = 0;
 	
 	/** Animation montage to play when firing this weapon */
@@ -113,6 +114,7 @@ public:
 
 	/** Constructor */
 	AShooterWeapon();
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 
 protected:
 	
@@ -173,8 +175,10 @@ public:
 	const TSubclassOf<UAnimInstance>& GetThirdPersonAnimInstanceClass() const;
 
 	/** Returns the magazine size */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
 	int32 GetMagazineSize() const { return MagazineSize; };
 
 	/** Returns the current bullet count */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
 	int32 GetBulletCount() const { return CurrentBullets; }
 };

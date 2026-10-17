@@ -2,10 +2,12 @@
 
 
 #include "GVehicleModule.h"
+#include "GameFramework/Actor.h"
 
 void UGVehicleModule::ApplyDamage(float damage)
 {
-	if (bDestroyed || damage <= 0.0f)
+	const AActor* ownerActor = GetTypedOuter<AActor>();
+	if ((ownerActor && !ownerActor->HasAuthority()) || bDestroyed || !FMath::IsFinite(damage) || damage <= 0.0f)
 	{
 		return;
 	}

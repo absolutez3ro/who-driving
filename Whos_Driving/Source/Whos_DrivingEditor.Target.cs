@@ -11,5 +11,6 @@ public class Whos_DrivingEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		ExtraModuleNames.Add("Whos_Driving");
+		ExtraModuleNames.Add("WhosDrivingCombatEditor");
 	}
 }
