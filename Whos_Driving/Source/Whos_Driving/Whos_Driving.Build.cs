@@ -20,8 +20,10 @@ public class Whos_Driving : ModuleRules
 			"UMG",
             "GameplayTasks",
             "Slate",
-			"AnimGraphRuntime"
-		});
+			"AnimGraphRuntime",
+			"OnlineSubsystem",
+			"OnlineSubsystemUtils"
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
