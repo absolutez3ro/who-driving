@@ -28,11 +28,13 @@ void UGVehicleModuleComponent::DamageModule(FName moduleId, float damage)
 	{
 		return;
 	}
+
 	UGVehicleModule* module = FindModule(moduleId);
 	if (!module)
 	{
 		return;
 	}
+
 	module->ApplyDamage(damage);
 }
 
@@ -49,6 +51,18 @@ void UGVehicleModuleComponent::RegisterModule(UGVehicleModule* module)
 	}
 
 	modules.Add(module);
+}
+
+void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState)
+{
+	UGVehicleModule* module = FindModule(moduleId);
+
+	if (!module)
+	{
+		return;
+	}
+
+	module->ApplyReplicatedState(maxHp, currentHp, moduleState);
 }
 
 const TArray<TObjectPtr<UGVehicleModule>>& UGVehicleModuleComponent::GetModules() const

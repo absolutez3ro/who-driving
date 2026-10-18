@@ -36,13 +36,13 @@ void UGVehicleMovementComponent::DisableWheel(int32 wheelIndex)
 
 	SetAffectedByEngine(wheelIndex, false);
 	SetAffectedByBrake(wheelIndex, false);
-	SetAffectedBySteering(wheelIndex, false);
-	SetAffectedByHandbrake(wheelIndex, false);
+	SetAffectedBySteering(wheelIndex, true);
 
-	SetWheelFrictionMultiplier(wheelIndex, 0.0f);
+	SetWheelFrictionMultiplier(wheelIndex, BrokenWheelFrictionMultiplier);
 	SetWheelMaxBrakeTorque(wheelIndex, 0.0f);
-	SetWheelMaxSteerAngle(wheelIndex, 0.0f);
 	SetWheelHandbrakeTorque(wheelIndex, 0.0f);
+
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, TEXT("Wheel disabled"), true);
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()

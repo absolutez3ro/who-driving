@@ -27,6 +27,13 @@ void UGVehicleModule::ApplyDamage(float damage)
 	}
 }
 
+void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
+{
+	maxHP = inMaxHP;
+	currentHP = inCurrentHp;
+	SetState(state);
+}	
+
 void UGVehicleModule::SetState(EGModuleState newState)
 {
 	if (moduleState == newState)

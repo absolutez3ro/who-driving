@@ -24,6 +24,13 @@ class WHOS_DRIVING_API UGVehicleModule : public UObject
 	GENERATED_BODY()
 	
 public:
+	void ApplyDamage(float damage);
+	bool IsDestroyed() const;
+	bool CanRepair() const;
+	bool IsFull() const;
+	virtual void ApplyReplicatedState(float inMaxHp, float inCurrentHp, EGModuleState state);
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	FName moduleId = NAME_None;
 
@@ -39,13 +46,9 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Module")
 	EGModuleState moduleState = EGModuleState::Full;
 
-	void ApplyDamage(float damage);
-	bool IsDestroyed() const;
-	bool CanRepair() const;
-	bool IsFull() const;
-
 protected:
 	virtual void OnStateChanged(EGModuleState previousState, EGModuleState newState);
 	void SetState(EGModuleState newState);
 	virtual void OnDestroyed();
+	
 };

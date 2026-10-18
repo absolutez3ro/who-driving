@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GVehicleModule.h"
 #include "GVehicleModuleComponent.generated.h"
-
-class UGVehicleModule;
 
 
 UCLASS( ClassGroup=(Vehicle), meta=(BlueprintSpawnableComponent) )
@@ -20,7 +19,8 @@ public:
 
 	UGVehicleModule* FindModule(FName moduleId) const;
 	void RegisterModule(UGVehicleModule* module);
-
+	void ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState);
+public:
 	const TArray<TObjectPtr<UGVehicleModule>>& GetModules() const;
 
 protected:
