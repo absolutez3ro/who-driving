@@ -18,11 +18,13 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Net/UnrealNetwork.h"
+#include "GVehicleModuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
 {
+	moduleComponent = CreateDefaultSubobject<UGVehicleModuleComponent>(TEXT("VehicleModules"));
 	driverSeat = CreateDefaultSubobject<USceneComponent>(TEXT("Driver seat"));
 	driverSeat->SetupAttachment(GetRootComponent());
 
@@ -44,17 +46,26 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	}
 
 	wheelModules.SetNum(4);
-	wheelDamageStates.SetNum(4);
 	appliedDestroyedWheels.Init(false, 4);
 
 	for (int32 i = 0; i < 4; ++i)
 	{
-		FName wheelName = FName(FString::FromInt(i));
-		UGVehicleWheelModule* wheelModule = objectInitializer.CreateDefaultSubobject<UGVehicleWheelModule>(this, wheelName);
+		const FName subobjectName(*FString::Printf(TEXT("WheelModule_%d"), i));
+
+		UGVehicleWheelModule* wheelModule = objectInitializer.CreateDefaultSubobject<UGVehicleWheelModule>(this, subobjectName);
+
 		wheelModule->wheelIndex = i;
+		wheelModule->moduleId = FName(*FString::Printf(TEXT("Wheel_%d"), i));
 		wheelModule->maxHP = 50.0f;
 		wheelModule->currentHP = wheelModule->maxHP;
+
 		wheelModules[i] = wheelModule;
+
+		if (moduleComponent)
+		{
+			moduleComponent->RegisterModule(wheelModule);
+		}
+
 		UBoxComponent* hitBox = CreateDefaultSubobject<UBoxComponent>(FName(*FString::Printf(TEXT("CombatWheel%d"), i)));
 		hitBox->SetupAttachment(GetMesh());
 		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
@@ -62,6 +73,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
+
 		wheelHitBoxes.Add(hitBox);
 	}
 }
@@ -70,17 +82,26 @@ void AGPlayerCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AGPlayerCar, health);
-	DOREPLIFETIME(AGPlayerCar, wheelDamageStates);
+	DOREPLIFETIME(AGPlayerCar, moduleStates);
 }
 
-FGVehicleWheelDamageState AGPlayerCar::GetWheelDamageState(int32 wheelIndex) const
+FGVehicleModuleState AGPlayerCar::GetWheelDamageState(int32 wheelIndex) const
 {
-	if (!wheelDamageStates.IsValidIndex(wheelIndex))
+	if (wheelIndex < 0 || wheelIndex > 4)
 	{
-		return FGVehicleWheelDamageState();
+		return FGVehicleModuleState();
 	}
 
-	return wheelDamageStates[wheelIndex];
+	const FName targetId(*FString::Printf(TEXT("Wheel_%d"), wheelIndex));
+	for (const FGVehicleModuleState& state : moduleStates)
+	{
+		if (state.moduleId == targetId)
+		{
+			return state;
+		}
+	}
+
+	return FGVehicleModuleState();
 }
 
 void AGPlayerCar::DamageWheel(int32 wheelIndex, float damage)
@@ -91,81 +112,95 @@ void AGPlayerCar::DamageWheel(int32 wheelIndex, float damage)
 		return;
 	}
 
-	UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-	if (wheelModule->IsDestroyed())
-	{
-		return;
-	}
-
-	wheelModule->ApplyDamage(damage);
-	PublishWheelDamageStates();
+	const FName moduleId(*FString::Printf(TEXT("Wheel_%d"), wheelIndex));
+	moduleComponent->DamageModule(moduleId, damage);
+	PublishModuleStates();
 }
 
 void AGPlayerCar::OnWheelDestroyed(int32 wheelIndex)
 {
 	if (HasAuthority() && wheelModules.IsValidIndex(wheelIndex))
 	{
-		PublishWheelDamageStates();
+		PublishModuleStates();
 	}
 }
 
-void AGPlayerCar::PublishWheelDamageStates()
+void AGPlayerCar::PublishModuleStates()
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	wheelDamageStates.SetNum(wheelModules.Num());
-	for (int32 wheelIndex = 0; wheelIndex < wheelModules.Num(); ++wheelIndex)
+	moduleStates.Reset();
+	for (const auto& module : moduleComponent->GetModules())
 	{
-		const UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-		if (!wheelModule)
+		if (!module)
 		{
 			continue;
 		}
 
-		FGVehicleWheelDamageState& damageState = wheelDamageStates[wheelIndex];
-		damageState.maxHP = wheelModule->maxHP;
-		damageState.currentHP = wheelModule->currentHP;
-		damageState.bDestroyed = wheelModule->bDestroyed;
+		FGVehicleModuleState state;
+		state.moduleId = module->moduleId;
+		state.maxHP = module->maxHP;
+		state.currentHP = module->currentHP;
+		state.moduleState = module->moduleState;
+
+		moduleStates.Add(state);
 	}
 
-	ApplyWheelDamageStates();
+	ApplyModuleStates();
 	ForceNetUpdate();
 }
 
-void AGPlayerCar::OnRep_WheelDamageStates()
+void AGPlayerCar::OnRep_ModuleStates()
 {
-	ApplyWheelDamageStates();
+	ApplyModuleStates();
 }
 
-void AGPlayerCar::ApplyWheelDamageStates()
+void AGPlayerCar::ApplyModuleStates()
 {
-	if (appliedDestroyedWheels.Num() != wheelDamageStates.Num())
+	if (appliedDestroyedWheels.Num() != 4)
 	{
-		appliedDestroyedWheels.Init(false, wheelDamageStates.Num());
+		appliedDestroyedWheels.Init(false, 4);
 	}
 
 	UGVehicleMovementComponent* vehicleMovement = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
-	for (int32 wheelIndex = 0; wheelIndex < wheelDamageStates.Num(); ++wheelIndex)
+	for (const auto& state : moduleStates)
 	{
-		const FGVehicleWheelDamageState& damageState = wheelDamageStates[wheelIndex];
-		if (!HasAuthority() && wheelModules.IsValidIndex(wheelIndex) && wheelModules[wheelIndex])
+		int32 wheelIndex = INDEX_NONE;
+		for (int32 i = 0; i < 4; ++i)
 		{
-			UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-			wheelModule->maxHP = damageState.maxHP;
-			wheelModule->currentHP = damageState.currentHP;
-			wheelModule->bDestroyed = damageState.bDestroyed;
+			const FName wheelId(*FString::Printf(TEXT("Wheel_%d"), i));
+			if (state.moduleId == wheelId)
+			{
+				wheelIndex = i;
+				break;
+			}
 		}
 
-		ApplyWheelVisual(wheelIndex, damageState.bDestroyed);
-		if (damageState.bDestroyed && !appliedDestroyedWheels[wheelIndex] && vehicleMovement
-			&& vehicleMovement->Wheels.IsValidIndex(wheelIndex))
+		if (wheelIndex == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const bool bDestroyed = state.moduleState == EGModuleState::Destroyed;
+		if (!bDestroyed)
+		{
+			continue;
+		}
+
+		if (appliedDestroyedWheels[wheelIndex])
+		{
+			continue;
+		}
+
+		if (vehicleMovement && vehicleMovement->Wheels.IsValidIndex(wheelIndex))
 		{
 			vehicleMovement->DisableWheel(wheelIndex);
-			appliedDestroyedWheels[wheelIndex] = true;
 		}
+
+		appliedDestroyedWheels[wheelIndex] = true;
 	}
 }
 
@@ -203,15 +238,14 @@ void AGPlayerCar::BeginPlay()
 
 	if (HasAuthority())
 	{
-		PublishWheelDamageStates();
+		PublishModuleStates();
 	}
 	else
 	{
-		ApplyWheelDamageStates();
+		ApplyModuleStates();
 	}
 
 	SpawnDriver();
-
 	UpdatePlayerController();
 
 	if (HasAuthority() && bApplyStartupWheelDamage)
