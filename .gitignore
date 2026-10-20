@@ -62,3 +62,14 @@ Whos_Driving/Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 Whos_Driving/DerivedDataCache/*
+
+# Generated Visual Studio solutions
+*.slnx
+
+# Python bytecode
+__pycache__/
+
+*.py[cod]
+
+# Local Editor preferences
+Whos_Driving/Config/DefaultEditorPerProjectUserSettings.ini
