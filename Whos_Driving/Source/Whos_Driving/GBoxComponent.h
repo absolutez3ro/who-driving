@@ -15,6 +15,6 @@ class WHOS_DRIVING_API UGBoxComponent : public UBoxComponent
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(VisibleAnywhere, Category = "Vehicle|Damage")
+	UPROPERTY(Transient)
 	FName moduleId = NAME_None;
 };
