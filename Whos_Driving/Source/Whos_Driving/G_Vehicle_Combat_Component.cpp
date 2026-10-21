@@ -307,11 +307,15 @@ bool UGVehicleCombatComponent::CanFire() const
 	if (!IsPlayerValid() || !weapon || !weapon->GetDefinition() || !weapon->IsEquipped() || weapon->IsReloading() ||
 		weapon->GetBulletCount() <= 0 || GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("cant fire IsPlayerValid %d weapon %d weapon->GetDefinition() %d weapon->IsEquipped() %d weapon->IsReloading() %d weapon->GetBulletCount() %d GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime %d"),
+		//	IsPlayerValid(), weapon, weapon->GetDefinition(), weapon->IsEquipped(), weapon->IsReloading(), weapon->GetBulletCount(), GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime);
 		return false;
 	}
 	const bool bOutside = windowState.bOutside && GetWindowAlpha() >= 0.99f;
 	const bool bDriverInside = GetSeatIndex() == 0 && !windowState.bOutside && GetWindowAlpha() <= 0.01f &&
 							   selectedSlot == EGWeaponSlot::Secondary;
+	UE_LOG(LogTemp, Log, TEXT("can fire bOutside %d bDriverInside %d"), bOutside, bDriverInside);
+
 	return bOutside || bDriverInside;
 }
 
@@ -340,6 +344,7 @@ bool UGVehicleCombatComponent::SetTrigger(bool bPressed, const FVector& directio
 {
 	if (!IsAuthority())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("No authority to UGVehicleCombatComponent::SetTrigger"));
 		return false;
 	}
 	if (!bPressed)
@@ -352,15 +357,21 @@ bool UGVehicleCombatComponent::SetTrigger(bool bPressed, const FVector& directio
 	UpdateView(direction);
 	if (direction.ContainsNaN() || !direction.IsNormalized() || FMath::Abs(direction.Z) > 0.99f)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("shoot direction error direction.ContainsNaN() %d direction.IsNormalized() %d FMath::Abs(direction.Z)>0.99f %d"),
+			direction.ContainsNaN(), direction.IsNormalized(), FMath::Abs(direction.Z) > 0.99f);
 		return false;
 	}
 	if (bTriggerHeld || !CanFire())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("trigger isn't pressed or can't fire bTriggerHeld %d CanFire() %d"),
+			bTriggerHeld, CanFire());
 		return false;
 	}
 	AGVehicleWeapon* weapon = GetCurrentWeapon();
 	if (GetServerTime() + 0.002f < weapon->GetNextShotTime())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("server time bs while shooting GetServerTime() + 0.002f < weapon->GetNextShotTime() %d"),
+			GetServerTime() + 0.002f < weapon->GetNextShotTime());
 		return false;
 	}
 	bTriggerHeld = true;
@@ -374,6 +385,7 @@ void UGVehicleCombatComponent::TryFire()
 {
 	if (!IsAuthority() || !bTriggerHeld || !CanFire() || GetServerTime() - lastViewUpdate > 0.5f)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("try fire error"));
 		bTriggerHeld = false;
 		return;
 	}
