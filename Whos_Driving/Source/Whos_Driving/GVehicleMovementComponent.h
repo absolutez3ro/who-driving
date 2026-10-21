@@ -36,5 +36,5 @@ protected:
 	void OnRep_WindowDrivingLock();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
-	float BrokenWheelFrictionMultiplier = 0.25f;
+	float BrokenWheelFrictionMultiplier = 0.1f;
 };

@@ -19,6 +19,7 @@
 #include "Engine/StaticMesh.h"
 #include "Net/UnrealNetwork.h"
 #include "GVehicleModuleComponent.h"
+#include "GBoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -63,8 +64,10 @@ void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
 
 		UGVehicleWheelModule* wheelModule = objectInitializer.CreateDefaultSubobject<UGVehicleWheelModule>(this, subobjectName);
 
+		const FName moduleId = FName(*FString::Printf(TEXT("Wheel_%d"), i));
+
 		wheelModule->wheelIndex = i;
-		wheelModule->moduleId = FName(*FString::Printf(TEXT("Wheel_%d"), i));
+		wheelModule->moduleId = moduleId;
 		wheelModule->maxHP = 50.0f;
 		wheelModule->currentHP = wheelModule->maxHP;
 
@@ -75,10 +78,11 @@ void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
 			moduleComponent->RegisterModule(wheelModule);
 		}
 
-		UBoxComponent* hitBox = CreateDefaultSubobject<UBoxComponent>(FName(*FString::Printf(TEXT("CombatWheel%d"), i)));
+		UGBoxComponent* hitBox = CreateDefaultSubobject<UGBoxComponent>(FName(*FString::Printf(TEXT("CombatWheel%d"), i)));
+		hitBox->moduleId = moduleId;
 		hitBox->SetupAttachment(GetMesh());
 		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
-		hitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
@@ -233,22 +237,22 @@ UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 void AGPlayerCar::OnConstruction(const FTransform& transform)
 {
 	Super::OnConstruction(transform);
-	UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
-	for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
-	{
-		UBoxComponent* hitBox = wheelHitBoxes[index];
-		const bool bValidWheel = movement->WheelSetups.IsValidIndex(index) && GetMesh()->GetBoneIndex(movement->WheelSetups[index].BoneName) != INDEX_NONE;
-		hitBox->SetCollisionEnabled(bValidWheel ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-		if (bValidWheel)
-		{
-			const FChaosWheelSetup& setup = movement->WheelSetups[index];
-			hitBox->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, setup.BoneName);
-			if (const UChaosVehicleWheel* wheel = setup.WheelClass ? setup.WheelClass->GetDefaultObject<UChaosVehicleWheel>() : nullptr)
-			{
-				hitBox->SetBoxExtent(FVector(wheel->WheelRadius, wheel->WheelWidth * 0.5f, wheel->WheelRadius));
-			}
-		}
-	}
+	//UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	//for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
+	//{
+	//	UBoxComponent* hitBox = wheelHitBoxes[index];
+	//	const bool bValidWheel = movement->WheelSetups.IsValidIndex(index) && GetMesh()->GetBoneIndex(movement->WheelSetups[index].BoneName) != INDEX_NONE;
+	//	hitBox->SetCollisionEnabled(bValidWheel ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	//	if (bValidWheel)
+	//	{
+	//		const FChaosWheelSetup& setup = movement->WheelSetups[index];
+	//		hitBox->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, setup.BoneName);
+	//		if (const UChaosVehicleWheel* wheel = setup.WheelClass ? setup.WheelClass->GetDefaultObject<UChaosVehicleWheel>() : nullptr)
+	//		{
+	//			hitBox->SetBoxExtent(FVector(wheel->WheelRadius, wheel->WheelWidth * 0.5f, wheel->WheelRadius));
+	//		}
+	//	}
+	//}
 	GetMesh()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
 	TInlineComponentArray<USkeletalMeshComponent*> parts;
 	GetComponents(parts);
@@ -385,13 +389,10 @@ float AGPlayerCar::TakeDamage(float damageAmount, const FDamageEvent& damageEven
 	if (damageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const FPointDamageEvent& pointDamage = static_cast<const FPointDamageEvent&>(damageEvent);
-		for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
+		const UGBoxComponent* damageHitbox = Cast<UGBoxComponent>(pointDamage.HitInfo.GetComponent());
+		if (damageHitbox && !damageHitbox->moduleId.IsNone())
 		{
-			if (pointDamage.HitInfo.GetComponent() == wheelHitBoxes[index]) 
-			{ 
-				const FName moduleId(*FString::Printf(TEXT("Wheel_%d"), index));
-				DamageModule(moduleId, applied); break; 
-			}
+			DamageModule(damageHitbox->moduleId, applied);
 		}
 	}
 	RecalculateCarHealth();

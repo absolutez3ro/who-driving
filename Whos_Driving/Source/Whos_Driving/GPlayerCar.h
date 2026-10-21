@@ -16,6 +16,7 @@ class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
 class UBoxComponent;
 class UGVehicleModuleComponent;
+class UGBoxComponent;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -144,7 +145,7 @@ protected:
 	TObjectPtr<UGVehicleModuleComponent> moduleComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "Vehicle|Damage")
-	TArray<TObjectPtr<UBoxComponent>> wheelHitBoxes;
+	TArray<TObjectPtr<UGBoxComponent>> wheelHitBoxes;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleWheelVisual> wheelVisuals;
