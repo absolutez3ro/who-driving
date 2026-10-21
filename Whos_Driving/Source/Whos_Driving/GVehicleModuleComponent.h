@@ -20,11 +20,12 @@ public:
 	UGVehicleModule* FindModule(FName moduleId) const;
 	void RegisterModule(UGVehicleModule* module);
 	void ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState);
+	void RebuildModuleRegistry(AActor* ownerActor);
 public:
 	const TArray<TObjectPtr<UGVehicleModule>>& GetModules() const;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Instanced, Category = "Vehicle|Modules")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Modules")
 	TArray<TObjectPtr<UGVehicleModule>> modules;
 		
 };

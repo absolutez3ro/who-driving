@@ -20,6 +20,7 @@
 #include "Net/UnrealNetwork.h"
 #include "GVehicleModuleComponent.h"
 #include "GBoxComponent.h"
+#include "GVehicleDoorModule.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -33,6 +34,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	SetReplicateMovement(true);
 	InitSeats();
 	InitWheels(objectInitializer);
+	InitDoors(objectInitializer);
 	RecalculateCarHealth();
 }
 
@@ -88,6 +90,23 @@ void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
 		hitBox->SetGenerateOverlapEvents(false);
 
 		wheelHitBoxes.Add(hitBox);
+	}
+}
+
+void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
+{
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const FName subobjectName(*FString::Printf(TEXT("DoorModule_%d"), i));
+		UGVehicleDoorModule* doorModule = objectInitializer.CreateDefaultSubobject<UGVehicleDoorModule>(this, subobjectName);
+
+		const FName moduleId(*FString::Printf(TEXT("part_door_%d"), i));
+
+		doorModule->doorId = i;
+		doorModule->moduleId = moduleId;
+		doorModule->maxHP = 50.0f;
+		doorModule->currentHP = doorModule->maxHP;
+		moduleComponent->RegisterModule(doorModule);
 	}
 }
 
@@ -204,6 +223,8 @@ void AGPlayerCar::BeginPlay()
 {
 	Super::BeginPlay();
 
+	moduleComponent->RebuildModuleRegistry(this);
+
 	if (HasAuthority())
 	{
 		PublishModuleStates();
@@ -218,7 +239,7 @@ void AGPlayerCar::BeginPlay()
 
 	for (auto& module : moduleComponent->GetModules())
 	{
-		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
 }

@@ -116,6 +116,7 @@ protected:
 
 	void InitSeats();
 	void InitWheels(const FObjectInitializer& objectInitializer);
+	void InitDoors(const FObjectInitializer& objectInitializer);
 	void RecalculateCarHealth();
 
 protected:

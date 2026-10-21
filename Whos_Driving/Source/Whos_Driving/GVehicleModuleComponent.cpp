@@ -65,6 +65,30 @@ void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId,
 	module->ApplyReplicatedState(maxHp, currentHp, moduleState);
 }
 
+void UGVehicleModuleComponent::RebuildModuleRegistry(AActor* ownerActor)
+{
+	if (!ownerActor)
+	{
+		return;
+	}
+
+	modules.Reset();
+
+	TArray<UObject*> subobjects;
+	GetObjectsWithOuter(ownerActor, subobjects, false);
+
+	for (UObject* object : subobjects)
+	{
+		UGVehicleModule* module =
+			Cast<UGVehicleModule>(object);
+
+		if (module)
+		{
+			RegisterModule(module);
+		}
+	}
+}
+
 const TArray<TObjectPtr<UGVehicleModule>>& UGVehicleModuleComponent::GetModules() const
 {
 	return modules;
