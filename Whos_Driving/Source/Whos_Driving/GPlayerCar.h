@@ -77,6 +77,8 @@ public:
 
 	void OnConstruction(const FTransform& transform) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
+	UFUNCTION(Server, Reliable)
+	void SpawnDriver(APlayerController* PlayerController);
 
 protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
@@ -86,7 +88,6 @@ protected:
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	void BeginPlay() override;
 	void UnPossessed() override;
-	void SpawnDriver();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
 	TObjectPtr<UGVehicleSeatingComponent> seatingComponent;
@@ -118,7 +119,6 @@ protected:
 	void InputBrakeReleased(const FInputActionValue& value);
 
 	void PossessedBy(AController* NewController) override;
-	void UpdatePlayerController();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> throttleAction;

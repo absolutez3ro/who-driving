@@ -59,10 +59,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	int32 GetCharacterSeat(AWhos_DrivingCharacter* character) const;
 
+	
 	bool RequestSeat(AGPlayerController* controller, int32 seatIndex, const FVector& viewOrigin, const FVector& viewDirection);
 	bool RequestExit(AGPlayerController* controller);
 	bool CancelTransition(AGPlayerController* controller);
-	bool InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character);
+	bool InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex);
 	bool InitializeOccupant(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex);
 	void RemovePlayer(AGPlayerController* controller, bool bDestroyCharacter);
 

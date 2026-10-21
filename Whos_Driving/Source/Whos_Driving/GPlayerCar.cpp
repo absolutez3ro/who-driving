@@ -209,11 +209,6 @@ void AGPlayerCar::BeginPlay()
 	{
 		ApplyWheelDamageStates();
 	}
-
-	SpawnDriver();
-
-	UpdatePlayerController();
-
 	if (HasAuthority() && bApplyStartupWheelDamage)
 	{
 		DamageWheel(0, 100.0f);
@@ -263,17 +258,30 @@ void AGPlayerCar::OnConstruction(const FTransform& transform)
 	}
 }
 
-void AGPlayerCar::SpawnDriver()
+void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController)
 {
-	AGPlayerController* controller = Cast<AGPlayerController>(GetController());
-	if (!HasAuthority() || !controller || !driverCharacterClass || !seatingComponent
-		|| seatingComponent->GetSeatState(0).occupant)
+	UE_LOG(LogTemp, Display, TEXT("spawning Driver"));
+	bool seatTaken = IsValid(seatingComponent->GetSeatState(0).occupant);
+	AGPlayerController* controller = Cast<AGPlayerController>(PlayerController);
+	if (!controller || !driverCharacterClass || !seatingComponent)
 	{
+		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER controller %d char class %d seat component %d "), (!controller), (!driverCharacterClass), (!seatingComponent));
 		return;
 	}
-	UGVehicleSeatComponent* seat = seatingComponent->GetSeatComponent(0);
+	int32 seatID = 0;
+	if (seatTaken) {
+		UE_LOG(LogTemp, Display, TEXT("seat taken"));
+		seatID = 1;
+	}
+	else 
+	{
+		UE_LOG(LogTemp, Display, TEXT("seat free"));
+	}
+	UE_LOG(LogTemp, Display, TEXT("taking seat number %d"), seatID);
+	UGVehicleSeatComponent* seat = seatingComponent->GetSeatComponent(seatID);
 	if (!seat)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("seat invalid during driver spawn"));
 		return;
 	}
 	FActorSpawnParameters parameters;
@@ -284,8 +292,16 @@ void AGPlayerCar::SpawnDriver()
 	driverCharacter = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(driverCharacterClass, transform, parameters);
 	if (driverCharacter)
 	{
+		if (seatID == 0) 
+		{
+			//somehow make him drive
+		}
 		driverCharacter->SetReplicates(true);
-		seatingComponent->InitializeDriver(controller, driverCharacter);
+		seatingComponent->InitializeDriver(controller, driverCharacter, seatID);
+	}
+	else {
+		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER"));
+
 	}
 }
 
@@ -294,10 +310,6 @@ void AGPlayerCar::PossessedBy(AController* newController)
 	Super::PossessedBy(newController);
 	GetVehicleMovementComponent()->SetBrakeInput(0.0f);
 	GetVehicleMovementComponent()->SetHandbrakeInput(false);
-	if (HasActorBegunPlay())
-	{
-		SpawnDriver();
-	}
 }
 
 void AGPlayerCar::UnPossessed()
@@ -309,10 +321,6 @@ void AGPlayerCar::UnPossessed()
 	}
 }
 
-void AGPlayerCar::UpdatePlayerController()
-{
-	// Seating owns controller and view transitions; keep the existing entry point for serialized Blueprints.
-}
 
 void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);

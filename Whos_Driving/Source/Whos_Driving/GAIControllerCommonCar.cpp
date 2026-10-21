@@ -43,7 +43,6 @@ void AGAIControllerCommonCar::Chase(AActor* carReference, float deltaSeconds)
 
         float deltaX = playerXCoordinate - selfXCoordinate;
         CalculateAcceleration(deltaX, deltaSeconds);
-        UE_LOG(LogTemp, Warning,TEXT("deltaX: %f | acceleration: %f"),deltaX, acceleration);
         ApplyAcceleration();
     }
     else

@@ -165,6 +165,9 @@ bool UGVehicleSeatingComponent::IsSeatTargetValid(AGPlayerController* controller
 	return !bObstructed;
 }
 
+
+
+
 bool UGVehicleSeatingComponent::RequestSeat(AGPlayerController* controller, int32 seatIndex,
 	const FVector& viewOrigin, const FVector& viewDirection)
 {
@@ -243,9 +246,9 @@ void UGVehicleSeatingComponent::CompleteTransition(int32 seatIndex)
 	PublishSeatStates();
 }
 
-bool UGVehicleSeatingComponent::InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character)
+bool UGVehicleSeatingComponent::InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex)
 {
-	return InitializeOccupant(controller, character, 0);
+	return InitializeOccupant(controller, character, seatIndex);
 }
 
 bool UGVehicleSeatingComponent::InitializeOccupant(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex)
@@ -253,12 +256,15 @@ bool UGVehicleSeatingComponent::InitializeOccupant(AGPlayerController* controlle
 	if (!IsAuthority() || !IsValid(controller) || !IsValid(character) || !seatStates.IsValidIndex(seatIndex)
 		|| !GetSeatComponent(seatIndex) || seatStates[seatIndex].occupant || seatStates[seatIndex].reservedBy)
 	{
+		UE_LOG(LogTemp, Error, TEXT("occupant init problem: authority=%d validCharacter=%d validIndex=%d validSeatComponent=%d SeatOccupied=%d SeatReserved=%d Seatindex=%d"),
+			IsAuthority(), IsValid(character), seatStates.IsValidIndex(seatIndex), IsValid(GetSeatComponent(seatIndex)), IsValid(seatStates[seatIndex].occupant), IsValid(seatStates[seatIndex].reservedBy), seatIndex) ;
 		return false;
 	}
 	seatStates[seatIndex].occupant = character;
 	seatStates[seatIndex].playerState = controller->GetPlayerState<APlayerState>();
 	occupantControllers[seatIndex] = controller;
 	ApplySeatStates();
+	UE_LOG(LogTemp, Log, TEXT("POSESSING"));
 	controller->Possess(seatIndex == 0 ? static_cast<APawn*>(GetVehicle()) : character);
 	controller->SetVehicleContext(GetVehicle(), character);
 	PublishSeatStates();

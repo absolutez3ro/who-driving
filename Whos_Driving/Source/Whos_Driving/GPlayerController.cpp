@@ -98,6 +98,7 @@ void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
 		driverCharacter = newDriver;
 		ForceNetUpdate();
 	}
+
 	RefreshVehicleView();
 }
 
@@ -105,6 +106,7 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 {
 	if (!HasAuthority())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("don't have authority to AGPlayerController::SetVehicleContext"));
 		return;
 	}
 	seatedVehicle = vehicle;
@@ -113,7 +115,11 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 	{
 		character->SetOwner(this);
 		character->ForceNetUpdate();
+	}else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("character invalid in AGPlayerController::SetVehicleContext"));
 	}
+
 	ForceNetUpdate();
 	RefreshVehicleView();
 }

@@ -26,7 +26,7 @@ public:
 
 	// Character root relative to the interaction box; camera and sitting pose can be tuned independently.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Seat")
-	FTransform characterOffset = FTransform(FVector(0.0f, 0.0f, 20.0f));
+	FTransform characterOffset = FTransform(FVector(0.0f, 0.0f, 50.0f));
 
 	// Exit point in vehicle mesh space, outside the matching side of the chassis.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Seat")
