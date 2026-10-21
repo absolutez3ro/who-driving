@@ -89,7 +89,7 @@ void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
 		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
 
-		wheelHitBoxes.Add(hitBox);
+		moduleHitBoxes.Add(hitBox);
 	}
 }
 
@@ -107,6 +107,17 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 		doorModule->maxHP = 50.0f;
 		doorModule->currentHP = doorModule->maxHP;
 		moduleComponent->RegisterModule(doorModule);
+
+		UGBoxComponent* hitBox = CreateDefaultSubobject<UGBoxComponent>(FName(*FString::Printf(TEXT("CombatDoor%d"), i)));
+		hitBox->moduleId = moduleId;
+		hitBox->SetupAttachment(GetMesh());
+		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
+		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+		hitBox->SetGenerateOverlapEvents(false);
+
+		moduleHitBoxes.Add(hitBox);
 	}
 }
 

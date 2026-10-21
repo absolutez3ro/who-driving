@@ -146,7 +146,7 @@ protected:
 	TObjectPtr<UGVehicleModuleComponent> moduleComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "Vehicle|Damage")
-	TArray<TObjectPtr<UGBoxComponent>> wheelHitBoxes;
+	TArray<TObjectPtr<UGBoxComponent>> moduleHitBoxes;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleWheelVisual> wheelVisuals;
