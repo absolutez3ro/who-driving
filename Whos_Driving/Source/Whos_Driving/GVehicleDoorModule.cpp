@@ -29,6 +29,13 @@ void UGVehicleDoorModule::OnDestroyed()
 
 	if (doorMesh)
 	{
+		//doorMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		//doorMesh->AddWorldOffset(FVector(0.0f, 100.0f, 0.0f), false, nullptr, ETeleportType::TeleportPhysics);
+		//doorMesh->SetMobility(EComponentMobility::Movable);
+		//doorMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		//doorMesh->SetEnableGravity(true);
+		//doorMesh->SetSimulatePhysics(true);
+		//doorMesh->AddImpulse(FVector(0.0f, 100000.0f, 20000.0f), NAME_None, true);
 		doorMesh->SetVisibility(false, true);
 	}
 }
