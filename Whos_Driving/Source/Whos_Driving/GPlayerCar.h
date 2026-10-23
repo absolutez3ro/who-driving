@@ -117,6 +117,7 @@ protected:
 	void InitSeats();
 	void InitWheels(const FObjectInitializer& objectInitializer);
 	void InitDoors(const FObjectInitializer& objectInitializer);
+	void InitSteeringWheel(const FObjectInitializer& objectInitializer);
 	void RecalculateCarHealth();
 
 protected:
@@ -145,7 +146,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle")
 	TObjectPtr<UGVehicleModuleComponent> moduleComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "Vehicle|Damage")
+	UPROPERTY(EditAnywhere, Category = "Vehicle|Damage")
 	TArray<TObjectPtr<UGBoxComponent>> moduleHitBoxes;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")

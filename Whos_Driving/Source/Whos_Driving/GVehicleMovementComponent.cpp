@@ -45,12 +45,22 @@ void UGVehicleMovementComponent::DisableWheel(int32 wheelIndex)
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, TEXT("Wheel disabled"), true);
 }
 
+void UGVehicleMovementComponent::DisableSteeringWheel()
+{
+	for (int i = 0; i < 4; ++i)
+	{
+		SetWheelMaxSteerAngle(i, BrokenSteeringWheelAngle);
+	}
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("Steering whel is broken"), true);
+}
+
 void UGVehicleMovementComponent::StopDrivingInput()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
+
 	ClearAllInput();
 	bWindowDrivingLocked = false;
 	windowThrottle = 0.0f;

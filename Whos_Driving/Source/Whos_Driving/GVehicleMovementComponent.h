@@ -17,6 +17,7 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 public:
 	UGVehicleMovementComponent();
 	void DisableWheel(int32 wheelIndex);
+	void DisableSteeringWheel();
 	void StopDrivingInput();
 	void SetWindowDrivingLock(bool bLocked);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
@@ -37,4 +38,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float BrokenWheelFrictionMultiplier = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	float BrokenSteeringWheelAngle = 10.0f;
 };

@@ -21,6 +21,7 @@
 #include "GVehicleModuleComponent.h"
 #include "GBoxComponent.h"
 #include "GVehicleDoorModule.h"
+#include "GVehicleSteeringWheelModule.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -35,6 +36,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	InitSeats();
 	InitWheels(objectInitializer);
 	InitDoors(objectInitializer);
+	InitSteeringWheel(objectInitializer);
 	RecalculateCarHealth();
 }
 
@@ -119,6 +121,28 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 
 		moduleHitBoxes.Add(hitBox);
 	}
+}
+
+void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleSteeringWheelModule* steeringWheel = objectInitializer.CreateDefaultSubobject<UGVehicleSteeringWheelModule>(this, TEXT("SteeringWheel"));
+	const FName moduleId("Steering_Wheel");
+	steeringWheel->moduleId = moduleId;
+	steeringWheel->maxHP = 50.0f;
+	steeringWheel->currentHP = steeringWheel->maxHP;
+	moduleComponent->RegisterModule(steeringWheel);
+
+	TObjectPtr<UGBoxComponent> hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatSteeringWheel"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(20.0f, 20.0f, 25.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
+	hitBox->SetRelativeLocation(FVector(70.0f, -59.0f, 105.0f));
+
+	moduleHitBoxes.Add(hitBox);
 }
 
 void AGPlayerCar::RecalculateCarHealth()
