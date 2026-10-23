@@ -269,6 +269,8 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController
 	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("spawning Driver"));
 	bool seatTaken = IsValid(seatingComponent->GetSeatState(0).occupant);
 	AGPlayerController* controller = Cast<AGPlayerController>(PlayerController);
+	controller->bShowMouseCursor = false;
+	controller->Client_SetupLobbyInput();
 	if (!controller || !driverCharacterClass || !seatingComponent)
 	{
 		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER controller %d char class %d seat component %d "), (!controller), (!driverCharacterClass), (!seatingComponent));

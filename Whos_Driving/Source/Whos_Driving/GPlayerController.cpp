@@ -401,3 +401,12 @@ void AGPlayerController::ServerCombatView_Implementation(FVector_NetQuantizeNorm
 		combat->UpdateView(direction);
 	}
 }
+
+
+void AGPlayerController::Client_SetupLobbyInput_Implementation()
+{
+	//FInputModeGameAndUI InputMode;
+	FInputModeGameOnly InputMode;
+	this->bShowMouseCursor = false;
+	this->SetInputMode(InputMode);
+}

@@ -56,6 +56,8 @@ public:
 	void RequestFireMode();
 	void SendCombatView(const FVector& direction);
 
+	UFUNCTION(Client, Reliable)
+	void Client_SetupLobbyInput();
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
