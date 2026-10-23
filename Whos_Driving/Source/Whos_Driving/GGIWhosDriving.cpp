@@ -165,21 +165,21 @@ void UGGIWhosDriving::OnFindSessionsComplete(bool bWasSuccessful)
 }
 
 
-void UGGIWhosDriving::JoinSessionByIndex(int32 ind)
+bool UGGIWhosDriving::JoinSessionByIndex(int32 ind)
 {
     if (sessionsFound.IsValid()) {
         const auto& Results = sessionsFound->SearchResults;
 
         if (!Results.IsValidIndex(ind))
-            return;
+            return false;
 
         IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
         if (!OSS)
-            return;
+            return false;
 
         IOnlineSessionPtr sessionInterface = OSS->GetSessionInterface();
         if (!sessionInterface.IsValid())
-            return;
+            return false;
 
 
         joinSessionDelegateHandle = sessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
@@ -187,9 +187,12 @@ void UGGIWhosDriving::JoinSessionByIndex(int32 ind)
         if (!sessionInterface->JoinSession(0, NAME_GameSession, Results[ind]))
         {
             sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
+            return false;
             GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session could not be joined to!"));
         }
+        return true;
     }
+    return false;
 }
 void UGGIWhosDriving::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
@@ -222,6 +225,7 @@ void UGGIWhosDriving::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCom
     }
     else
     {
+        FOnJoiningFailed.Broadcast();
         GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT joined!"));
     }
 }

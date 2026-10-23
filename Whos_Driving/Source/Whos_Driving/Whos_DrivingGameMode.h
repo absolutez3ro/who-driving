@@ -17,13 +17,13 @@ class AWhos_DrivingGameMode : public AGameModeBase
 private:
 	TObjectPtr<AGPlayerCar> car;
 	void SpawnCar();
-
+	void SpawnPlayer(APlayerController* NewPlayer);
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Car")
 	TSubclassOf<AGPlayerCar> carClass;
 	AWhos_DrivingGameMode();
 	void BeginPlay() override;
-	void PostLogin(APlayerController* NewPlayer) override;
+	void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 };
 
 

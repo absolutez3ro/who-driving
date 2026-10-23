@@ -260,21 +260,31 @@ void AGPlayerCar::OnConstruction(const FTransform& transform)
 
 void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController)
 {
-	UE_LOG(LogTemp, Display, TEXT("spawning Driver"));
+	if (PlayerController->GetPawn() != nullptr) 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("player already posseses pawn"));
+		return;
+	}
+	
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("spawning Driver"));
 	bool seatTaken = IsValid(seatingComponent->GetSeatState(0).occupant);
 	AGPlayerController* controller = Cast<AGPlayerController>(PlayerController);
 	if (!controller || !driverCharacterClass || !seatingComponent)
 	{
 		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER controller %d char class %d seat component %d "), (!controller), (!driverCharacterClass), (!seatingComponent));
+		GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Red, FString::Printf(TEXT("DIDN'T SPAWN DRIVER controller %d char class %d seat component %d"),
+			!IsValid(controller),!IsValid(driverCharacterClass),!IsValid(seatingComponent)));
 		return;
 	}
 	int32 seatID = 0;
 	if (seatTaken) {
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("seat taken"));
 		UE_LOG(LogTemp, Display, TEXT("seat taken"));
 		seatID = 1;
 	}
 	else 
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("seat free"));
 		UE_LOG(LogTemp, Display, TEXT("seat free"));
 	}
 	UE_LOG(LogTemp, Display, TEXT("taking seat number %d"), seatID);
@@ -282,6 +292,7 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController
 	if (!seat)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("seat invalid during driver spawn"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("seat invalid during driver spawn"));
 		return;
 	}
 	FActorSpawnParameters parameters;
@@ -292,15 +303,13 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController
 	driverCharacter = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(driverCharacterClass, transform, parameters);
 	if (driverCharacter)
 	{
-		if (seatID == 0) 
-		{
-			//somehow make him drive
-		}
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("spawned driver, initializing"));
 		driverCharacter->SetReplicates(true);
 		seatingComponent->InitializeDriver(controller, driverCharacter, seatID);
 	}
 	else {
 		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Character invalid, didn't spawn"));
 
 	}
 }

@@ -17,6 +17,7 @@
 
  //event dispatcher declaration
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSessionsFound, const TArray<FString>&, SessionNames);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnJoiningFailed);
 
 
 UCLASS()
@@ -40,6 +41,8 @@ private:
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FOnSessionsFound OnSessionsFound;
+	UPROPERTY(BlueprintAssignable, Category = "Session")
+	FOnJoiningFailed FOnJoiningFailed;
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void HostSession(FString sessionName);
 	UFUNCTION(BlueprintCallable, Category = "Session")
@@ -47,5 +50,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void FindSessions();
 	UFUNCTION(BlueprintCallable, Category = "Session")
-	void JoinSessionByIndex(int32 ind);
+	bool JoinSessionByIndex(int32 ind);
 };
