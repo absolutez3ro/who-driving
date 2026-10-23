@@ -23,6 +23,7 @@
 #include "GVehicleDoorModule.h"
 #include "GVehicleSteeringWheelModule.h"
 #include "GVehicleEngineModule.h"
+#include "GVehicleElectricianModule.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -39,6 +40,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	InitDoors(objectInitializer);
 	InitSteeringWheel(objectInitializer);
 	InitEngine(objectInitializer);
+	InitElectrician(objectInitializer);
 	RecalculateCarHealth();
 }
 
@@ -167,6 +169,28 @@ void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 	hitBox->SetGenerateOverlapEvents(false);
 	moduleHitBoxes.Add(hitBox);
 }
+
+void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleElectricianModule* electricianModule = objectInitializer.CreateDefaultSubobject<UGVehicleElectricianModule>(this, TEXT("Electrician"));
+	const FName moduleId("Electician");
+	electricianModule->moduleId = moduleId;
+	electricianModule->maxHP = 50.0f;
+	electricianModule->currentHP = electricianModule->maxHP;
+	moduleComponent->RegisterModule(electricianModule);
+
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectician"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(15.0f, 11.0f, 15.0f));
+	hitBox->SetRelativeLocation(FVector(-30.0f, -1.0f, 85.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
+	moduleHitBoxes.Add(hitBox);
+}
+
 
 void AGPlayerCar::RecalculateCarHealth()
 {
@@ -321,22 +345,7 @@ UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 void AGPlayerCar::OnConstruction(const FTransform& transform)
 {
 	Super::OnConstruction(transform);
-	//UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
-	//for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
-	//{
-	//	UBoxComponent* hitBox = wheelHitBoxes[index];
-	//	const bool bValidWheel = movement->WheelSetups.IsValidIndex(index) && GetMesh()->GetBoneIndex(movement->WheelSetups[index].BoneName) != INDEX_NONE;
-	//	hitBox->SetCollisionEnabled(bValidWheel ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-	//	if (bValidWheel)
-	//	{
-	//		const FChaosWheelSetup& setup = movement->WheelSetups[index];
-	//		hitBox->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, setup.BoneName);
-	//		if (const UChaosVehicleWheel* wheel = setup.WheelClass ? setup.WheelClass->GetDefaultObject<UChaosVehicleWheel>() : nullptr)
-	//		{
-	//			hitBox->SetBoxExtent(FVector(wheel->WheelRadius, wheel->WheelWidth * 0.5f, wheel->WheelRadius));
-	//		}
-	//	}
-	//}
+
 	GetMesh()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
 	TInlineComponentArray<USkeletalMeshComponent*> parts;
 	GetComponents(parts);

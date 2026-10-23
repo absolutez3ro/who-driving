@@ -121,6 +121,7 @@ protected:
 	void InitDoors(const FObjectInitializer& objectInitializer);
 	void InitSteeringWheel(const FObjectInitializer& objectInitializer);
 	void InitEngine(const FObjectInitializer& objectInitializer);
+	void InitElectrician(const FObjectInitializer& objectInitializer);
 	void RecalculateCarHealth();
 
 protected:

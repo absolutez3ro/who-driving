@@ -9,11 +9,6 @@ void UGVehicleDoorModule::OnDestroyed()
 {
 	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
 
-	if (!car)
-	{
-		return;
-	}
-
 	USkeletalMeshComponent* doorMesh = nullptr;
 	TArray<USceneComponent*> children;
 	car->GetMesh()->GetChildrenComponents(true, children);
@@ -38,4 +33,5 @@ void UGVehicleDoorModule::OnDestroyed()
 		//doorMesh->AddImpulse(FVector(0.0f, 100000.0f, 20000.0f), NAME_None, true);
 		doorMesh->SetVisibility(false, true);
 	}
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("Door is broken"));
 }
