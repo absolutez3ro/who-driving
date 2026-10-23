@@ -91,6 +91,8 @@ public:
 	TArray<FGVehicleModuleState> moduleStates;
 
 	void PublishModuleStates();
+
+	float GetSpeed();
 protected:
 
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -118,6 +120,7 @@ protected:
 	void InitWheels(const FObjectInitializer& objectInitializer);
 	void InitDoors(const FObjectInitializer& objectInitializer);
 	void InitSteeringWheel(const FObjectInitializer& objectInitializer);
+	void InitEngine(const FObjectInitializer& objectInitializer);
 	void RecalculateCarHealth();
 
 protected:

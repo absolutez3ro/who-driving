@@ -14,7 +14,7 @@ void UGVehicleWheelModule::OnDestroyed()
 	}
 
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-	movementComponent->DisableWheel(wheelIndex);
+	movementComponent->BreakWheel(wheelIndex);
 
 	car->PublishModuleStates();
 }

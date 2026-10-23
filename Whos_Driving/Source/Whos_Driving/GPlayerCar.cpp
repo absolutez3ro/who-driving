@@ -22,6 +22,7 @@
 #include "GBoxComponent.h"
 #include "GVehicleDoorModule.h"
 #include "GVehicleSteeringWheelModule.h"
+#include "GVehicleEngineModule.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -37,6 +38,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	InitWheels(objectInitializer);
 	InitDoors(objectInitializer);
 	InitSteeringWheel(objectInitializer);
+	InitEngine(objectInitializer);
 	RecalculateCarHealth();
 }
 
@@ -132,7 +134,7 @@ void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
 	steeringWheel->currentHP = steeringWheel->maxHP;
 	moduleComponent->RegisterModule(steeringWheel);
 
-	TObjectPtr<UGBoxComponent> hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatSteeringWheel"));
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatSteeringWheel"));
 	hitBox->moduleId = moduleId;
 	hitBox->SetupAttachment(GetMesh());
 	hitBox->InitBoxExtent(FVector(20.0f, 20.0f, 25.0f));
@@ -142,6 +144,27 @@ void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
 	hitBox->SetGenerateOverlapEvents(false);
 	hitBox->SetRelativeLocation(FVector(70.0f, -59.0f, 105.0f));
 
+	moduleHitBoxes.Add(hitBox);
+}
+
+void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleEngineModule* engineModule = objectInitializer.CreateDefaultSubobject<UGVehicleEngineModule>(this, TEXT("Engine"));
+	const FName moduleId("Engine");
+	engineModule->moduleId = moduleId;
+	engineModule->maxHP = 50.0f;
+	engineModule->currentHP = engineModule->maxHP;
+	moduleComponent->RegisterModule(engineModule);
+
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatEngine"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(80.0f, 80.0f, 40.0f));
+	hitBox->SetRelativeLocation(FVector(205.0f, -4.0f, 110.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
 	moduleHitBoxes.Add(hitBox);
 }
 
@@ -206,6 +229,11 @@ void AGPlayerCar::PublishModuleStates()
 
 	ApplyModuleStates();
 	ForceNetUpdate();
+}
+
+float AGPlayerCar::GetSpeed()
+{
+	return FVector::DotProduct(GetVelocity(), GetActorForwardVector());
 }
 
 void AGPlayerCar::OnRep_ModuleStates()
@@ -403,38 +431,65 @@ void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void AGPlayerCar::InputThrottle(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
-	const float throttle = value.Get<float>();
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
+	float throttle = value.Get<float>();
+	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(GetMovementComponent());
+	if (movement->IsEngineBroken())
+	{
+		float speed = GetSpeed();
+		if (speed >= movement->GetBrokenEngineMaxSpeed())
+		{
+			throttle = 0.0f;
+		}
+	}
 	GetVehicleMovementComponent()->SetThrottleInput(throttle);
 }
 
 void AGPlayerCar::InputThrottleReleased(const FInputActionValue& value) {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetThrottleInput(0.0f);
 }
 
 void AGPlayerCar::InputSteering(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	const float steering = value.Get<float>();
 	GetVehicleMovementComponent()->SetSteeringInput(steering);
 }
 
 void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value) {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetSteeringInput(0.0f);
 }
 
 void AGPlayerCar::InputBrake(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	const float brake = value.Get<float>();
 	GetVehicleMovementComponent()->SetBrakeInput(brake);
 }
 
 void AGPlayerCar::InputBrakeReleased(const FInputActionValue& value)
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetBrakeInput(0.0f);
 }
 
