@@ -18,6 +18,9 @@ private:
 	TObjectPtr<AGPlayerCar> car;
 	void SpawnCar();
 	void SpawnPlayer(APlayerController* NewPlayer);
+	UFUNCTION(Client, Reliable)
+	void Client_SetupLobbyInput(APlayerController* NewPlayer);
+
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Car")
 	TSubclassOf<AGPlayerCar> carClass;

@@ -56,8 +56,16 @@ void AWhos_DrivingGameMode::BeginPlay()
 	}
 	return;
 }
+void AWhos_DrivingGameMode::Client_SetupLobbyInput_Implementation(APlayerController* NewPlayer)
+{
+	//FInputModeGameAndUI InputMode;
+	FInputModeGameOnly InputMode;
+	NewPlayer->bShowMouseCursor = false;
+	NewPlayer->SetInputMode(InputMode);
+}
 void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
+	Client_SetupLobbyInput(NewPlayer);
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("EVENT STARTING NEW PLAYER IN LOBBY"));
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 	SpawnPlayer(NewPlayer);
