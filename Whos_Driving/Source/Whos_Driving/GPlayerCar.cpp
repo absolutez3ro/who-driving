@@ -24,6 +24,7 @@
 #include "GVehicleSteeringWheelModule.h"
 #include "GVehicleEngineModule.h"
 #include "GVehicleElectricianModule.h"
+#include "GCarDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -257,7 +258,7 @@ void AGPlayerCar::PublishModuleStates()
 
 float AGPlayerCar::GetSpeed()
 {
-	return FVector::DotProduct(GetVelocity(), GetActorForwardVector());
+	return FVector::DotProduct(GetVelocity(), GetActorForwardVector()) * 0.036f;
 }
 
 void AGPlayerCar::OnRep_ModuleStates()
@@ -312,6 +313,8 @@ void AGPlayerCar::BeginPlay()
 
 	moduleComponent->RebuildModuleRegistry(this);
 
+	LoadCarData();
+
 	if (HasAuthority())
 	{
 		PublishModuleStates();
@@ -329,6 +332,45 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
+}
+
+void AGPlayerCar::LoadCarData()
+{
+	baseCarHealth = carData->BaseCarHealth;
+	auto wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
+	for (auto& wheel : wheels)
+	{
+		wheel->maxHP = carData->WheelMaxHealth;
+		wheel->currentHP = wheel->maxHP;
+	}
+
+	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		door->maxHP = carData->DoorMaxHealth;
+		door->currentHP = door->maxHP;
+	}
+
+	auto steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
+	for (auto& steeringWheel : steeringWheels)
+	{
+		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
+		steeringWheel->currentHP = steeringWheel->maxHP;
+	}
+
+	auto engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
+	for (auto& engine : engines)
+	{
+		engine->maxHP = carData->EngineMaxHealth;
+		engine->currentHP = engine->maxHP;
+	}
+
+	auto electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
+	for (auto& electrician : electricians)
+	{
+		electrician->maxHP = carData->ElectricianMaxHealth;
+		electrician->currentHP = electrician->maxHP;
+	}
 }
 
 

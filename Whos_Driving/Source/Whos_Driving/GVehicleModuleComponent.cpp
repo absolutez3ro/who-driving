@@ -45,12 +45,7 @@ void UGVehicleModuleComponent::RegisterModule(UGVehicleModule* module)
 		return;
 	}
 
-	if (FindModule(module->moduleId))
-	{
-		return;
-	}
-
-	modules.Add(module);
+	modules.AddUnique(module);
 }
 
 void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState)
@@ -86,6 +81,7 @@ void UGVehicleModuleComponent::RebuildModuleRegistry(AActor* ownerActor)
 		{
 			RegisterModule(module);
 		}
+
 	}
 }
 

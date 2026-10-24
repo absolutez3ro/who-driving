@@ -21,11 +21,25 @@ public:
 	void RegisterModule(UGVehicleModule* module);
 	void ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState);
 	void RebuildModuleRegistry(AActor* ownerActor);
+
+	template<typename T>
+	TArray<TObjectPtr<T>> GetModulesOfType()
+	{
+		TArray<TObjectPtr<T>> modulesWithType;
+		for (auto& module : modules)
+		{
+			if (T* moduleWithType = Cast<T>(module))
+			{
+				modulesWithType.Add(moduleWithType);
+			}
+		} 
+		return modulesWithType;
+	}
+
 public:
 	const TArray<TObjectPtr<UGVehicleModule>>& GetModules() const;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Modules")
 	TArray<TObjectPtr<UGVehicleModule>> modules;
-		
 };

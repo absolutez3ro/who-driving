@@ -6,6 +6,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "GVehicleMovementComponent.generated.h"
 
+class UGCarDataAsset;
 /**
  * 
  */
@@ -46,7 +47,12 @@ public:
 		return BrokenEngineMaxSpeed;
 	}
 
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGCarDataAsset> carData;
+
 protected:
+	void BeginPlay() override;
 	void UpdateState(float deltaTime) override;
 	UPROPERTY(ReplicatedUsing = OnRep_WindowDrivingLock)
 	bool bWindowDrivingLocked = false;
@@ -57,19 +63,19 @@ protected:
 	void OnRep_WindowDrivingLock();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenWheelFrictionMultiplier = 0.1f;
+	float BrokenWheelFrictionMultiplier;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "60", ClampMin = "0.0"))
-	float BrokenSteeringWheelAngle = 10.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenEngineTorqueMultiplier = 0.5f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "90", ClampMin = "0.0"))
+	float BrokenSteeringWheelAngle;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenEngineRPMMultiplier = 0.5f;
+	float BrokenEngineTorqueMultiplier;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
+	float BrokenEngineRPMMultiplier;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
-	float BrokenEngineMaxSpeed = 20.0f;
+	float BrokenEngineMaxSpeed;
 
 	bool bEngineBroken = false;
 

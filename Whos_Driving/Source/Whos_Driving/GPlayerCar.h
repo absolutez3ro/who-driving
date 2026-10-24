@@ -17,6 +17,7 @@ class UGVehicleSeatingComponent;
 class UBoxComponent;
 class UGVehicleModuleComponent;
 class UGBoxComponent;
+class UGCarDataAsset;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -71,6 +72,9 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
 
+	void PublishModuleStates();
+	float GetSpeed();
+
 	void OnConstruction(const FTransform& transform) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 
@@ -80,19 +84,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
 
+
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
-	float baseCarHealth = 100;
+	float baseCarHealth;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ModuleStates, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleModuleState> moduleStates;
 
-	void PublishModuleStates();
-
-	float GetSpeed();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGCarDataAsset> carData;
 protected:
 
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -123,6 +127,8 @@ protected:
 	void InitEngine(const FObjectInitializer& objectInitializer);
 	void InitElectrician(const FObjectInitializer& objectInitializer);
 	void RecalculateCarHealth();
+
+	void LoadCarData();
 
 protected:
 

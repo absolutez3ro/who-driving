@@ -2,13 +2,11 @@
 
 
 #include "GVehicleMovementComponent.h"
+#include "GCarDataAsset.h"
 #include "Net/UnrealNetwork.h"
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
 {
-	EngineSetup.MaxTorque = 500.0f;
-	EngineSetup.MaxRPM = 6000.0f;
-	EngineSetup.EngineIdleRPM = 800.0f;
 
 	FRichCurve* torqueCurve = EngineSetup.TorqueCurve.GetRichCurve();
 	if (torqueCurve) 
@@ -25,6 +23,23 @@ UGVehicleMovementComponent::UGVehicleMovementComponent()
 	TransmissionSetup.FinalRatio = 3.5f;
 	TransmissionSetup.ForwardGearRatios = { 3.2f, 2.1f, 1.4f, 1.0f, 0.8f };
 	TransmissionSetup.ReverseGearRatios = { 3.0f };
+}
+
+void UGVehicleMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (carData)
+	{
+		EngineSetup.MaxTorque = carData->MaxTorque;
+		EngineSetup.MaxRPM = carData->MaxRPM;
+		EngineSetup.EngineIdleRPM = carData->EngineIdleRPM;
+		BrokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
+		BrokenSteeringWheelAngle = carData->BrokenSteeringWheelAngle;
+		BrokenEngineTorqueMultiplier = carData->BrokenEngineTorqueMultiplier;
+		BrokenEngineRPMMultiplier = carData->BrokenEngineRPMMultiplier;
+		BrokenEngineMaxSpeed = carData->BrokenEngineMaxSpeed;
+	}
 }
 
 void UGVehicleMovementComponent::BreakWheel(int32 wheelIndex)
@@ -59,14 +74,6 @@ void UGVehicleMovementComponent::BreakEngine()
 	bEngineBroken = true;
 	EngineSetup.MaxTorque *= BrokenEngineTorqueMultiplier;
 	EngineSetup.MaxRPM *= BrokenEngineRPMMultiplier;
-	FRichCurve* curve = EngineSetup.TorqueCurve.GetRichCurve();
-	const TArray<FRichCurveKey> curveKeys = curve->GetConstRefOfKeys();
-	for (const auto& key : curveKeys)
-	{
-		const float time = key.Time;
-		const float value = key.Value;
-		curve->UpdateOrAddKey(time, value*BrokenEngineTorqueMultiplier);
-	}
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
