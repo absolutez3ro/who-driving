@@ -6,6 +6,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "GVehicleMovementComponent.generated.h"
 
+class UGCarDataAsset;
 /**
  * 
  */
@@ -16,16 +17,42 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 	
 public:
 	UGVehicleMovementComponent();
-	void DisableWheel(int32 wheelIndex);
+	void BreakWheel(int32 wheelIndex);
+	void BreakSteeringWheel();
+	void BreakEngine();
 	void StopDrivingInput();
 	void SetWindowDrivingLock(bool bLocked);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
-	bool IsWindowDrivingLocked() const { return bWindowDrivingLocked; }
+	bool IsWindowDrivingLocked() const 
+	{ 
+		return bWindowDrivingLocked; 
+	}
+
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
-	float GetWindowThrottle() const { return windowThrottle; }
+	float GetWindowThrottle() const 
+	{ 
+		return windowThrottle; 
+	}
+
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
+	bool IsEngineBroken()
+	{
+		return bEngineBroken;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
+	float GetBrokenEngineMaxSpeed()
+	{
+		return BrokenEngineMaxSpeed;
+	}
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGCarDataAsset> carData;
 
 protected:
+	void BeginPlay() override;
 	void UpdateState(float deltaTime) override;
 	UPROPERTY(ReplicatedUsing = OnRep_WindowDrivingLock)
 	bool bWindowDrivingLocked = false;
@@ -34,4 +61,23 @@ protected:
 	void ApplyWindowDrivingLock();
 	UFUNCTION()
 	void OnRep_WindowDrivingLock();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
+	float BrokenWheelFrictionMultiplier;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "90", ClampMin = "0.0"))
+	float BrokenSteeringWheelAngle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
+	float BrokenEngineTorqueMultiplier;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
+	float BrokenEngineRPMMultiplier;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	float BrokenEngineMaxSpeed;
+
+	bool bEngineBroken = false;
+
+
 };

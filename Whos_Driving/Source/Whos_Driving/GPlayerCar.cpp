@@ -18,17 +18,35 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Net/UnrealNetwork.h"
+#include "GVehicleModuleComponent.h"
+#include "GBoxComponent.h"
+#include "GVehicleDoorModule.h"
+#include "GVehicleSteeringWheelModule.h"
+#include "GVehicleEngineModule.h"
+#include "GVehicleElectricianModule.h"
+#include "GCarDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
 {
+	moduleComponent = CreateDefaultSubobject<UGVehicleModuleComponent>(TEXT("VehicleModules"));
 	driverSeat = CreateDefaultSubobject<USceneComponent>(TEXT("Driver seat"));
 	driverSeat->SetupAttachment(GetRootComponent());
 
 	bReplicates = true;
 	SetReplicateMovement(true);
+	InitSeats();
+	InitWheels(objectInitializer);
+	InitDoors(objectInitializer);
+	InitSteeringWheel(objectInitializer);
+	InitEngine(objectInitializer);
+	InitElectrician(objectInitializer);
+	RecalculateCarHealth();
+}
 
+void AGPlayerCar::InitSeats()
+{
 	seatingComponent = CreateDefaultSubobject<UGVehicleSeatingComponent>(TEXT("Vehicle Seating"));
 	const FName seatNames[] = { TEXT("SeatDriver"), TEXT("SeatFrontPassenger"), TEXT("SeatRearLeft"), TEXT("SeatRearRight") };
 	for (int32 seatIndex = 0; seatIndex < 4; ++seatIndex)
@@ -42,130 +60,222 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 		seat->exitLocation = FVector(seatX, seatY < 0.0f ? -230.0f : 230.0f, 110.0f);
 		seatComponents.Add(seat);
 	}
+}
 
+void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
+{
 	wheelModules.SetNum(4);
-	wheelDamageStates.SetNum(4);
 	appliedDestroyedWheels.Init(false, 4);
 
 	for (int32 i = 0; i < 4; ++i)
 	{
-		FName wheelName = FName(FString::FromInt(i));
-		UGVehicleWheelModule* wheelModule = objectInitializer.CreateDefaultSubobject<UGVehicleWheelModule>(this, wheelName);
+		const FName subobjectName(*FString::Printf(TEXT("WheelModule_%d"), i));
+
+		UGVehicleWheelModule* wheelModule = objectInitializer.CreateDefaultSubobject<UGVehicleWheelModule>(this, subobjectName);
+
+		const FName moduleId = FName(*FString::Printf(TEXT("Wheel_%d"), i));
+
 		wheelModule->wheelIndex = i;
+		wheelModule->moduleId = moduleId;
 		wheelModule->maxHP = 50.0f;
 		wheelModule->currentHP = wheelModule->maxHP;
+
 		wheelModules[i] = wheelModule;
-		UBoxComponent* hitBox = CreateDefaultSubobject<UBoxComponent>(FName(*FString::Printf(TEXT("CombatWheel%d"), i)));
+
+		if (moduleComponent)
+		{
+			moduleComponent->RegisterModule(wheelModule);
+		}
+
+		UGBoxComponent* hitBox = CreateDefaultSubobject<UGBoxComponent>(FName(*FString::Printf(TEXT("CombatWheel%d"), i)));
+		hitBox->moduleId = moduleId;
 		hitBox->SetupAttachment(GetMesh());
 		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
-		hitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
-		wheelHitBoxes.Add(hitBox);
+
+		moduleHitBoxes.Add(hitBox);
+	}
+}
+
+void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
+{
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const FName subobjectName(*FString::Printf(TEXT("DoorModule_%d"), i));
+		UGVehicleDoorModule* doorModule = objectInitializer.CreateDefaultSubobject<UGVehicleDoorModule>(this, subobjectName);
+
+		const FName moduleId(*FString::Printf(TEXT("part_door_%d"), i));
+
+		doorModule->doorId = i;
+		doorModule->moduleId = moduleId;
+		doorModule->maxHP = 50.0f;
+		doorModule->currentHP = doorModule->maxHP;
+		moduleComponent->RegisterModule(doorModule);
+
+		UGBoxComponent* hitBox = CreateDefaultSubobject<UGBoxComponent>(FName(*FString::Printf(TEXT("CombatDoor%d"), i)));
+		hitBox->moduleId = moduleId;
+		hitBox->SetupAttachment(GetMesh());
+		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
+		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+		hitBox->SetGenerateOverlapEvents(false);
+
+		moduleHitBoxes.Add(hitBox);
+	}
+}
+
+void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleSteeringWheelModule* steeringWheel = objectInitializer.CreateDefaultSubobject<UGVehicleSteeringWheelModule>(this, TEXT("SteeringWheel"));
+	const FName moduleId("Steering_Wheel");
+	steeringWheel->moduleId = moduleId;
+	steeringWheel->maxHP = 50.0f;
+	steeringWheel->currentHP = steeringWheel->maxHP;
+	moduleComponent->RegisterModule(steeringWheel);
+
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatSteeringWheel"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(20.0f, 20.0f, 25.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
+	hitBox->SetRelativeLocation(FVector(70.0f, -59.0f, 105.0f));
+
+	moduleHitBoxes.Add(hitBox);
+}
+
+void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleEngineModule* engineModule = objectInitializer.CreateDefaultSubobject<UGVehicleEngineModule>(this, TEXT("Engine"));
+	const FName moduleId("Engine");
+	engineModule->moduleId = moduleId;
+	engineModule->maxHP = 50.0f;
+	engineModule->currentHP = engineModule->maxHP;
+	moduleComponent->RegisterModule(engineModule);
+
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatEngine"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(80.0f, 80.0f, 40.0f));
+	hitBox->SetRelativeLocation(FVector(205.0f, -4.0f, 110.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
+	moduleHitBoxes.Add(hitBox);
+}
+
+void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
+{
+	UGVehicleElectricianModule* electricianModule = objectInitializer.CreateDefaultSubobject<UGVehicleElectricianModule>(this, TEXT("Electrician"));
+	const FName moduleId("Electician");
+	electricianModule->moduleId = moduleId;
+	electricianModule->maxHP = 50.0f;
+	electricianModule->currentHP = electricianModule->maxHP;
+	moduleComponent->RegisterModule(electricianModule);
+
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectician"));
+	hitBox->moduleId = moduleId;
+	hitBox->SetupAttachment(GetMesh());
+	hitBox->InitBoxExtent(FVector(15.0f, 11.0f, 15.0f));
+	hitBox->SetRelativeLocation(FVector(-30.0f, -1.0f, 85.0f));
+	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetGenerateOverlapEvents(false);
+	moduleHitBoxes.Add(hitBox);
+}
+
+
+void AGPlayerCar::RecalculateCarHealth()
+{
+	currentCarHealth = baseCarHealth;
+	for (auto& module : moduleComponent->GetModules())
+	{
+		currentCarHealth += module->currentHP;
 	}
 }
 
 void AGPlayerCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(AGPlayerCar, health);
-	DOREPLIFETIME(AGPlayerCar, wheelDamageStates);
+	DOREPLIFETIME(AGPlayerCar, currentCarHealth);
+	DOREPLIFETIME(AGPlayerCar, moduleStates);
 }
 
-FGVehicleWheelDamageState AGPlayerCar::GetWheelDamageState(int32 wheelIndex) const
+FGVehicleModuleState AGPlayerCar::GetModuleDamageState(const FName& moduleId) const
 {
-	if (!wheelDamageStates.IsValidIndex(wheelIndex))
+	for (const FGVehicleModuleState& state : moduleStates)
 	{
-		return FGVehicleWheelDamageState();
+		if (state.moduleId == moduleId)
+		{
+			return state;
+		}
 	}
 
-	return wheelDamageStates[wheelIndex];
+	return FGVehicleModuleState();
 }
 
-void AGPlayerCar::DamageWheel(int32 wheelIndex, float damage)
+void AGPlayerCar::DamageModule(const FName& moduleId, float damage)
 {
-	if (!HasAuthority() || !FMath::IsFinite(damage) || damage <= 0.0f
-		|| !wheelModules.IsValidIndex(wheelIndex) || !wheelModules[wheelIndex])
-	{
-		return;
-	}
-
-	UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-	if (wheelModule->IsDestroyed())
-	{
-		return;
-	}
-
-	wheelModule->ApplyDamage(damage);
-	PublishWheelDamageStates();
+	moduleComponent->DamageModule(moduleId, damage);
+	PublishModuleStates();
 }
 
-void AGPlayerCar::OnWheelDestroyed(int32 wheelIndex)
-{
-	if (HasAuthority() && wheelModules.IsValidIndex(wheelIndex))
-	{
-		PublishWheelDamageStates();
-	}
-}
-
-void AGPlayerCar::PublishWheelDamageStates()
+void AGPlayerCar::PublishModuleStates()
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	wheelDamageStates.SetNum(wheelModules.Num());
-	for (int32 wheelIndex = 0; wheelIndex < wheelModules.Num(); ++wheelIndex)
+	moduleStates.Reset();
+	for (const auto& module : moduleComponent->GetModules())
 	{
-		const UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-		if (!wheelModule)
+		if (!module)
 		{
 			continue;
 		}
 
-		FGVehicleWheelDamageState& damageState = wheelDamageStates[wheelIndex];
-		damageState.maxHP = wheelModule->maxHP;
-		damageState.currentHP = wheelModule->currentHP;
-		damageState.bDestroyed = wheelModule->bDestroyed;
+		FGVehicleModuleState state;
+		state.moduleId = module->moduleId;
+		state.maxHP = module->maxHP;
+		state.currentHP = module->currentHP;
+		state.moduleState = module->moduleState;
+
+		moduleStates.Add(state);
 	}
 
-	ApplyWheelDamageStates();
+	ApplyModuleStates();
 	ForceNetUpdate();
 }
 
-void AGPlayerCar::OnRep_WheelDamageStates()
+float AGPlayerCar::GetSpeed()
 {
-	ApplyWheelDamageStates();
+	return FVector::DotProduct(GetVelocity(), GetActorForwardVector()) * 0.036f;
 }
 
-void AGPlayerCar::ApplyWheelDamageStates()
+void AGPlayerCar::OnRep_ModuleStates()
 {
-	if (appliedDestroyedWheels.Num() != wheelDamageStates.Num())
-	{
-		appliedDestroyedWheels.Init(false, wheelDamageStates.Num());
-	}
+	ApplyModuleStates();
+}
 
-	UGVehicleMovementComponent* vehicleMovement = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
-	for (int32 wheelIndex = 0; wheelIndex < wheelDamageStates.Num(); ++wheelIndex)
+void AGPlayerCar::ApplyModuleStates()
+{
+	for (const auto& state : moduleStates)
 	{
-		const FGVehicleWheelDamageState& damageState = wheelDamageStates[wheelIndex];
-		if (!HasAuthority() && wheelModules.IsValidIndex(wheelIndex) && wheelModules[wheelIndex])
-		{
-			UGVehicleWheelModule* wheelModule = wheelModules[wheelIndex];
-			wheelModule->maxHP = damageState.maxHP;
-			wheelModule->currentHP = damageState.currentHP;
-			wheelModule->bDestroyed = damageState.bDestroyed;
-		}
-
-		ApplyWheelVisual(wheelIndex, damageState.bDestroyed);
-		if (damageState.bDestroyed && !appliedDestroyedWheels[wheelIndex] && vehicleMovement
-			&& vehicleMovement->Wheels.IsValidIndex(wheelIndex))
-		{
-			vehicleMovement->DisableWheel(wheelIndex);
-			appliedDestroyedWheels[wheelIndex] = true;
-		}
+		moduleComponent->ApplyReplicatedModuleState(
+			state.moduleId,
+			state.maxHP,
+			state.currentHP,
+			state.moduleState
+		);
 	}
 }
 
@@ -201,17 +311,62 @@ void AGPlayerCar::BeginPlay()
 {
 	Super::BeginPlay();
 
+	moduleComponent->RebuildModuleRegistry(this);
+
+	LoadCarData();
+
 	if (HasAuthority())
 	{
-		PublishWheelDamageStates();
+		PublishModuleStates();
 	}
 	else
 	{
-		ApplyWheelDamageStates();
+		ApplyModuleStates();
 	}
-	if (HasAuthority() && bApplyStartupWheelDamage)
+
+	for (auto& module : moduleComponent->GetModules())
 	{
-		DamageWheel(0, 100.0f);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
+	}
+	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
+}
+
+void AGPlayerCar::LoadCarData()
+{
+	baseCarHealth = carData->BaseCarHealth;
+	auto wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
+	for (auto& wheel : wheels)
+	{
+		wheel->maxHP = carData->WheelMaxHealth;
+		wheel->currentHP = wheel->maxHP;
+	}
+
+	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		door->maxHP = carData->DoorMaxHealth;
+		door->currentHP = door->maxHP;
+	}
+
+	auto steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
+	for (auto& steeringWheel : steeringWheels)
+	{
+		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
+		steeringWheel->currentHP = steeringWheel->maxHP;
+	}
+
+	auto engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
+	for (auto& engine : engines)
+	{
+		engine->maxHP = carData->EngineMaxHealth;
+		engine->currentHP = engine->maxHP;
+	}
+
+	auto electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
+	for (auto& electrician : electricians)
+	{
+		electrician->maxHP = carData->ElectricianMaxHealth;
+		electrician->currentHP = electrician->maxHP;
 	}
 }
 
@@ -229,22 +384,7 @@ UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 void AGPlayerCar::OnConstruction(const FTransform& transform)
 {
 	Super::OnConstruction(transform);
-	UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
-	for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
-	{
-		UBoxComponent* hitBox = wheelHitBoxes[index];
-		const bool bValidWheel = movement->WheelSetups.IsValidIndex(index) && GetMesh()->GetBoneIndex(movement->WheelSetups[index].BoneName) != INDEX_NONE;
-		hitBox->SetCollisionEnabled(bValidWheel ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-		if (bValidWheel)
-		{
-			const FChaosWheelSetup& setup = movement->WheelSetups[index];
-			hitBox->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, setup.BoneName);
-			if (const UChaosVehicleWheel* wheel = setup.WheelClass ? setup.WheelClass->GetDefaultObject<UChaosVehicleWheel>() : nullptr)
-			{
-				hitBox->SetBoxExtent(FVector(wheel->WheelRadius, wheel->WheelWidth * 0.5f, wheel->WheelRadius));
-			}
-		}
-	}
+
 	GetMesh()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);
 	TInlineComponentArray<USkeletalMeshComponent*> parts;
 	GetComponents(parts);
@@ -363,54 +503,83 @@ void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 void AGPlayerCar::InputThrottle(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
-	const float throttle = value.Get<float>();
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
+	float throttle = value.Get<float>();
+	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(GetMovementComponent());
+	if (movement->IsEngineBroken())
+	{
+		float speed = GetSpeed();
+		if (speed >= movement->GetBrokenEngineMaxSpeed())
+		{
+			throttle = 0.0f;
+		}
+	}
 	GetVehicleMovementComponent()->SetThrottleInput(throttle);
 }
 
 void AGPlayerCar::InputThrottleReleased(const FInputActionValue& value) {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetThrottleInput(0.0f);
 }
 
 void AGPlayerCar::InputSteering(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	const float steering = value.Get<float>();
 	GetVehicleMovementComponent()->SetSteeringInput(steering);
 }
 
 void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value) {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetSteeringInput(0.0f);
 }
 
 void AGPlayerCar::InputBrake(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	const float brake = value.Get<float>();
 	GetVehicleMovementComponent()->SetBrakeInput(brake);
 }
 
 void AGPlayerCar::InputBrakeReleased(const FInputActionValue& value)
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) { return; }
+	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	{ 
+		return; 
+	}
 	GetVehicleMovementComponent()->SetBrakeInput(0.0f);
 }
 
 float AGPlayerCar::TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
 	if (!HasAuthority() || !FMath::IsFinite(damageAmount) || damageAmount <= 0.0f) { return 0.0f; }
-	const float applied = FMath::Min(health, damageAmount);
-	health -= applied;
+	const float applied = FMath::Min(currentCarHealth, damageAmount);
 	if (damageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const FPointDamageEvent& pointDamage = static_cast<const FPointDamageEvent&>(damageEvent);
-		for (int32 index = 0; index < wheelHitBoxes.Num(); ++index)
+		const UGBoxComponent* damageHitbox = Cast<UGBoxComponent>(pointDamage.HitInfo.GetComponent());
+		if (damageHitbox && !damageHitbox->moduleId.IsNone())
 		{
-			if (pointDamage.HitInfo.GetComponent() == wheelHitBoxes[index]) { DamageWheel(index, applied); break; }
+			DamageModule(damageHitbox->moduleId, applied);
 		}
 	}
+	RecalculateCarHealth();
+	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), false);
 	ForceNetUpdate();
 	return applied;
 }
