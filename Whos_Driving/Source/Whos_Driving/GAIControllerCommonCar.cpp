@@ -19,15 +19,20 @@ void AGAIControllerCommonCar::ApplyAcceleration()
         RootPrim->AddForce(ForceToApply);
         FVector currentVelocity= RootPrim->GetPhysicsLinearVelocity();
         float currentVelocityX = currentVelocity.X;
-        //UE_LOG(LogTemp, Warning, TEXT("velocity was: %f"), currentVelocityX);
+        UE_LOG(LogTemp, Warning, TEXT("velocity was: %f"), currentVelocityX);
         if(acceleration<0 and currentVelocityX<0)
         {
             currentVelocityX =0;
         }
-        FVector newVelocity = FVector(currentVelocityX, currentVelocity.Y, currentVelocity.Z);
-        //UE_LOG(LogTemp, Warning, TEXT("velocity is: %f"), currentVelocityX);
+        FVector newVelocity = FVector(50, currentVelocity.Y, currentVelocity.Z);
+        UE_LOG(LogTemp, Warning, TEXT("velocity is: %f"), currentVelocityX);
         RootPrim->SetPhysicsLinearVelocity(newVelocity);
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("RootPrim(%d) or IsSimulatingPhysics(%d) false!"), RootPrim, RootPrim->IsSimulatingPhysics());
+    }
+
 }
 
 
