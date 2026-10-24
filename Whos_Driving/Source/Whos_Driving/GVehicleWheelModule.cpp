@@ -3,13 +3,18 @@
 
 #include "GVehicleWheelModule.h"
 #include "GPlayerCar.h"
+#include "GVehicleMovementComponent.h"
 
 void UGVehicleWheelModule::OnDestroyed()
 {
 	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-	if (car) 
+	if (!car) 
 	{
-		car->OnWheelDestroyed(wheelIndex);
-		GEngine->AddOnScreenDebugMessage(0, 2.0f, FColor::Red, TEXT("Wheel is destroyed"));
+		return;
 	}
+
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
+	movementComponent->BreakWheel(wheelIndex);
+
+	car->PublishModuleStates();
 }

@@ -6,31 +6,70 @@
 
 void UGVehicleModule::ApplyDamage(float damage)
 {
-	const AActor* ownerActor = GetTypedOuter<AActor>();
-	if ((ownerActor && !ownerActor->HasAuthority()) || bDestroyed || !FMath::IsFinite(damage) || damage <= 0.0f)
+	if (!FMath::IsFinite(damage) || damage <= 0.0f || IsDestroyed())
 	{
 		return;
 	}
 
-	currentHP = FMath::Max(currentHP - damage, 0.0f);
-	OnDamageTaken(damage);
+	currentHP = FMath::Clamp(currentHP - damage, 0.0f, maxHP);
 
 	if (currentHP <= 0.0f)
 	{
-		bDestroyed = true;
+		SetState(EGModuleState::Destroyed);
+	}
+	else if (currentHP < maxHP * repairThreshold)
+	{
+		SetState(EGModuleState::Repair);
+	}
+	else
+	{
+		SetState(EGModuleState::Full);
+	}
+}
+
+void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
+{
+	maxHP = inMaxHP;
+	currentHP = inCurrentHp;
+	SetState(state);
+}	
+
+void UGVehicleModule::SetState(EGModuleState newState)
+{
+	if (moduleState == newState)
+	{
+		return;
+	}
+
+	const EGModuleState previousState = moduleState;
+	moduleState = newState;
+	OnStateChanged(previousState, newState);
+	if (newState == EGModuleState::Destroyed)
+	{
 		OnDestroyed();
 	}
 }
 
 bool UGVehicleModule::IsDestroyed() const
 {
-	return bDestroyed;
+	return moduleState == EGModuleState::Destroyed;
 }
 
-void UGVehicleModule::OnDamageTaken(float Damage)
+bool UGVehicleModule::CanRepair() const
+{
+	return moduleState == EGModuleState::Repair;
+}
+
+bool UGVehicleModule::IsFull() const
+{
+	return moduleState == EGModuleState::Full;
+}
+
+
+void UGVehicleModule::OnDestroyed()
 {
 }
 
-void UGVehicleModule::OnDestroyed()
+void UGVehicleModule::OnStateChanged(EGModuleState previousState, EGModuleState newState)
 {
 }

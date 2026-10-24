@@ -9,25 +9,46 @@
 /**
  * 
  */
+
+UENUM(BlueprintType)
+enum class EGModuleState : uint8
+{
+	Full,
+	Repair,
+	Destroyed
+};
+
 UCLASS()
 class WHOS_DRIVING_API UGVehicleModule : public UObject
 {
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module")
+	void ApplyDamage(float damage);
+	bool IsDestroyed() const;
+	bool CanRepair() const;
+	bool IsFull() const;
+	virtual void ApplyReplicatedState(float inMaxHp, float inCurrentHp, EGModuleState state);
+
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
+	FName moduleId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "1.0"))
 	float maxHP = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module")
 	float currentHP = 100.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module")
-	bool bDestroyed = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float repairThreshold = 0.5f;
 
-	void ApplyDamage(float damage);
-	bool IsDestroyed() const;
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Module")
+	EGModuleState moduleState = EGModuleState::Full;
 
 protected:
+	virtual void OnStateChanged(EGModuleState previousState, EGModuleState newState);
+	void SetState(EGModuleState newState);
 	virtual void OnDestroyed();
-	virtual void OnDamageTaken(float damage);
+	
 };

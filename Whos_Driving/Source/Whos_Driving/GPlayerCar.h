@@ -15,11 +15,17 @@ class UStaticMesh;
 class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
 class UBoxComponent;
+class UGVehicleModuleComponent;
+class UGBoxComponent;
+class UGCarDataAsset;
 
 USTRUCT(BlueprintType)
-struct FGVehicleWheelDamageState
+struct FGVehicleModuleState
 {
 	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	FName moduleId = NAME_None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
 	float maxHP = 50.0f;
@@ -28,7 +34,7 @@ struct FGVehicleWheelDamageState
 	float currentHP = 50.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
-	bool bDestroyed = false;
+	EGModuleState moduleState = EGModuleState::Full;
 };
 
 USTRUCT(BlueprintType)
@@ -59,57 +65,51 @@ class WHOS_DRIVING_API AGPlayerCar : public AWheeledVehiclePawn
 public:
 	AGPlayerCar(const FObjectInitializer& objectInitializer);
 	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
-	UFUNCTION(BlueprintPure, Category = "Vehicle|Damage")
-	float GetHealth() const { return health; }
 
-	// Call from authoritative hit processing. Clients cannot submit arbitrary damage.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
-	void DamageWheel(int32 wheelIndex, float damage);
-
-	UFUNCTION(BlueprintPure, Category = "Vehicle|Damage")
-	FGVehicleWheelDamageState GetWheelDamageState(int32 wheelIndex) const;
+	void DamageModule(const FName& moduleId, float damage);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
 
-	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
-	UGVehicleSeatingComponent* GetSeatingComponent() const;
+	void PublishModuleStates();
+	float GetSpeed();
 
 	void OnConstruction(const FTransform& transform) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
 	void SpawnDriver(APlayerController* PlayerController);
 
-protected:
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Damage")
+	FGVehicleModuleState GetModuleDamageState(const FName& moduleId) const;
+
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
+	UGVehicleSeatingComponent* GetSeatingComponent() const;
+
+
+public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
-	float health = 1000.0f;
-	UPROPERTY(VisibleAnywhere, Category = "Vehicle|Damage")
-	TArray<TObjectPtr<UBoxComponent>> wheelHitBoxes;
+	float currentCarHealth = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
+	float baseCarHealth;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ModuleStates, BlueprintReadOnly, Category = "Vehicle|Damage")
+	TArray<FGVehicleModuleState> moduleStates;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGCarDataAsset> carData;
+protected:
+
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	void BeginPlay() override;
 	void UnPossessed() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
-	TObjectPtr<UGVehicleSeatingComponent> seatingComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
-	TArray<TObjectPtr<UGVehicleSeatComponent>> seatComponents;
-
-	void PublishWheelDamageStates();
-	void ApplyWheelDamageStates();
+	void ApplyModuleStates();
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
 
 	UFUNCTION()
-	void OnRep_WheelDamageStates();
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
-	TArray<FGVehicleWheelVisual> wheelVisuals;
-
-	UPROPERTY(ReplicatedUsing = OnRep_WheelDamageStates, BlueprintReadOnly, Category = "Vehicle|Damage")
-	TArray<FGVehicleWheelDamageState> wheelDamageStates;
-
-	// Local idempotence cache; authoritative state is carried by wheelDamageStates.
-	TArray<bool> appliedDestroyedWheels;
+	void OnRep_ModuleStates();
 
 	void InputThrottle(const FInputActionValue& value);
 	void InputThrottleReleased(const FInputActionValue& value);
@@ -119,6 +119,18 @@ protected:
 	void InputBrakeReleased(const FInputActionValue& value);
 
 	void PossessedBy(AController* NewController) override;
+
+	void InitSeats();
+	void InitWheels(const FObjectInitializer& objectInitializer);
+	void InitDoors(const FObjectInitializer& objectInitializer);
+	void InitSteeringWheel(const FObjectInitializer& objectInitializer);
+	void InitEngine(const FObjectInitializer& objectInitializer);
+	void InitElectrician(const FObjectInitializer& objectInitializer);
+	void RecalculateCarHealth();
+
+	void LoadCarData();
+
+protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> throttleAction;
@@ -132,16 +144,29 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Driver")
 	TSubclassOf<AWhos_DrivingCharacter> driverCharacterClass;
 
-	// Optional destruction diagnostic. Normal gameplay starts with four healthy wheels.
-	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Diagnostics")
-	bool bApplyStartupWheelDamage = false;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Driver")
 	TObjectPtr<USceneComponent> driverSeat;
 
 	UPROPERTY()
 	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
-	
+
 	UPROPERTY()
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheelModules;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle")
+	TObjectPtr<UGVehicleModuleComponent> moduleComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Vehicle|Damage")
+	TArray<TObjectPtr<UGBoxComponent>> moduleHitBoxes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
+	TArray<FGVehicleWheelVisual> wheelVisuals;
+
+	TArray<bool> appliedDestroyedWheels;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
+	TObjectPtr<UGVehicleSeatingComponent> seatingComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
+	TArray<TObjectPtr<UGVehicleSeatComponent>> seatComponents;
 };
