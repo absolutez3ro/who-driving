@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GBaseEnemy.generated.h"
+class UGEnemyBaseDataAsset;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeath, float, scrapPrice_);
 
 UCLASS()
 class WHOS_DRIVING_API AGBaseEnemy : public ACharacter
@@ -16,10 +19,15 @@ public:
 	AGBaseEnemy();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-public:	
+	float maxHp = 1;
+	float scrapPrice = 0;
+	float currentHp = 1;
+public:
+	UPROPERTY(BlueprintAssignable, Category = "Game Events")
+	FOnDeath OnDeath;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEnemyBaseDataAsset> baseData;
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -27,4 +35,5 @@ public:
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	// handles enemy death event
 	void HandleDeath();
+
 };

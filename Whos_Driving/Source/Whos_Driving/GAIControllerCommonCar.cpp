@@ -2,9 +2,9 @@
 
 
 #include "GAIControllerCommonCar.h"
+#include "GCommonEnemyDataAsset.h"
 
-
-void AGAIControllerCommonCar::ApplyAcceleration() 
+void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerForward)
 {
     APawn* selfActor = GetPawn();
     if (!selfActor) return;
@@ -13,20 +13,19 @@ void AGAIControllerCommonCar::ApplyAcceleration()
     {
         // GetMass() returns the mass in kg (calculated by the engine or overridden)
         float Mass = RootPrim->GetMass();
-        FVector movementDirection = FVector(1, 0, 0);
-        FVector movementAcceleration = movementDirection * acceleration;
-        FVector ForceToApply = Mass * movementAcceleration;
+        FVector ForceToApply = Mass * acceleration;
         RootPrim->AddForce(ForceToApply);
         FVector currentVelocity= RootPrim->GetPhysicsLinearVelocity();
-        float currentVelocityX = currentVelocity.X;
-        UE_LOG(LogTemp, Warning, TEXT("velocity was: %f"), currentVelocityX);
-        if(acceleration<0 and currentVelocityX<0)
+        //UE_LOG(LogTemp, Warning, TEXT("velocity was: %f"), currentVelocityX);
+        bool reverseMovement = FVector::DotProduct(currentVelocity, playerForward)<=0;
+        UE_LOG(LogTemp, Warning, TEXT("reverseMovement is: %d"), reverseMovement);
+        if(distance <0 and reverseMovement)
         {
-            currentVelocityX =0;
+            UE_LOG(LogTemp, Error, TEXT("velocity set to 0"));
+            currentVelocity = FVector(0, 0, 0);
         }
-        FVector newVelocity = FVector(50, currentVelocity.Y, currentVelocity.Z);
-        UE_LOG(LogTemp, Warning, TEXT("velocity is: %f"), currentVelocityX);
-        RootPrim->SetPhysicsLinearVelocity(newVelocity);
+        RootPrim->SetPhysicsLinearVelocity(currentVelocity);
+        UE_LOG(LogTemp, Warning, TEXT("velocity is: %f %f %f"), currentVelocity.X, currentVelocity.Y, currentVelocity.Z);
     }
     else
     {
@@ -35,7 +34,33 @@ void AGAIControllerCommonCar::ApplyAcceleration()
 
 }
 
-
+void AGAIControllerCommonCar::BeginPlay() {
+    Super::BeginPlay();
+    //its more memory efficient to copy them, surprisingly
+    minAcceleration = commonCarData->minAcceleration;
+    maxAcceleration = commonCarData->maxAcceleration;
+    baseAcceleration = commonCarData->accelerationModifier;
+    minYDistance = commonCarData->minYDistance;
+    maxYDistance = commonCarData->maxYDistance;
+    fireRate = commonCarData->fireRate;
+    hitChance = commonCarData->hitChance;
+    minDamage = commonCarData->minDamage;
+    maxDamage = commonCarData->maxDamage;
+    weights.Add(commonCarData->wheelWeight);
+    totalWeight += commonCarData->wheelWeight;
+    weights.Add(commonCarData->doorWeight);
+    totalWeight += commonCarData->doorWeight;
+    weights.Add(commonCarData->baseHealthWeight);
+    totalWeight += commonCarData->baseHealthWeight;
+    weights.Add(commonCarData->steeringWeight);
+    totalWeight += commonCarData->steeringWeight;
+    weights.Add(commonCarData->engineWeight);
+    totalWeight += commonCarData->engineWeight;
+    weights.Add(commonCarData->electronicsWeight);
+    totalWeight += commonCarData->electronicsWeight;
+    YDistance = FMath::FRandRange(minYDistance, maxYDistance);
+    StartShootDelay();
+}
 
 void AGAIControllerCommonCar::Chase(AActor* carReference, float deltaSeconds)
 {
@@ -43,12 +68,14 @@ void AGAIControllerCommonCar::Chase(AActor* carReference, float deltaSeconds)
     {
         APawn* selfActor = GetPawn();
         // get coordinates to scale speed
-        float playerXCoordinate = carReference->GetActorLocation().X;
-        float selfXCoordinate = selfActor->GetActorLocation().X;
-
-        float deltaX = playerXCoordinate - selfXCoordinate;
-        CalculateAcceleration(deltaX, deltaSeconds);
-        ApplyAcceleration();
+        FVector playerPos = carReference->GetActorLocation();
+        FVector selfPos = selfActor->GetActorLocation();
+        FVector playerForward = carReference->GetActorForwardVector();
+        FVector toPlayerVector = playerPos - selfPos;
+        float distance = FVector::DotProduct(toPlayerVector, playerForward);
+        toPlayerVector.Normalize();
+        CalculateAcceleration(toPlayerVector, playerForward, deltaSeconds);
+        //ApplyAcceleration(distance, playerForward);
     }
     else
     {
@@ -56,8 +83,58 @@ void AGAIControllerCommonCar::Chase(AActor* carReference, float deltaSeconds)
     }
 }
 
-void AGAIControllerCommonCar::CalculateAcceleration(float deltaX, float deltaSeconds)
+void AGAIControllerCommonCar::CalculateAcceleration(FVector toPlayerVector, FVector playerForward, float deltaSeconds)
 {
-    acceleration = baseAcceleration * pow(deltaX,3);
-    acceleration = FMath::Clamp(acceleration, minAcceleration, maxAcceleration);
+    FVector playerLeft = FVector3d(-playerForward.Y, playerForward.X, playerForward.Z);
+    float distance= FVector::DotProduct(toPlayerVector,playerForward);
+    float accelerationMod= baseAcceleration * pow(distance, 3);
+    playerLeft.Normalize();
+    playerLeft *= YDistance;
+    acceleration = playerLeft + toPlayerVector;
+    float accelarationLength = acceleration.Length();
+    acceleration.Normalize();
+    accelerationMod = FMath::Clamp(accelerationMod, minAcceleration, maxAcceleration);
+    acceleration *= accelerationMod;
+    UE_LOG(LogTemp, Warning, TEXT("acceleration is: %f %f %f"), acceleration.X, acceleration.Y, acceleration.Z);
+    UE_LOG(LogTemp, Warning, TEXT("distance is: %f"), distance);
+}
+
+
+void AGAIControllerCommonCar::StartShootDelay()
+{
+    // Define your range, e.g., between 0.5s and 1.5s
+    float RandomDelay = FMath::RandRange(1.0f, 1.0f)+fireRate;
+    UE_LOG(LogTemp, Log, TEXT("shot timer started"));
+    GetWorldTimerManager().SetTimer(shootDelayHandle,this, &AGAIControllerCommonCar::Shoot, RandomDelay, false);
+}
+
+void AGAIControllerCommonCar::Shoot_Implementation()
+{
+    UE_LOG(LogTemp, Log, TEXT("trying to shoot"));
+    if (FMath::RandRange(0.0f, 1.0f)<=hitChance)
+    {
+        float damage = FMath::RandRange(minDamage, maxDamage);
+        float accumulatedWeight = 0;
+        float randomWeight = FMath::RandRange(0.0f, totalWeight);
+        int32 partID;
+        for (int32 i = 0; i < weights.Num(); i++) {
+            if (randomWeight < accumulatedWeight) 
+            {
+                partID = i;
+                break;
+            }
+            accumulatedWeight += weights[i];
+        }
+        if (partID) {
+            UE_LOG(LogTemp, Log, TEXT("hit part with id: %d damage: %f"), partID, damage);
+        }
+        else 
+        {
+            UE_LOG(LogTemp, Error, TEXT("no part of car got shot for some reason"));
+        }
+    }
+    else {
+        UE_LOG(LogTemp, Log, TEXT("missed"));
+    }
+    StartShootDelay();
 }
