@@ -18,6 +18,7 @@ class UBoxComponent;
 class UGVehicleModuleComponent;
 class UGBoxComponent;
 class UGCarDataAsset;
+class UGVehicleRadioComponent;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -75,6 +76,9 @@ public:
 	void PublishModuleStates();
 	float GetSpeed();
 
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Radio")
+	UGVehicleRadioComponent* GetRadioComponent() const { return radioComponent; }
+
 	void OnConstruction(const FTransform& transform) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
@@ -100,6 +104,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
+	TObjectPtr<UGVehicleRadioComponent> radioComponent;
 
 	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	void BeginPlay() override;

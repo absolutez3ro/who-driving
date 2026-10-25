@@ -3,6 +3,7 @@
 
 #include "GPlayerCar.h"
 #include "G_Vehicle_Seat_Component.h"
+#include "G_Vehicle_Radio_Component.h"
 #include "G_Vehicle_Seating_Component.h"
 #include "ChaosVehicleWheel.h"
 #include "Components/BoxComponent.h"
@@ -48,6 +49,9 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 void AGPlayerCar::InitSeats()
 {
 	seatingComponent = CreateDefaultSubobject<UGVehicleSeatingComponent>(TEXT("Vehicle Seating"));
+	radioComponent = CreateDefaultSubobject<UGVehicleRadioComponent>(TEXT("VehicleRadio"));
+	radioComponent->SetupAttachment(GetMesh());
+	radioComponent->SetRelativeLocation(FVector(88.0f, 0.0f, 88.0f));
 	const FName seatNames[] = { TEXT("SeatDriver"), TEXT("SeatFrontPassenger"), TEXT("SeatRearLeft"), TEXT("SeatRearRight") };
 	for (int32 seatIndex = 0; seatIndex < 4; ++seatIndex)
 	{
@@ -323,7 +327,6 @@ void AGPlayerCar::BeginPlay()
 	{
 		ApplyModuleStates();
 	}
-	UpdatePlayerController();
 
 	for (auto& module : moduleComponent->GetModules())
 	{

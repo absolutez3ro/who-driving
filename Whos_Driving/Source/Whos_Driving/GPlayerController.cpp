@@ -64,20 +64,67 @@ void AGPlayerController::SetupInputComponent()
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
 	}
-	if (InputComponent)
+	if (!enhancedInput)
 	{
-		InputComponent->BindKey(seatInteractionKey, IE_Pressed, this, &AGPlayerController::RequestLookedAtSeat);
-		InputComponent->BindKey(vehicleExitKey, IE_Pressed, this, &AGPlayerController::RequestVehicleExit);
-		InputComponent->BindKey(EKeys::One, IE_Pressed, this, &AGPlayerController::RequestPrimaryWeapon);
-		InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AGPlayerController::RequestSecondaryWeapon);
-		InputComponent->BindKey(EKeys::Q, IE_Pressed, this, &AGPlayerController::RequestWindowLeft);
-		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AGPlayerController::RequestWindowRight);
-		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AGPlayerController::RequestFireStart);
-		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &AGPlayerController::RequestFireStop);
-		InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &AGPlayerController::RequestAimStart);
-		InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &AGPlayerController::RequestAimStop);
-		InputComponent->BindKey(EKeys::R, IE_Pressed, this, &AGPlayerController::RequestReload);
-		InputComponent->BindKey(EKeys::V, IE_Pressed, this, &AGPlayerController::RequestFireMode);
+		return;
+	}
+	if (interactAction)
+	{
+		enhancedInput->BindAction(interactAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestLookedAtSeat);
+	}
+	if (exitVehicleAction)
+	{
+		enhancedInput->BindAction(exitVehicleAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestVehicleExit);
+	}
+	if (primaryWeaponAction)
+	{
+		enhancedInput->BindAction(primaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestPrimaryWeapon);
+	}
+	if (secondaryWeaponAction)
+	{
+		enhancedInput->BindAction(secondaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestSecondaryWeapon);
+	}
+	if (windowLeftAction)
+	{
+		enhancedInput->BindAction(windowLeftAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWindowLeft);
+	}
+	if (windowRightAction)
+	{
+		enhancedInput->BindAction(windowRightAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWindowRight);
+	}
+	if (fireAction)
+	{
+		enhancedInput->BindAction(fireAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestFireStart);
+	}
+	if (aimAction)
+	{
+		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestAimStart);
+	}
+	if (reloadAction)
+	{
+		enhancedInput->BindAction(reloadAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestReload);
+	}
+	if (fireModeAction)
+	{
+		enhancedInput->BindAction(fireModeAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestFireMode);
+	}
+	if (previousTrackAction)
+	{
+		enhancedInput->BindAction(previousTrackAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestPreviousTrack);
+	}
+	if (nextTrackAction)
+	{
+		enhancedInput->BindAction(nextTrackAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestNextTrack);
+	}
+	if (fireAction)
+	{
+		enhancedInput->BindAction(fireAction.Get(), ETriggerEvent::Completed, this, &AGPlayerController::RequestFireStop);
+		enhancedInput->BindAction(fireAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerController::RequestFireStop);
+	}
+	if (aimAction)
+	{
+		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Completed, this, &AGPlayerController::RequestAimStop);
+		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerController::RequestAimStop);
 	}
 }
 
@@ -153,6 +200,10 @@ void AGPlayerController::RefreshVehicleView()
 		{
 			if (UEnhancedInputLocalPlayerSubsystem* input = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 			{
+				if (gameplayMappingContext && !input->HasMappingContext(gameplayMappingContext))
+				{
+					input->AddMappingContext(gameplayMappingContext, 2);
+				}
 				UInputMappingContext* activeContext = seatedVehicle ? vehicleMappingContext.Get() : walkingMappingContext.Get();
 				UInputMappingContext* inactiveContext = seatedVehicle ? walkingMappingContext.Get() : vehicleMappingContext.Get();
 				if (inactiveContext)
@@ -198,6 +249,11 @@ void AGPlayerController::RequestLookedAtSeat()
 	{
 		UGVehicleSeatComponent* seat = Cast<UGVehicleSeatComponent>(hit.GetComponent());
 		AGPlayerCar* vehicle = Cast<AGPlayerCar>(hit.GetActor());
+		if (vehicle && hit.GetComponent() == vehicle->GetRadioComponent())
+		{
+			ServerRadioCommand(vehicle, EGVehicleRadioCommand::Toggle, origin, rotation.Vector());
+			return;
+		}
 		UE_LOG(LogTemp, Display, TEXT("Seat selection hit: actor=%s component=%s"), *GetNameSafe(hit.GetActor()), *GetNameSafe(hit.GetComponent()));
 		if (seat && vehicle)
 		{
@@ -225,6 +281,82 @@ void AGPlayerController::RequestVehicleExit()
 	if (IsLocalController())
 	{
 		ServerRequestVehicleExit();
+	}
+}
+
+void AGPlayerController::RequestPreviousTrack()
+{
+	if (IsLocalController() && seatedVehicle)
+	{
+		ServerRadioCommand(seatedVehicle, EGVehicleRadioCommand::Previous, FVector::ZeroVector, FVector::ForwardVector);
+	}
+}
+
+void AGPlayerController::RequestNextTrack()
+{
+	if (IsLocalController() && seatedVehicle)
+	{
+		ServerRadioCommand(seatedVehicle, EGVehicleRadioCommand::Next, FVector::ZeroVector, FVector::ForwardVector);
+	}
+}
+
+bool AGPlayerController::IsVehicleOccupant() const
+{
+	if (!IsValid(seatedVehicle) || !IsValid(driverCharacter) || driverCharacter->GetOwner() != this)
+	{
+		return false;
+	}
+	const int32 seatIndex = seatedVehicle->GetSeatingComponent()->GetCharacterSeat(driverCharacter);
+	return seatIndex != INDEX_NONE && GetPawn() == (seatIndex == 0 ? static_cast<APawn*>(seatedVehicle) : driverCharacter.Get())
+		&& seatedVehicle->GetSeatingComponent()->GetSeatState(seatIndex).playerState == PlayerState;
+}
+
+bool AGPlayerController::IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const
+{
+	const AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+	if (!IsValid(vehicle) || !IsValid(character) || (seatedVehicle && (seatedVehicle != vehicle || !IsVehicleOccupant()))
+		|| origin.ContainsNaN() || direction.ContainsNaN() || !direction.IsNormalized()
+		|| FVector::DistSquared(origin, character->GetActorLocation()) > FMath::Square(150.0f))
+	{
+		return false;
+	}
+	FCollisionQueryParams query(SCENE_QUERY_STAT(VehicleRadioSelection), false, character);
+	if (seatedVehicle)
+	{
+		UGVehicleSeatingComponent* seating = vehicle->GetSeatingComponent();
+		query.AddIgnoredComponent(seating->GetSeatComponent(seating->GetCharacterSeat(driverCharacter)));
+	}
+	FHitResult hit;
+	if (!GetWorld()->LineTraceSingleByChannel(hit, origin, origin + direction * 500.0f, ECC_GameTraceChannel1, query)
+		|| hit.GetComponent() != vehicle->GetRadioComponent())
+	{
+		return false;
+	}
+	FCollisionQueryParams visibility(SCENE_QUERY_STAT(VehicleRadioVisibility), false, character);
+	if (seatedVehicle == vehicle)
+	{
+		visibility.AddIgnoredActor(vehicle);
+	}
+	FHitResult obstruction;
+	return !GetWorld()->LineTraceSingleByChannel(obstruction, origin, hit.ImpactPoint, ECC_Visibility, visibility);
+}
+
+void AGPlayerController::ServerRadioCommand_Implementation(AGPlayerCar* vehicle, EGVehicleRadioCommand command,
+	FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection)
+{
+	const float now = GetWorld()->GetTimeSeconds();
+	if (!IsValid(vehicle) || now - lastRadioRequestTime < 0.2f)
+	{
+		return;
+	}
+	lastRadioRequestTime = now;
+	const bool bAllowed = command == EGVehicleRadioCommand::Toggle
+		? IsRadioTargetValid(vehicle, viewOrigin, viewDirection)
+		: (command == EGVehicleRadioCommand::Previous || command == EGVehicleRadioCommand::Next)
+			&& vehicle == seatedVehicle && IsVehicleOccupant();
+	if (bAllowed)
+	{
+		vehicle->GetRadioComponent()->ExecuteCommand(command);
 	}
 }
 

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetSerialization.h"
-#include "InputCoreTypes.h"
+#include "G_Vehicle_Radio_Component.h"
 #include "G_Weapon_Definition.h"
 #include "GPlayerController.generated.h"
 
@@ -55,6 +55,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
 	void RequestFireMode();
 	void SendCombatView(const FVector& direction);
+	void RequestPreviousTrack();
+	void RequestNextTrack();
 
 	UFUNCTION(Client, Reliable)
 	void Client_SetupLobbyInput();
@@ -78,6 +80,10 @@ protected:
 	UFUNCTION(Server, Unreliable)
 	void ServerCombatView(FVector_NetQuantizeNormal direction);
 
+	UFUNCTION(Server, Reliable)
+	void ServerRadioCommand(AGPlayerCar* vehicle, EGVehicleRadioCommand command,
+		FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
+
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext)
 	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
 
@@ -96,13 +102,49 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> lookAction;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	FKey seatInteractionKey = EKeys::F;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputMappingContext> gameplayMappingContext;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	FKey vehicleExitKey = EKeys::H;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> interactAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> exitVehicleAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> primaryWeaponAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> secondaryWeaponAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> windowLeftAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> windowRightAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> fireAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> aimAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> reloadAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> fireModeAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> previousTrackAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> nextTrackAction;
 
 private:
+	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
+	bool IsVehicleOccupant() const;
+	float lastRadioRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
 	class UGVehicleCombatComponent* GetOwnedCombat() const;

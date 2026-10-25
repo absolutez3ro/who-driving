@@ -8,12 +8,16 @@ class UAnimBlueprint;
 class USkeletalMesh;
 class USkeleton;
 class UAnimSequence;
+class APlayerController;
 
 UCLASS()
 class WHOSDRIVINGCOMBATEDITOR_API UGCombatEditorLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
+	UFUNCTION(BlueprintCallable, Category = "Vehicle|Editor|Testing")
+	static bool InjectPlayerKey(APlayerController* controller, FName keyName, bool bPressed);
+
 	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
 	static bool CopyM8Packages(const TArray<FString>& sourcePackages);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")

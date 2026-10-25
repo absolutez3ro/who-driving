@@ -272,7 +272,10 @@ void AGVehicleWeapon::PlayEquip()
 			mesh->PlayAnimation(definition->weaponEquip, false);
 		}
 	}
-	UGameplayStatics::PlaySoundAtLocation(this, definition->equipSound, GetActorLocation());
+	if (definition->equipSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, definition->equipSound, GetActorLocation());
+	}
 }
 
 void AGVehicleWeapon::SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson)

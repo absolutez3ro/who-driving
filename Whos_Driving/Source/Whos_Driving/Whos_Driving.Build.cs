@@ -25,7 +25,7 @@ public class Whos_Driving : ModuleRules
 			"OnlineSubsystemUtils"
         });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AssetRegistry" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Whos_Driving",

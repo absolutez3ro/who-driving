@@ -1,4 +1,6 @@
 #include "G_Combat_Editor_Library.h"
+#include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "G_Vehicle_Combat_Anim_Instance.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
@@ -23,6 +25,13 @@
 #include "Misc/PackageName.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, WhosDrivingCombatEditor)
+
+bool UGCombatEditorLibrary::InjectPlayerKey(APlayerController* controller, FName keyName, bool bPressed)
+{
+	const FKey key(keyName);
+	return IsValid(controller) && controller->IsLocalController() && key.IsValid()
+		&& controller->InputKey(FInputKeyEventArgs::CreateSimulated(key, bPressed ? IE_Pressed : IE_Released, bPressed ? 1.0 : 0.0));
+}
 
 bool UGCombatEditorLibrary::CopyM8Packages(const TArray<FString>& sourcePackages)
 {
