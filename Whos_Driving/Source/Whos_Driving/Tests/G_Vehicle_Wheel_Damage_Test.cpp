@@ -69,7 +69,7 @@
 //bool FGVehicleWheelVisualSwapTest::RunTest(const FString& parameters)
 //{
 //	UClass* carClass = LoadClass<AGPlayerCar>(nullptr,
-//		TEXT("/Game/Assets/Viechile_Test/ModularFL/BP_GPlayerCar_ModularFL.BP_GPlayerCar_ModularFL_C"));
+//		TEXT("/Game/Assets/Viechile_Test/ModularFL/BP_GPlayerCarModularFL.BP_GPlayerCarModularFL_C"));
 //	if (!TestNotNull(TEXT("Configured prototype class"), carClass))
 //	{
 //		return false;

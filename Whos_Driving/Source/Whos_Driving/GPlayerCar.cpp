@@ -111,7 +111,7 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 		const FName subobjectName(*FString::Printf(TEXT("DoorModule_%d"), i));
 		UGVehicleDoorModule* doorModule = objectInitializer.CreateDefaultSubobject<UGVehicleDoorModule>(this, subobjectName);
 
-		const FName moduleId(*FString::Printf(TEXT("part_door_%d"), i));
+		const FName moduleId(*FString::Printf(TEXT("partDoor%d"), i));
 
 		doorModule->doorId = i;
 		doorModule->moduleId = moduleId;

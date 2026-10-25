@@ -28,7 +28,7 @@
 //	UWorld* world =
 //		UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &initialization);
 //	UClass* characterClass = LoadClass<AWhos_DrivingCharacter>(
-//		nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter.BP_FirstPersonCharacter_C"));
+//		nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_GFirstPersonCharacter.BP_GFirstPersonCharacter_C"));
 //	if (!TestNotNull(TEXT("Configured character"), characterClass))
 //	{
 //		world->DestroyWorld(false);
