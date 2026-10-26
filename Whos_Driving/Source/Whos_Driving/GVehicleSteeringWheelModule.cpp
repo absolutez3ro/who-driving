@@ -12,3 +12,13 @@ void UGVehicleSteeringWheelModule::OnDestroyed()
 	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
 	movement->BreakSteeringWheel();
 }
+
+void UGVehicleSteeringWheelModule::ApplyRepair()
+{
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
+
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
+	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
+	movement->RepairSteeringWheel();
+}

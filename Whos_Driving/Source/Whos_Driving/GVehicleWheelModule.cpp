@@ -18,3 +18,17 @@ void UGVehicleWheelModule::OnDestroyed()
 
 	car->PublishModuleStates();
 }
+
+void UGVehicleWheelModule::ApplyRepair()
+{
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
+	if (!car)
+	{
+		return;
+	}
+
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
+	movementComponent->RepairWheel(wheelIndex);
+}

@@ -35,3 +35,9 @@ void UGVehicleDoorModule::OnDestroyed()
 	}
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("Door is broken"));
 }
+
+void UGVehicleDoorModule::ApplyRepair()
+{
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
+}

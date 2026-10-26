@@ -60,6 +60,20 @@ void UGVehicleMovementComponent::BreakWheel(int32 wheelIndex)
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Red, TEXT("The Wheel disabled"), true);
 }
 
+void UGVehicleMovementComponent::RepairWheel(int32 wheelIndex)
+{
+	if (!Wheels.IsValidIndex(wheelIndex))
+	{
+		return;
+	}
+	SetAffectedByEngine(wheelIndex, true);
+	SetAffectedByBrake(wheelIndex, true);
+	SetAffectedBySteering(wheelIndex, true);
+	SetWheelFrictionMultiplier(wheelIndex, 1.0f);
+	SetWheelMaxBrakeTorque(wheelIndex, 1.0f);
+	SetWheelHandbrakeTorque(wheelIndex, 1.0f);
+}
+
 void UGVehicleMovementComponent::BreakSteeringWheel()
 {
 	for (int i = 0; i < 4; ++i)
@@ -69,12 +83,27 @@ void UGVehicleMovementComponent::BreakSteeringWheel()
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The steering whel is broken"), true);
 }
 
+void UGVehicleMovementComponent::RepairSteeringWheel()
+{
+	for (int i = 0; i < 4; ++i)
+	{
+		SetWheelMaxSteerAngle(i, 45.0f);
+	}
+}
+
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
 	EngineSetup.MaxTorque *= BrokenEngineTorqueMultiplier;
 	EngineSetup.MaxRPM *= BrokenEngineRPMMultiplier;
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
+}
+
+void UGVehicleMovementComponent::RepairEngine()
+{
+	bEngineBroken = false;
+	EngineSetup.MaxTorque = carData->MaxTorque;
+	EngineSetup.MaxRPM = carData->MaxRPM;
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()
