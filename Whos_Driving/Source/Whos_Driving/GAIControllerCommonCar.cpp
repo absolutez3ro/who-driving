@@ -142,7 +142,7 @@ void AGAIControllerCommonCar::Tick(float DeltaSeconds)
 void AGAIControllerCommonCar::StartShootDelay()
 {
     // Define your range, e.g., between 0.5s and 1.5s
-    float RandomDelay = FMath::RandRange(1.0f, 1.0f)+fireRate;
+    float RandomDelay = FMath::RandRange(0.0f, 3.0f)+fireRate;
     UE_LOG(LogTemp, Log, TEXT("shot timer started"));
     GetWorldTimerManager().SetTimer(shootDelayHandle,this, &AGAIControllerCommonCar::Shoot, RandomDelay, false);
 }
