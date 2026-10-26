@@ -6,21 +6,27 @@
 #include "GameFramework/Pawn.h"
 #include "GBaseEnemyCar.generated.h"
 
+class UGEnemyBaseDataAsset;
+
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, float, scrapPrice_);
 UCLASS()
 class WHOS_DRIVING_API AGBaseEnemyCar : public APawn
 {
 	GENERATED_BODY()
 
-
+protected:
+	virtual void BeginPlay() override;
+	float maxHp=1;
+	float scrapPrice = 0;
+	float currentHp = 1;
 public:
+	UPROPERTY(BlueprintAssignable, Category = "Game Events")
+	FOnEnemyDeath OnDeath;
 	// Sets default values for this character's properties
 	AGBaseEnemyCar();
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEnemyBaseDataAsset> baseData;
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 

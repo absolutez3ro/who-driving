@@ -27,12 +27,29 @@ void UGVehicleModule::ApplyDamage(float damage)
 	}
 }
 
+void UGVehicleModule::ApplyRepair()
+{
+	if (!CanRepair())
+	{
+		return;
+	}
+
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
+}
+
 void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
 {
 	maxHP = inMaxHP;
 	currentHP = inCurrentHp;
 	SetState(state);
-}	
+}
+
+float UGVehicleModule::GetHealthAsPercentage() const
+{
+	return currentHP / maxHP * 100.0f;
+}
+
 
 void UGVehicleModule::SetState(EGModuleState newState)
 {

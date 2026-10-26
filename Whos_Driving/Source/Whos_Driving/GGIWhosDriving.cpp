@@ -126,6 +126,8 @@ void UGGIWhosDriving::FindSessions()
 }
 void UGGIWhosDriving::OnFindSessionsComplete(bool bWasSuccessful)
 {
+    sessionsNames.Empty();
+    sessionIndices.Empty();
     IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
     if (OSS)
     {

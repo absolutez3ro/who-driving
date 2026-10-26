@@ -311,12 +311,7 @@ bool UGVehicleCombatComponent::CanFire() const
 		//	IsPlayerValid(), weapon, weapon->GetDefinition(), weapon->IsEquipped(), weapon->IsReloading(), weapon->GetBulletCount(), GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime);
 		return false;
 	}
-	const bool bOutside = windowState.bOutside && GetWindowAlpha() >= 0.99f;
-	const bool bDriverInside = GetSeatIndex() == 0 && !windowState.bOutside && GetWindowAlpha() <= 0.01f &&
-							   selectedSlot == EGWeaponSlot::Secondary;
-	UE_LOG(LogTemp, Log, TEXT("can fire bOutside %d bDriverInside %d"), bOutside, bDriverInside);
-
-	return bOutside || bDriverInside;
+	return true;
 }
 
 void UGVehicleCombatComponent::UpdateView(const FVector& direction)
