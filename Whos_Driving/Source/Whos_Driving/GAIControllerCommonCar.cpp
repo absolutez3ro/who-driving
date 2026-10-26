@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "GAIControllerCommonCar.h"
 #include "GCommonEnemyDataAsset.h"
+
 
 void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerForward)
 {
@@ -11,10 +11,6 @@ void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerFo
     UPrimitiveComponent* RootPrim = Cast<UPrimitiveComponent>(selfActor->GetRootComponent());
     if (RootPrim && RootPrim->IsSimulatingPhysics())
     {
-        // GetMass() returns the mass in kg (calculated by the engine or overridden)
-        float Mass = RootPrim->GetMass();
-        FVector ForceToApply = Mass * acceleration;
-        RootPrim->AddForce(ForceToApply);
         FVector currentVelocity= RootPrim->GetPhysicsLinearVelocity();
         //UE_LOG(LogTemp, Warning, TEXT("velocity was: %f"), currentVelocityX);
         bool reverseMovement = FVector::DotProduct(currentVelocity, playerForward)<=0;
@@ -22,14 +18,21 @@ void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerFo
         if(distance <0 and reverseMovement)
         {
             UE_LOG(LogTemp, Error, TEXT("velocity set to 0"));
-            currentVelocity = FVector(0, 0, 0);
+            currentVelocity = FVector(0, 0, currentVelocity.Z);
+            RootPrim->SetPhysicsLinearVelocity(currentVelocity);
         }
-        RootPrim->SetPhysicsLinearVelocity(currentVelocity);
+        else 
+        {
+        // GetMass() returns the mass in kg (calculated by the engine or overridden)
+        float Mass = RootPrim->GetMass();
+        FVector ForceToApply = Mass * acceleration;
+        RootPrim->AddForce(ForceToApply);
+        }
         UE_LOG(LogTemp, Warning, TEXT("velocity is: %f %f %f"), currentVelocity.X, currentVelocity.Y, currentVelocity.Z);
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("RootPrim(%d) or IsSimulatingPhysics(%d) false!"), RootPrim, RootPrim->IsSimulatingPhysics());
+        UE_LOG(LogTemp, Error, TEXT("RootPrim(%d) or IsSimulatingPhysics (if not root prim its this) false!"), RootPrim);
     }
 
 }
@@ -40,8 +43,8 @@ void AGAIControllerCommonCar::BeginPlay() {
     minAcceleration = commonCarData->minAcceleration;
     maxAcceleration = commonCarData->maxAcceleration;
     baseAcceleration = commonCarData->accelerationModifier;
-    minYDistance = commonCarData->minYDistance;
-    maxYDistance = commonCarData->maxYDistance;
+    minYDistance = commonCarData->minYDistanceCM;
+    maxYDistance = commonCarData->maxYDistanceCM;
     fireRate = commonCarData->fireRate;
     hitChance = commonCarData->hitChance;
     minDamage = commonCarData->minDamage;
@@ -73,9 +76,8 @@ void AGAIControllerCommonCar::Chase(AActor* carReference, float deltaSeconds)
         FVector playerForward = carReference->GetActorForwardVector();
         FVector toPlayerVector = playerPos - selfPos;
         float distance = FVector::DotProduct(toPlayerVector, playerForward);
-        toPlayerVector.Normalize();
         CalculateAcceleration(toPlayerVector, playerForward, deltaSeconds);
-        //ApplyAcceleration(distance, playerForward);
+        ApplyAcceleration(distance, playerForward);
     }
     else
     {
@@ -87,7 +89,7 @@ void AGAIControllerCommonCar::CalculateAcceleration(FVector toPlayerVector, FVec
 {
     FVector playerLeft = FVector3d(-playerForward.Y, playerForward.X, playerForward.Z);
     float distance= FVector::DotProduct(toPlayerVector,playerForward);
-    float accelerationMod= baseAcceleration * pow(distance, 3);
+    float accelerationMod= baseAcceleration * pow(abs(distance), 3);
     playerLeft.Normalize();
     playerLeft *= YDistance;
     acceleration = playerLeft + toPlayerVector;
@@ -96,6 +98,7 @@ void AGAIControllerCommonCar::CalculateAcceleration(FVector toPlayerVector, FVec
     accelerationMod = FMath::Clamp(accelerationMod, minAcceleration, maxAcceleration);
     acceleration *= accelerationMod;
     UE_LOG(LogTemp, Warning, TEXT("acceleration is: %f %f %f"), acceleration.X, acceleration.Y, acceleration.Z);
+    UE_LOG(LogTemp, Warning, TEXT("accelerationMod is: %f"), accelerationMod);
     UE_LOG(LogTemp, Warning, TEXT("distance is: %f"), distance);
 }
 

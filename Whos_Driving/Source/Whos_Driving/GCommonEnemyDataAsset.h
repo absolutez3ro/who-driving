@@ -21,9 +21,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float accelerationModifier;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float minYDistance;
+	float minYDistanceCM;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float maxYDistance;
+	float maxYDistanceCM;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float fireRate;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
