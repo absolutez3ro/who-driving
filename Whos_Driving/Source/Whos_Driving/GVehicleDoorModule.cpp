@@ -38,6 +38,26 @@ void UGVehicleDoorModule::OnDestroyed()
 
 void UGVehicleDoorModule::ApplyRepair()
 {
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
+
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	car->GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(true, true);
+	}
+
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }
