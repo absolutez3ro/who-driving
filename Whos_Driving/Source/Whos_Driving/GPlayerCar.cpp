@@ -339,6 +339,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		wheel->maxHP = carData->WheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
+		wheel->repairThreshold = carData->WheelRepairThreshold;
 	}
 
 	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
@@ -346,6 +347,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		door->maxHP = carData->DoorMaxHealth;
 		door->currentHP = door->maxHP;
+		door->repairThreshold = carData->DoorRepairThreshold;
 	}
 
 	auto steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
@@ -353,6 +355,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
+		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
 	}
 
 	auto engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
@@ -360,6 +363,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		engine->maxHP = carData->EngineMaxHealth;
 		engine->currentHP = engine->maxHP;
+		engine->repairThreshold = carData->EngineRepairThreshold;
 	}
 
 	auto electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
@@ -367,6 +371,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		electrician->maxHP = carData->ElectricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
+		electrician->repairThreshold = carData->ElectricianRepairThreshold;
 	}
 }
 
