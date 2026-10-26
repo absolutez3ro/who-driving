@@ -29,6 +29,11 @@ void UGVehicleModule::ApplyDamage(float damage)
 
 void UGVehicleModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }
