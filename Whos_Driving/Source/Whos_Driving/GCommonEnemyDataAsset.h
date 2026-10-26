@@ -44,4 +44,6 @@ public:
 	float engineWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float electronicsWeight;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TObjectPtr<USoundBase> HitSound;
 };

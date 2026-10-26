@@ -4,7 +4,10 @@
 #include "GCommonEnemyDataAsset.h"
 #include "GPlayerCar.h"
 #include "Engine/DamageEvents.h"
+#include "GBaseEnemyCar.h"
+
 #include "Kismet/GameplayStatics.h"
+
 void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerForward)
 {
     APawn* selfActor = GetPawn();
@@ -14,10 +17,10 @@ void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerFo
     {
         FVector currentVelocity= RootPrim->GetPhysicsLinearVelocity();
         bool reverseMovement = FVector::DotProduct(currentVelocity, playerForward)<=0;
-        UE_LOG(LogTemp, Warning, TEXT("reverseMovement is: %d"), reverseMovement);
+        //UE_LOG(LogTemp, Warning, TEXT("reverseMovement is: %d"), reverseMovement);
         if(distance <0 and reverseMovement)
         {
-            UE_LOG(LogTemp, Error, TEXT("velocity set to 0"));
+            //UE_LOG(LogTemp, Error, TEXT("velocity set to 0"));
             currentVelocity = FVector(0, 0, currentVelocity.Z);
             RootPrim->SetPhysicsLinearVelocity(currentVelocity);
         }
@@ -35,7 +38,7 @@ void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerFo
             }
 
         }
-        UE_LOG(LogTemp, Warning, TEXT("velocity is: %f %f %f"), currentVelocity.X, currentVelocity.Y, currentVelocity.Z);
+        //UE_LOG(LogTemp, Warning, TEXT("velocity is: %f %f %f"), currentVelocity.X, currentVelocity.Y, currentVelocity.Z);
     }
     else
     {
@@ -72,6 +75,7 @@ void AGAIControllerCommonCar::BeginPlay() {
     module_names[3].Add(FName("Engine"));
     module_names[4].Add(FName("Electician"));
     YDistance = FMath::FRandRange(minYDistance, maxYDistance);
+    HitSound = commonCarData->HitSound;
     SetPlayerRef();
     StartShootDelay();
 }
@@ -124,9 +128,9 @@ void AGAIControllerCommonCar::CalculateAcceleration(FVector toPlayerVector, FVec
     acceleration.Normalize();
     accelerationMod = FMath::Clamp(accelerationMod, minAcceleration, maxAcceleration);
     acceleration *= accelerationMod;
-    UE_LOG(LogTemp, Warning, TEXT("acceleration is: %f %f %f"), acceleration.X, acceleration.Y, acceleration.Z);
-    UE_LOG(LogTemp, Warning, TEXT("accelerationMod is: %f"), accelerationMod);
-    UE_LOG(LogTemp, Warning, TEXT("distance is: %f"), distance);
+    //UE_LOG(LogTemp, Warning, TEXT("acceleration is: %f %f %f"), acceleration.X, acceleration.Y, acceleration.Z);
+    //UE_LOG(LogTemp, Warning, TEXT("accelerationMod is: %f"), accelerationMod);
+    //UE_LOG(LogTemp, Warning, TEXT("distance is: %f"), distance);
 }
 
 void AGAIControllerCommonCar::Tick(float DeltaSeconds)
@@ -142,6 +146,7 @@ void AGAIControllerCommonCar::StartShootDelay()
     UE_LOG(LogTemp, Log, TEXT("shot timer started"));
     GetWorldTimerManager().SetTimer(shootDelayHandle,this, &AGAIControllerCommonCar::Shoot, RandomDelay, false);
 }
+
 
 void AGAIControllerCommonCar::Shoot_Implementation()
 {
@@ -202,6 +207,8 @@ void AGAIControllerCommonCar::Shoot_Implementation()
                 playerCarRef->DamageModule(TargetedModule, damage);
                 UE_LOG(LogTemp, Log, TEXT("hit part %s damage: %f"), *TargetedModule.ToString(), damage);
             }
+            AGBaseEnemyCar* EnemyCar = Cast<AGBaseEnemyCar>(GetPawn());
+            EnemyCar->PlayShotSound_Implementation();
         }
         else 
         {
