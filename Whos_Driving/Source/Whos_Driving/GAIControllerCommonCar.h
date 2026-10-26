@@ -9,7 +9,10 @@
 /**
  * 
  */
+
+class AGPlayerCar;
 class UGCommonEnemyDataAsset;
+
 UCLASS()
 class WHOS_DRIVING_API AGAIControllerCommonCar : public AAIController
 {
@@ -29,15 +32,18 @@ private:
 	float minDamage=1;
 	float maxDamage=1;
 	TArray<float> weights;
-	float totalWeight;
+	TArray<FName> module_names[6];
 	FTimerHandle shootDelayHandle;
+	AGPlayerCar* playerCarRef;
 	void StartShootDelay();
+	void SetPlayerRef();
 public:
+	void BeginPlay() override;
+	void Tick(float DeltaSeconds) override;
 	UFUNCTION(Server, Reliable)
 	void Shoot();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCommonEnemyDataAsset> commonCarData;
-	void BeginPlay() override;
 	UFUNCTION(BlueprintCallable, Category = "Chase")
-	void Chase(AActor* carReference, float deltaSeconds);
+	void Chase(float deltaSeconds);
 };
