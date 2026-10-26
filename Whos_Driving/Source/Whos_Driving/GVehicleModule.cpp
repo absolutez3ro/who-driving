@@ -29,11 +29,6 @@ void UGVehicleModule::ApplyDamage(float damage)
 
 void UGVehicleModule::ApplyRepair()
 {
-	if (!CanRepair())
-	{
-		return;
-	}
-
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }
@@ -74,7 +69,7 @@ bool UGVehicleModule::IsDestroyed() const
 
 bool UGVehicleModule::CanRepair() const
 {
-	return moduleState == EGModuleState::Repair;
+	return (moduleState == EGModuleState::Repair || moduleState == EGModuleState::Destroyed);
 }
 
 bool UGVehicleModule::IsFull() const
