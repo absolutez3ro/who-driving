@@ -25,6 +25,7 @@
 #include "GVehicleEngineModule.h"
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -174,13 +175,13 @@ void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
 {
 	UGVehicleElectricianModule* electricianModule = objectInitializer.CreateDefaultSubobject<UGVehicleElectricianModule>(this, TEXT("Electrician"));
-	const FName moduleId("Electician");
+	const FName moduleId("Electrician");
 	electricianModule->moduleId = moduleId;
 	electricianModule->maxHP = 50.0f;
 	electricianModule->currentHP = electricianModule->maxHP;
 	moduleComponent->RegisterModule(electricianModule);
 
-	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectician"));
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectrician"));
 	hitBox->moduleId = moduleId;
 	hitBox->SetupAttachment(GetMesh());
 	hitBox->InitBoxExtent(FVector(15.0f, 11.0f, 15.0f));
@@ -329,6 +330,7 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
+	SubscribeToRepairEvent();
 }
 
 void AGPlayerCar::LoadCarData()
@@ -339,6 +341,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		wheel->maxHP = carData->WheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
+		wheel->repairThreshold = carData->WheelRepairThreshold;
 	}
 
 	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
@@ -346,6 +349,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		door->maxHP = carData->DoorMaxHealth;
 		door->currentHP = door->maxHP;
+		door->repairThreshold = carData->DoorRepairThreshold;
 	}
 
 	auto steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
@@ -353,6 +357,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
+		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
 	}
 
 	auto engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
@@ -360,6 +365,7 @@ void AGPlayerCar::LoadCarData()
 	{
 		engine->maxHP = carData->EngineMaxHealth;
 		engine->currentHP = engine->maxHP;
+		engine->repairThreshold = carData->EngineRepairThreshold;
 	}
 
 	auto electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
@@ -367,7 +373,26 @@ void AGPlayerCar::LoadCarData()
 	{
 		electrician->maxHP = carData->ElectricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
+		electrician->repairThreshold = carData->ElectricianRepairThreshold;
 	}
+}
+
+void AGPlayerCar::SubscribeToRepairEvent()
+{
+	AGPlayerController* controller = Cast<AGPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (!controller)
+	{
+		return;
+	}
+
+	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
+}
+
+void AGPlayerCar::HandleToRepair(FName moduleId)
+{
+	UGVehicleModule* module = moduleComponent->FindModule(moduleId);
+	module->ApplyRepair();
+	PublishModuleStates();
 }
 
 

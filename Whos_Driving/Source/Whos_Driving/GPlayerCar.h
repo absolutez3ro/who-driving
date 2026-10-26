@@ -117,6 +117,7 @@ protected:
 	void InputSteeringReleased(const FInputActionValue& value);
 	void InputBrake(const FInputActionValue& value);
 	void InputBrakeReleased(const FInputActionValue& value);
+	void InputRepair(const FInputActionValue& value);
 
 	void PossessedBy(AController* NewController) override;
 
@@ -129,6 +130,11 @@ protected:
 	void RecalculateCarHealth();
 
 	void LoadCarData();
+
+	void SubscribeToRepairEvent();
+
+	UFUNCTION()
+	void HandleToRepair(FName moduleId);
 
 protected:
 

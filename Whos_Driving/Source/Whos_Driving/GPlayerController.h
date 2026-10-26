@@ -5,6 +5,8 @@
 #include "Engine/NetSerialization.h"
 #include "InputCoreTypes.h"
 #include "G_Weapon_Definition.h"
+#include "GVehicleModule.h"
+
 #include "GPlayerController.generated.h"
 
 struct FInputActionValue;
@@ -12,6 +14,9 @@ class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UInputMappingContext;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnModuleInfoUpdated, FName, ModuleId, float, CurrentHpInPercentage, EGModuleState, moduleState);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FTryToRepair, FName, ModuleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -56,11 +61,22 @@ public:
 	void RequestFireMode();
 	void SendCombatView(const FVector& direction);
 
+	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
+	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
+
 	UFUNCTION(Client, Reliable)
 	void Client_SetupLobbyInput();
+
+	UPROPERTY(BlueprintAssignable)
+	FOnModuleInfoUpdated OnModuleInfoUpdated;
+
+	UPROPERTY()
+	FTryToRepair TryToRepair;
+
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
+	void Tick(float DeltaTime) override;
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
@@ -96,11 +112,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> lookAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> repairAction;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	FKey seatInteractionKey = EKeys::F;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	FKey vehicleExitKey = EKeys::H;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsLookingOnModule = false;
+	FName currentModule = NAME_None;
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnLookingModuleChanged(bool bIsLooking);
+
+	void TryToSendDelegate();
 
 private:
 	float lastSeatRequestTime = -1.0f;
