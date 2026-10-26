@@ -25,6 +25,7 @@
 #include "GVehicleEngineModule.h"
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -329,6 +330,7 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
+	SubscribeToRepairEvent();
 }
 
 void AGPlayerCar::LoadCarData()
@@ -373,6 +375,24 @@ void AGPlayerCar::LoadCarData()
 		electrician->currentHP = electrician->maxHP;
 		electrician->repairThreshold = carData->ElectricianRepairThreshold;
 	}
+}
+
+void AGPlayerCar::SubscribeToRepairEvent()
+{
+	AGPlayerController* controller = Cast<AGPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (!controller)
+	{
+		return;
+	}
+
+	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
+}
+
+void AGPlayerCar::HandleToRepair(FName moduleId)
+{
+	UGVehicleModule* module = moduleComponent->FindModule(moduleId);
+	module->ApplyRepair();
+	PublishModuleStates();
 }
 
 

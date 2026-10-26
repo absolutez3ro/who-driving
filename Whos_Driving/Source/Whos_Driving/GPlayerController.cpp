@@ -69,6 +69,7 @@ void AGPlayerController::Tick(float DeltaTime)
 	if (bFoundModule)
 	{
 		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
+		currentModule = moduleId;
 	}
 	if (bIsLookingOnModule != bFoundModule)
 	{
@@ -81,9 +82,10 @@ void AGPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 	UEnhancedInputComponent* enhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
-	if (enhancedInput && lookAction)
+	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
 	}
 	if (InputComponent)
 	{
@@ -109,6 +111,14 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 	{
 		const FVector2D lookAxis = value.Get<FVector2D>();
 		character->DoAim(lookAxis.X, lookAxis.Y);
+	}
+}
+
+void AGPlayerController::TryToSendDelegate()
+{
+	if (bIsLookingOnModule)
+	{
+		TryToRepair.Execute(currentModule);
 	}
 }
 

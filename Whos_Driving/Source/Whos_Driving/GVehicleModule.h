@@ -25,6 +25,7 @@ class WHOS_DRIVING_API UGVehicleModule : public UObject
 	
 public:
 	void ApplyDamage(float damage);
+	void ApplyRepair();
 	bool IsDestroyed() const;
 	bool CanRepair() const;
 	bool IsFull() const;

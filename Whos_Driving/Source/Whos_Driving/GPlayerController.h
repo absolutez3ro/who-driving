@@ -16,6 +16,7 @@ class AGPlayerCar;
 class UInputMappingContext;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnModuleInfoUpdated, FName, ModuleId, float, CurrentHpInPercentage, EGModuleState, moduleState);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FTryToRepair, FName, ModuleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -69,6 +70,9 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnModuleInfoUpdated OnModuleInfoUpdated;
 
+	UPROPERTY()
+	FTryToRepair TryToRepair;
+
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
@@ -108,6 +112,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> lookAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> repairAction;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	FKey seatInteractionKey = EKeys::F;
 
@@ -116,9 +123,12 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;
+	FName currentModule = NAME_None;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
+
+	void TryToSendDelegate();
 
 private:
 	float lastSeatRequestTime = -1.0f;
