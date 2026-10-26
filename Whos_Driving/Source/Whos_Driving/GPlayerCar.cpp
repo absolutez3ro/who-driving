@@ -174,13 +174,13 @@ void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
 {
 	UGVehicleElectricianModule* electricianModule = objectInitializer.CreateDefaultSubobject<UGVehicleElectricianModule>(this, TEXT("Electrician"));
-	const FName moduleId("Electician");
+	const FName moduleId("Electrician");
 	electricianModule->moduleId = moduleId;
 	electricianModule->maxHP = 50.0f;
 	electricianModule->currentHP = electricianModule->maxHP;
 	moduleComponent->RegisterModule(electricianModule);
 
-	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectician"));
+	UGBoxComponent* hitBox = objectInitializer.CreateDefaultSubobject<UGBoxComponent>(this, TEXT("CombatElectrician"));
 	hitBox->moduleId = moduleId;
 	hitBox->SetupAttachment(GetMesh());
 	hitBox->InitBoxExtent(FVector(15.0f, 11.0f, 15.0f));

@@ -30,6 +30,9 @@ public:
 	bool IsFull() const;
 	virtual void ApplyReplicatedState(float inMaxHp, float inCurrentHp, EGModuleState state);
 
+	UFUNCTION(BlueprintCallable)
+	float GetHealthAsPercentage() const;
+
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	FName moduleId = NAME_None;

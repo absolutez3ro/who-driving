@@ -5,6 +5,8 @@
 #include "Engine/NetSerialization.h"
 #include "InputCoreTypes.h"
 #include "G_Weapon_Definition.h"
+#include "GVehicleModule.h"
+
 #include "GPlayerController.generated.h"
 
 struct FInputActionValue;
@@ -12,6 +14,8 @@ class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UInputMappingContext;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnModuleInfoUpdated, FName, ModuleId, float, CurrentHpInPercentage, EGModuleState, moduleState);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -56,11 +60,19 @@ public:
 	void RequestFireMode();
 	void SendCombatView(const FVector& direction);
 
+	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
+	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
+
 	UFUNCTION(Client, Reliable)
 	void Client_SetupLobbyInput();
+
+	UPROPERTY(BlueprintAssignable)
+	FOnModuleInfoUpdated OnModuleInfoUpdated;
+
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
+	void Tick(float DeltaTime) override;
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
@@ -101,6 +113,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	FKey vehicleExitKey = EKeys::H;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsLookingOnModule = false;
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnLookingModuleChanged(bool bIsLooking);
 
 private:
 	float lastSeatRequestTime = -1.0f;

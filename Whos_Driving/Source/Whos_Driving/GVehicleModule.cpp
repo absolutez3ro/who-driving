@@ -32,7 +32,13 @@ void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGM
 	maxHP = inMaxHP;
 	currentHP = inCurrentHp;
 	SetState(state);
-}	
+}
+
+float UGVehicleModule::GetHealthAsPercentage() const
+{
+	return currentHP / maxHP * 100.0f;
+}
+
 
 void UGVehicleModule::SetState(EGModuleState newState)
 {

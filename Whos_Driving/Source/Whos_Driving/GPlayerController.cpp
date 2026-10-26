@@ -10,6 +10,8 @@
 #include "InputAction.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GBoxComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 
 AGPlayerController::AGPlayerController()
@@ -54,6 +56,25 @@ void AGPlayerController::EndPlay(const EEndPlayReason::Type endPlayReason)
 		seatedVehicle->GetSeatingComponent()->RemovePlayer(this, true);
 	}
 	Super::EndPlay(endPlayReason);
+}
+
+void AGPlayerController::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	FName moduleId = NAME_None;
+	float currentHpInPercentage = 0.0f;
+	EGModuleState moduleState = EGModuleState::Full;
+	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState);
+	if (bFoundModule)
+	{
+		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
+	}
+	if (bIsLookingOnModule != bFoundModule)
+	{
+		bIsLookingOnModule = bFoundModule;
+		OnLookingModuleChanged(bFoundModule);
+	}
 }
 
 void AGPlayerController::SetupInputComponent()
@@ -409,4 +430,74 @@ void AGPlayerController::Client_SetupLobbyInput_Implementation()
 	FInputModeGameOnly InputMode;
 	this->bShowMouseCursor = false;
 	this->SetInputMode(InputMode);
+}
+
+bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState)
+{
+	outModuleId = NAME_None;
+	outCurrentHPInPercentage = 0.0f;
+
+	if (!GetWorld())
+	{
+		return false;
+	}
+
+	FVector origin;
+	FRotator rotation;
+	GetPlayerViewPoint(origin, rotation);
+
+	const FVector end = origin + rotation.Vector() * 3000.0f;
+
+	FCollisionQueryParams query(
+		SCENE_QUERY_STAT(VehicleModuleLook),
+		false);
+
+	if (IsValid(driverCharacter))
+	{
+		query.AddIgnoredActor(driverCharacter);
+	}
+
+	if (IsValid(seatedVehicle))
+	{
+		if (USkeletalMeshComponent* vehicleMesh = seatedVehicle->GetMesh())
+		{
+			query.AddIgnoredComponent(vehicleMesh);
+		}
+	}
+
+	FHitResult hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel3, query);
+
+	if (!bHit)
+	{
+		return false;
+	}
+
+	const UGBoxComponent* hitBox = Cast<UGBoxComponent>(hit.GetComponent());
+
+	if (!IsValid(hitBox) || hitBox->moduleId.IsNone())
+	{
+		return false;
+	}
+
+	AGPlayerCar* vehicle = Cast<AGPlayerCar>(hitBox->GetOwner());
+
+	if (!IsValid(vehicle))
+	{
+		return false;
+	}
+
+	const FGVehicleModuleState state =
+		vehicle->GetModuleDamageState(hitBox->moduleId);
+
+	if (state.moduleId.IsNone())
+	{
+		return false;
+	}
+
+	outModuleId = state.moduleId;
+	outCurrentHPInPercentage = state.currentHP / state.maxHP * 100.0f;
+	outModuleState = state.moduleState;
+
+	return true;
 }
