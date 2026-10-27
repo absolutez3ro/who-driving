@@ -12,6 +12,11 @@ void UGVehicleWheelModule::OnDestroyed()
 
 void UGVehicleWheelModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+	
 	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
 	if (!car)
 	{

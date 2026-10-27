@@ -12,6 +12,11 @@ void UGVehicleDoorModule::OnDestroyed()
 
 void UGVehicleDoorModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+
 	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
 
 	USkeletalMeshComponent* doorMesh = nullptr;

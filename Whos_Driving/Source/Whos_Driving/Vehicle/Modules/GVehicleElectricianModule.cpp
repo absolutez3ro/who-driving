@@ -10,6 +10,11 @@ void UGVehicleElectricianModule::OnDestroyed()
 
 void UGVehicleElectricianModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }

@@ -12,6 +12,11 @@ void UGVehicleSteeringWheelModule::OnDestroyed()
 
 void UGVehicleSteeringWheelModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+
 	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
 
 	currentHP = maxHP;
