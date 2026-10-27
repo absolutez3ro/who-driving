@@ -58,6 +58,17 @@ void AGBaseEnemyCar::PlayShotSound_Implementation()
 		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
 	}
 }
+void AGBaseEnemyCar::PlayMissSound_Implementation()
+{
+	if (MissSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, MissSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
+}
 
 void AGBaseEnemyCar::HandleDeath() {
 	if (!HasAuthority())

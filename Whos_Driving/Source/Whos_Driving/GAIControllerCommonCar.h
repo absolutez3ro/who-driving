@@ -37,6 +37,7 @@ private:
 	TArray<FName> module_names[6];
 	FTimerHandle shootDelayHandle;
 	TObjectPtr<USoundBase> HitSound;
+	TObjectPtr<USoundBase> MissSound;
 	AGPlayerCar* playerCarRef;
 	void StartShootDelay();
 	void SetPlayerRef();

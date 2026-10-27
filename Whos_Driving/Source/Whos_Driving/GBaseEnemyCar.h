@@ -24,9 +24,13 @@ protected:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<USoundBase> HitSound;
+	TObjectPtr<USoundBase> MissSound;
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void PlayShotSound();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void PlayMissSound();
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
 	FOnEnemyDeath OnDeath;
 	// Sets default values for this character's properties

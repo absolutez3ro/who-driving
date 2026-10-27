@@ -76,6 +76,8 @@ void AGAIControllerCommonCar::BeginPlay() {
     module_names[4].Add(FName("Electician"));
     YDistance = FMath::FRandRange(minYDistance, maxYDistance);
     HitSound = commonCarData->HitSound;
+    MissSound = commonCarData->MissSound;
+
     SetPlayerRef();
     StartShootDelay();
 }
@@ -217,6 +219,9 @@ void AGAIControllerCommonCar::Shoot_Implementation()
     }
     else {
         UE_LOG(LogTemp, Log, TEXT("missed"));
+        AGBaseEnemyCar* EnemyCar = Cast<AGBaseEnemyCar>(GetPawn());
+        EnemyCar->MissSound = MissSound;
+        EnemyCar->PlayMissSound_Implementation();
     }
     StartShootDelay();
 }
