@@ -18,8 +18,11 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 public:
 	UGVehicleMovementComponent();
 	void BreakWheel(int32 wheelIndex);
+	void RepairWheel(int32 wheelIndex);
 	void BreakSteeringWheel();
+	void RepairSteeringWheel();
 	void BreakEngine();
+	void RepairEngine();
 	void StopDrivingInput();
 	void SetWindowDrivingLock(bool bLocked);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
@@ -70,9 +73,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
 	float BrokenEngineTorqueMultiplier;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenEngineRPMMultiplier;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float BrokenEngineMaxSpeed;

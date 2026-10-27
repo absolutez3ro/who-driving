@@ -13,7 +13,9 @@ UCLASS()
 class WHOS_DRIVING_API UGVehicleEngineModule : public UGVehicleModule
 {
 	GENERATED_BODY()
-	
+public:
+	void ApplyRepair() override;
+
 protected:
 	void OnDestroyed() override;
 };

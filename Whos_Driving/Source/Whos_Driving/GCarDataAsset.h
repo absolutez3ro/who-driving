@@ -21,12 +21,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Максимальный крутящий момент двигателя"))
 	float MaxTorque;
 
-	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Максимальное количество оборотов в минуту"))
-	float MaxRPM;
-	
-	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Количество оборотов в минуту в покое"))
-	float EngineIdleRPM;
-
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
 	float WheelMaxHealth;
 

@@ -18,6 +18,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	int32 doorId = INDEX_NONE;
 
+	void ApplyRepair() override;
 protected:
 	void OnDestroyed() override;
 };

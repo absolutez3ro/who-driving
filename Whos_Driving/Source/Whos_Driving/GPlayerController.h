@@ -120,6 +120,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> gameplayMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
 	TObjectPtr<UInputAction> repairAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
