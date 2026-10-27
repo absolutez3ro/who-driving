@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/AudioComponent.h"
+#include "Sound/SoundBase.h"
 #include "AIController.h"
 #include "GAIControllerCommonCar.generated.h"
 
 /**
  * 
  */
-
+class AGBaseEnemyCar;
 class AGPlayerCar;
 class UGCommonEnemyDataAsset;
 
@@ -34,6 +36,8 @@ private:
 	TArray<float> weights;
 	TArray<FName> module_names[6];
 	FTimerHandle shootDelayHandle;
+	TObjectPtr<USoundBase> HitSound;
+	TObjectPtr<USoundBase> MissSound;
 	AGPlayerCar* playerCarRef;
 	void StartShootDelay();
 	void SetPlayerRef();

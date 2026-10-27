@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Sound/SoundBase.h"
 #include "GameFramework/Pawn.h"
 #include "GBaseEnemyCar.generated.h"
 
@@ -21,6 +22,15 @@ protected:
 	float scrapPrice = 0;
 	float currentHp = 1;
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<USoundBase> HitSound;
+	TObjectPtr<USoundBase> MissSound;
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void PlayShotSound();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void PlayMissSound();
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
 	FOnEnemyDeath OnDeath;
 	// Sets default values for this character's properties

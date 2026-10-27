@@ -3,6 +3,7 @@
 
 #include "GBaseEnemyCar.h"
 #include "GEnemyBaseDataAsset.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AGBaseEnemyCar::AGBaseEnemyCar()
@@ -50,9 +51,27 @@ void AGBaseEnemyCar::Tick(float DeltaTime)
 
 }
 
-void AGBaseEnemyCar::MulticastShotFired_Implementation(FVector target, bool bHit)
+void AGBaseEnemyCar::PlayShotSound_Implementation()
 {
-	OnShotFired(target, bHit);
+	if (HitSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
+}
+void AGBaseEnemyCar::PlayMissSound_Implementation()
+{
+	if (MissSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, MissSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
 }
 
 void AGBaseEnemyCar::HandleDeath() {
