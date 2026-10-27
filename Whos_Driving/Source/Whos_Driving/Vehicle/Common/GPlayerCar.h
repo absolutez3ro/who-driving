@@ -90,6 +90,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
 
+	UGVehicleModuleComponent* GetModuleComponent() const;
+
 
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")

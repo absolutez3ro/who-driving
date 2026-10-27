@@ -17,11 +17,15 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 	
 public:
 	UGVehicleMovementComponent();
+	void SubscribeOnDelegates();
 	void BreakWheel(int32 wheelIndex);
 	void RepairWheel(int32 wheelIndex);
 	void BreakSteeringWheel();
 	void RepairSteeringWheel();
+
+	UFUNCTION()
 	void BreakEngine();
+
 	void RepairEngine();
 	void StopDrivingInput();
 	void SetWindowDrivingLock(bool bLocked);

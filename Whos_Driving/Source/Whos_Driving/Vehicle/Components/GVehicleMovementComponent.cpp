@@ -3,6 +3,9 @@
 
 #include "GVehicleMovementComponent.h"
 #include "GCarDataAsset.h"
+#include "GPlayerCar.h"
+#include "GVehicleEngineModule.h"
+#include "GVehicleModuleComponent.h"
 #include "Net/UnrealNetwork.h"
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
@@ -170,6 +173,14 @@ void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
 		ReplicatedState.ThrottleInput = ReplicatedState.SteeringInput = 0.0f;
 		ReplicatedState.BrakeInput = ReplicatedState.HandbrakeInput = 0.0f;
 	}
+}
+
+void UGVehicleMovementComponent::SubscribeOnDelegates()
+{
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOwner());
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	UGVehicleEngineModule* engine = Cast<UGVehicleEngineModule>(moduleComponent->FindModule("Engine"));
+	engine->OnEngineBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakEngine);
 }
 
 void UGVehicleMovementComponent::ApplyWindowDrivingLock()

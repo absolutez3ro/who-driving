@@ -6,6 +6,8 @@
 #include "GVehicleModule.h"
 #include "GVehicleEngineModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEngineBreak);
+
 /**
  * 
  */
@@ -15,6 +17,9 @@ class WHOS_DRIVING_API UGVehicleEngineModule : public UGVehicleModule
 	GENERATED_BODY()
 public:
 	void ApplyRepair() override;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnEngineBreak OnEngineBreak;
 
 protected:
 	void OnDestroyed() override;

@@ -317,8 +317,10 @@ void AGPlayerCar::BeginPlay()
 	Super::BeginPlay();
 
 	moduleComponent->RebuildModuleRegistry(this);
-
 	LoadCarData();
+
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	movementComponent->SubscribeOnDelegates();
 
 	if (HasAuthority())
 	{
@@ -408,6 +410,11 @@ TSubclassOf<AWhos_DrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
 UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 {
 	return seatingComponent;
+}
+
+UGVehicleModuleComponent* AGPlayerCar::GetModuleComponent() const
+{
+	return moduleComponent;
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)
