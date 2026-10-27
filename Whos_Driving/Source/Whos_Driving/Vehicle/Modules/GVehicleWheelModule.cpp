@@ -8,7 +8,6 @@
 void UGVehicleWheelModule::OnDestroyed()
 {
 	OnWheelBreak.Broadcast(wheelIndex);
-	//car->PublishModuleStates();
 }
 
 void UGVehicleWheelModule::ApplyRepair()

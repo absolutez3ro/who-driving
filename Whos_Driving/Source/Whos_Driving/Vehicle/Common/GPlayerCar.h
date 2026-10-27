@@ -65,6 +65,7 @@ class WHOS_DRIVING_API AGPlayerCar : public AWheeledVehiclePawn
 	
 public:
 	AGPlayerCar(const FObjectInitializer& objectInitializer);
+	void SubscribeOnDelegates();
 	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
@@ -89,7 +90,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
-
+	
 	UGVehicleModuleComponent* GetModuleComponent() const;
 
 
@@ -144,6 +145,8 @@ protected:
 	UFUNCTION()
 	void HandleToRepair(FName moduleId);
 
+	UFUNCTION()
+	void BreakDoor(FName moduleI);
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
