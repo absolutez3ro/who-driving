@@ -1,7 +1,7 @@
 # Visual Studio 2015 user specific files
 .vs/
 *.sln
-*.slnx
+**/*.slnx
 # Compiled Object files
 *.slo
 *.lo
@@ -62,9 +62,6 @@ Whos_Driving/Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 Whos_Driving/DerivedDataCache/*
-
-# Generated Visual Studio solutions
-*.slnx
 
 # Python bytecode
 __pycache__/
