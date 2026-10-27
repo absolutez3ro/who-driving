@@ -35,4 +35,11 @@ public:
 	// handles enemy death event
 	void HandleDeath();
 
+	// Cosmetic side of a shot (muzzle flash, sound, tracer); damage is applied by the AI controller
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastShotFired(FVector target, bool bHit);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+	void OnShotFired(FVector target, bool bHit);
+
 };

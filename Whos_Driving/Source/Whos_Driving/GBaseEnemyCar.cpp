@@ -21,8 +21,12 @@ void AGBaseEnemyCar::BeginPlay()
 	USkeletalMesh* TargetMesh = baseData->mesh;
 	if (TargetMesh)
 	{
-		// For ACharacter, use GetMesh(). For AActor, use FindComponentByClass<USkeletalMeshComponent>()
-		USkeletalMeshComponent* MeshComp = FindComponentByClass<USkeletalMeshComponent>();
+		// The car body is the root; the seated crew are skeletal meshes too, so don't just take the first one found
+		USkeletalMeshComponent* MeshComp = Cast<USkeletalMeshComponent>(GetRootComponent());
+		if (!MeshComp)
+		{
+			MeshComp = FindComponentByClass<USkeletalMeshComponent>();
+		}
 
 		if (!MeshComp)
 		{
@@ -44,6 +48,11 @@ void AGBaseEnemyCar::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void AGBaseEnemyCar::MulticastShotFired_Implementation(FVector target, bool bHit)
+{
+	OnShotFired(target, bHit);
 }
 
 void AGBaseEnemyCar::HandleDeath() {

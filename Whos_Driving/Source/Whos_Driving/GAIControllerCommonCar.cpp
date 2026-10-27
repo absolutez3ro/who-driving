@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "GAIControllerCommonCar.h"
+#include "GBaseEnemyCar.h"
 #include "GCommonEnemyDataAsset.h"
 #include "GPlayerCar.h"
 #include "Engine/DamageEvents.h"
@@ -147,7 +148,16 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 {
     UE_LOG(LogTemp, Log, TEXT("trying to shoot"));
 
-    if (FMath::RandRange(0.0f, 1.0f)<=hitChance)
+    const bool bHit = FMath::RandRange(0.0f, 1.0f) <= hitChance;
+    AGBaseEnemyCar* enemyCar = Cast<AGBaseEnemyCar>(GetPawn());
+    if (enemyCar && playerCarRef)
+    {
+        // misses land off to the side of the player car so the tracer visibly flies past
+        const FVector target = playerCarRef->GetActorLocation() + (bHit ? FVector::ZeroVector : FMath::VRand() * 300.0f);
+        enemyCar->MulticastShotFired(target, bHit);
+    }
+
+    if (bHit)
     {
         TArray<FName> shootable_module_names[6];
         TArray<int32> shootable_wheight_ids;
