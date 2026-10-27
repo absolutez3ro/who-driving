@@ -7,7 +7,8 @@
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
 {
-
+	EngineSetup.MaxRPM = 6000.0f;
+	EngineSetup.EngineIdleRPM = 800.0f;
 	FRichCurve* torqueCurve = EngineSetup.TorqueCurve.GetRichCurve();
 	if (torqueCurve) 
 	{
@@ -31,13 +32,10 @@ void UGVehicleMovementComponent::BeginPlay()
 
 	if (carData)
 	{
-		EngineSetup.MaxTorque = carData->MaxTorque;
-		EngineSetup.MaxRPM = carData->MaxRPM;
-		EngineSetup.EngineIdleRPM = carData->EngineIdleRPM;
+		SetMaxEngineTorque(carData->MaxTorque);
 		BrokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
 		BrokenSteeringWheelAngle = carData->BrokenSteeringWheelAngle;
 		BrokenEngineTorqueMultiplier = carData->BrokenEngineTorqueMultiplier;
-		BrokenEngineRPMMultiplier = carData->BrokenEngineRPMMultiplier;
 		BrokenEngineMaxSpeed = carData->BrokenEngineMaxSpeed;
 	}
 }
@@ -94,16 +92,14 @@ void UGVehicleMovementComponent::RepairSteeringWheel()
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
-	EngineSetup.MaxTorque *= BrokenEngineTorqueMultiplier;
-	EngineSetup.MaxRPM *= BrokenEngineRPMMultiplier;
+	SetMaxEngineTorque(carData->MaxTorque * BrokenEngineTorqueMultiplier);
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
 void UGVehicleMovementComponent::RepairEngine()
 {
 	bEngineBroken = false;
-	EngineSetup.MaxTorque = carData->MaxTorque;
-	EngineSetup.MaxRPM = carData->MaxRPM;
+	SetMaxEngineTorque(carData->MaxTorque);
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()
