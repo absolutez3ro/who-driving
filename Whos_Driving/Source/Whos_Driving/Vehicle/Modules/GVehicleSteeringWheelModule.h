@@ -6,6 +6,8 @@
 #include "GVehicleModule.h"
 #include "GVehicleSteeringWheelModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSteeringWheelBreak);
+
 /**
  * 
  */
@@ -15,7 +17,7 @@ class WHOS_DRIVING_API UGVehicleSteeringWheelModule : public UGVehicleModule
 	GENERATED_BODY()
 public:
 	void ApplyRepair() override;
-
+	FOnSteeringWheelBreak OnSteeringWheelBreak;
 protected:
 	void OnDestroyed() override;
 };

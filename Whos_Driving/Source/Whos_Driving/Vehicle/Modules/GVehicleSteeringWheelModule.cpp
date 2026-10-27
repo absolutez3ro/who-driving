@@ -7,10 +7,7 @@
 
 void UGVehicleSteeringWheelModule::OnDestroyed()
 {
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-	movement->BreakSteeringWheel();
+	OnSteeringWheelBreak.Broadcast();
 }
 
 void UGVehicleSteeringWheelModule::ApplyRepair()

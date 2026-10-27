@@ -5,6 +5,7 @@
 #include "GCarDataAsset.h"
 #include "GPlayerCar.h"
 #include "GVehicleEngineModule.h"
+#include "GVehicleSteeringWheelModule.h"
 #include "GVehicleModuleComponent.h"
 #include "Net/UnrealNetwork.h"
 
@@ -181,6 +182,8 @@ void UGVehicleMovementComponent::SubscribeOnDelegates()
 	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
 	UGVehicleEngineModule* engine = Cast<UGVehicleEngineModule>(moduleComponent->FindModule("Engine"));
 	engine->OnEngineBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakEngine);
+	UGVehicleSteeringWheelModule* steeringWheel = Cast<UGVehicleSteeringWheelModule>(moduleComponent->FindModule("Steering_Wheel"));
+	steeringWheel->OnSteeringWheelBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakSteeringWheel);
 }
 
 void UGVehicleMovementComponent::ApplyWindowDrivingLock()
