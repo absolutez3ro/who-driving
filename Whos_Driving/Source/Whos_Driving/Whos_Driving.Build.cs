@@ -34,7 +34,13 @@ public class Whos_Driving : ModuleRules
 			"Whos_Driving/Variant_Shooter",
 			"Whos_Driving/Variant_Shooter/AI",
 			"Whos_Driving/Variant_Shooter/UI",
-			"Whos_Driving/Variant_Shooter/Weapons"
+			"Whos_Driving/Variant_Shooter/Weapons",
+			"Whos_Driving/AI",
+			"Whos_Driving/Common",
+			"Whos_Driving/Vehicle",
+			"Whos_Driving/Vehicle/Common",
+			"Whos_Driving/Vehicle/Components",
+			"Whos_Driving/Vehicle/Modules"
 		});
 
 		// Uncomment if you are using Slate UI
