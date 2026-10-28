@@ -36,6 +36,8 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void TickComponent(float deltaSeconds, ELevelTick tickType, FActorComponentTickFunction* tickFunction) override;
 	bool RequestWindow(bool bOutside);
+	// Q/E: leans towards the given side of the camera view, so the keys swap when looking backward.
+	bool RequestWindowSide(bool bLeftSide, const FVector& viewDirection);
 	bool SelectWeapon(EGWeaponSlot slot);
 	bool SetTrigger(bool bPressed, const FVector& direction);
 	bool SetAiming(bool bNewAiming);
@@ -81,6 +83,9 @@ public:
 	AGPlayerCar* GetVehicle() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	FVector GetAimDirection() const;
+	// View orientation including roll; use it instead of GetAimDirection().Rotation() for anything placed relative to the camera.
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	FRotator GetAimRotation() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetHealth() const
 	{
@@ -156,6 +161,7 @@ private:
 	bool IsAuthority() const;
 	bool IsPlayerValid() const;
 	void SpawnLoadout();
+	void StopFiring();
 	void TryFire();
 	void RefreshPresentation();
 	void RefreshDriverLock();

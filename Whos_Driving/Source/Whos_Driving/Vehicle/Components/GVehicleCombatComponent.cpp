@@ -195,7 +195,8 @@ bool UGVehicleCombatComponent::RequestWindow(bool bOutside)
 	{
 		return false;
 	}
-	CancelActions(false);
+	// Leaning only interrupts firing; a reload in progress continues through the transition.
+	StopFiring();
 	lastWindowRequest = GetServerTime();
 	windowState.startAlpha = GetWindowAlpha();
 	windowState.startTime = GetServerTime();
@@ -208,6 +209,21 @@ bool UGVehicleCombatComponent::RequestWindow(bool bOutside)
 	RefreshDriverLock();
 	GetOwner()->ForceNetUpdate();
 	return true;
+}
+
+bool UGVehicleCombatComponent::RequestWindowSide(bool bLeftSide, const FVector& viewDirection)
+{
+	AGPlayerCar* vehicle = GetVehicle();
+	const int32 seatIndex = GetSeatIndex();
+	if (!vehicle || seatIndex == INDEX_NONE || viewDirection.ContainsNaN())
+	{
+		return false;
+	}
+	// Sides are taken from the camera: looking towards the rear of the car swaps them.
+	const bool bLeftSeat = seatIndex == 0 || seatIndex == 2;
+	const bool bLookingBackward = FVector::DotProduct(viewDirection, vehicle->GetActorForwardVector()) < 0.0f;
+	const bool bWindowOnLeft = bLeftSeat != bLookingBackward;
+	return RequestWindow(bLeftSide == bWindowOnLeft);
 }
 
 bool UGVehicleCombatComponent::SelectWeapon(EGWeaponSlot slot)
@@ -267,10 +283,7 @@ void UGVehicleCombatComponent::CancelActions(bool bResetWindow)
 	{
 		return;
 	}
-	bTriggerHeld = false;
-	burstRemaining = 0;
-	bAiming = false;
-	GetWorld()->GetTimerManager().ClearTimer(fireTimer);
+	StopFiring();
 	for (AGVehicleWeapon* weapon : weapons)
 	{
 		if (weapon)
@@ -284,6 +297,15 @@ void UGVehicleCombatComponent::CancelActions(bool bResetWindow)
 		windowState.startTime = GetServerTime();
 	}
 	RefreshDriverLock();
+	GetOwner()->ForceNetUpdate();
+}
+
+void UGVehicleCombatComponent::StopFiring()
+{
+	bTriggerHeld = false;
+	burstRemaining = 0;
+	bAiming = false;
+	GetWorld()->GetTimerManager().ClearTimer(fireTimer);
 	GetOwner()->ForceNetUpdate();
 }
 
@@ -333,6 +355,14 @@ FVector UGVehicleCombatComponent::GetAimDirection() const
 {
 	return IsLocallyOwned() && GetCharacter() ? GetCharacter()->GetFirstPersonCameraComponent()->GetForwardVector()
 											  : FVector(aimDirection);
+}
+
+FRotator UGVehicleCombatComponent::GetAimRotation() const
+{
+	// The replicated direction carries no roll. The camera never rolls relative to the character,
+	// and the seated character shares the vehicle's up vector, so the view frame stays tied to the car.
+	const FVector up = GetCharacter() ? GetCharacter()->GetActorUpVector() : FVector::UpVector;
+	return FRotationMatrix::MakeFromXZ(GetAimDirection(), up).Rotator();
 }
 
 bool UGVehicleCombatComponent::SetTrigger(bool bPressed, const FVector& direction)
@@ -448,12 +478,14 @@ bool UGVehicleCombatComponent::SetAiming(bool bNewAiming)
 
 bool UGVehicleCombatComponent::RequestReload()
 {
-	if (!IsAuthority() || !IsPlayerValid() || !GetCurrentWeapon())
+	AGVehicleWeapon* weapon = GetCurrentWeapon();
+	// A repeated press must not restart the reload that is already running.
+	if (!IsAuthority() || !IsPlayerValid() || !weapon || weapon->IsReloading())
 	{
 		return false;
 	}
-	CancelActions(false);
-	return GetCurrentWeapon()->BeginReload();
+	StopFiring();
+	return weapon->BeginReload();
 }
 
 bool UGVehicleCombatComponent::ChangeFireMode()
@@ -462,7 +494,8 @@ bool UGVehicleCombatComponent::ChangeFireMode()
 	{
 		return false;
 	}
-	CancelActions(false);
+	// The weapon refuses to switch modes while reloading, so the reload is kept.
+	StopFiring();
 	return GetCurrentWeapon()->CycleFireMode();
 }
 

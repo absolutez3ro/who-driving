@@ -42,7 +42,8 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	if (definition)
 	{
 		const FTransform meshTransform = GetSkelMeshComponent()->GetComponentTransform();
-		const FTransform aimTransform(combat->GetAimDirection().Rotation(),
+		// The roll matters: hand targets must turn with the vehicle when it tilts or flips.
+		const FTransform aimTransform(combat->GetAimRotation(),
 									  character->GetFirstPersonCameraComponent()->GetComponentLocation());
 		// Donor guns point along mesh +Y. Solve the hand orientation from the grip
 		// socket instead of retaining the retargeted hand's unrelated local axes.

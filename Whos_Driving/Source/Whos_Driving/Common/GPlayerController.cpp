@@ -439,14 +439,21 @@ void AGPlayerController::RequestWindowLeft()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(2, FVector::ForwardVector);
+		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+		{
+			// Q/E are camera-relative, so the server needs the current view direction.
+			ServerCombatAction(2, combat->GetAimDirection());
+		}
 	}
 }
 void AGPlayerController::RequestWindowRight()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(3, FVector::ForwardVector);
+		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+		{
+			ServerCombatAction(3, combat->GetAimDirection());
+		}
 	}
 }
 void AGPlayerController::RequestFireStart()
@@ -504,8 +511,6 @@ void AGPlayerController::ServerCombatAction_Implementation(uint8 action, FVector
 	{
 		return;
 	}
-	const int32 seat = combat->GetSeatIndex();
-	const bool bLeftSeat = seat == 0 || seat == 2;
 	switch (action)
 	{
 	case 0:
@@ -515,16 +520,10 @@ void AGPlayerController::ServerCombatAction_Implementation(uint8 action, FVector
 		combat->SelectWeapon(EGWeaponSlot::Secondary);
 		break;
 	case 2:
-		if (seat != INDEX_NONE)
-		{
-			combat->RequestWindow(bLeftSeat);
-		}
+		combat->RequestWindowSide(true, direction);
 		break;
 	case 3:
-		if (seat != INDEX_NONE)
-		{
-			combat->RequestWindow(!bLeftSeat);
-		}
+		combat->RequestWindowSide(false, direction);
 		break;
 	case 4:
 		combat->SetTrigger(true, direction);
