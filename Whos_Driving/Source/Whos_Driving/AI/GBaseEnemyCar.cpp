@@ -8,7 +8,7 @@
 // Sets default values
 AGBaseEnemyCar::AGBaseEnemyCar()
 {
- 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 
 }
 
@@ -19,24 +19,24 @@ void AGBaseEnemyCar::BeginPlay()
 	maxHp = baseData->maxHp;
 	currentHp = maxHp;
 	scrapPrice = baseData->scrapPrice;
-	USkeletalMesh* TargetMesh = baseData->mesh;
-	if (TargetMesh)
+	USkeletalMesh* targetMesh = baseData->mesh;
+	if (targetMesh)
 	{
 		// The car body is the root; the seated crew are skeletal meshes too, so don't just take the first one found
-		USkeletalMeshComponent* MeshComp = Cast<USkeletalMeshComponent>(GetRootComponent());
-		if (!MeshComp)
+		USkeletalMeshComponent* meshComponent = Cast<USkeletalMeshComponent>(GetRootComponent());
+		if (!meshComponent)
 		{
-			MeshComp = FindComponentByClass<USkeletalMeshComponent>();
+			meshComponent = FindComponentByClass<USkeletalMeshComponent>();
 		}
 
-		if (!MeshComp)
+		if (!meshComponent)
 		{
 			UE_LOG(LogTemp, Error, TEXT("No skeletal mesh found for enemy"));
-			MeshComp = NewObject<USkeletalMeshComponent>(this, USkeletalMeshComponent::StaticClass());
-			MeshComp->RegisterComponent(); 
-			MeshComp->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
+			meshComponent = NewObject<USkeletalMeshComponent>(this, USkeletalMeshComponent::StaticClass());
+			meshComponent->RegisterComponent();
+			meshComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 		}
-		MeshComp->SetSkeletalMesh(TargetMesh);
+		meshComponent->SetSkeletalMesh(targetMesh);
 	}
 	else
 	{
@@ -45,28 +45,17 @@ void AGBaseEnemyCar::BeginPlay()
 }
 
 // Called every frame
-void AGBaseEnemyCar::Tick(float DeltaTime)
+void AGBaseEnemyCar::Tick(float deltaTime)
 {
-	Super::Tick(DeltaTime);
+	Super::Tick(deltaTime);
 
 }
 
 void AGBaseEnemyCar::PlayShotSound_Implementation()
 {
-	if (HitSound)
+	if (hitSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
-	}
-}
-void AGBaseEnemyCar::PlayMissSound_Implementation()
-{
-	if (MissSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, MissSound, GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, hitSound, GetActorLocation());
 	}
 	else
 	{
@@ -74,7 +63,20 @@ void AGBaseEnemyCar::PlayMissSound_Implementation()
 	}
 }
 
-void AGBaseEnemyCar::HandleDeath() {
+void AGBaseEnemyCar::PlayMissSound_Implementation()
+{
+	if (missSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, missSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
+}
+
+void AGBaseEnemyCar::HandleDeath()
+{
 	if (!HasAuthority())
 	{
 		return;
@@ -82,25 +84,24 @@ void AGBaseEnemyCar::HandleDeath() {
 	Destroy(true, false);
 }
 
-// Called to bind functionality to input
-float AGBaseEnemyCar::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+// Applies incoming damage on the server
+float AGBaseEnemyCar::TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
 	if (!HasAuthority())
 	{
 		return 0.0f;
 	}
-	if (DamageAmount>0)
+	if (damageAmount > 0)
 	{
-		currentHp -= DamageAmount;
-		UE_LOG(LogTemp, Log, TEXT("damage: %f"), DamageAmount);
+		currentHp -= damageAmount;
+		UE_LOG(LogTemp, Log, TEXT("damage: %f"), damageAmount);
 
 		UE_LOG(LogTemp, Log, TEXT("hp left: %f / %f"), currentHp, maxHp);
-		if (currentHp <= 0) 
+		if (currentHp <= 0)
 		{
-			OnDeath.Broadcast(scrapPrice);
+			onDeath.Broadcast(scrapPrice);
 			HandleDeath();
 		}
 	}
-	return DamageAmount;
+	return damageAmount;
 }
-

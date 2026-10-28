@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Whos_DrivingCharacter.h"
+#include "GWhosDrivingCharacter.h"
 #include "ShooterWeaponHolder.h"
 #include "ShooterCharacter.generated.h"
 
@@ -21,7 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDamagedDelegate, float, LifePercent
  *  Manages health and death
  */
 UCLASS(abstract)
-class WHOS_DRIVING_API AShooterCharacter : public AWhos_DrivingCharacter, public IShooterWeaponHolder
+class WHOS_DRIVING_API AShooterCharacter : public AGWhosDrivingCharacter, public IShooterWeaponHolder
 {
 	GENERATED_BODY()
 	

@@ -10,45 +10,46 @@
 #include "Interfaces/OnlineSessionInterface.h"
 #include "GGIWhosDriving.generated.h"
 
-/**
- *
-
- */
-
- //event dispatcher declaration
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSessionsFound, const TArray<FString>&, SessionNames);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnJoiningFailed);
+// Event dispatcher declarations
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnSessionsFound, const TArray<FString>&, sessionNames);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
 
 
 UCLASS()
 class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 {
 	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	void HostSession(FString sessionName);
+
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	void DestroySession();
+
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	void FindSessions();
+
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	bool JoinSessionByIndex(int32 sessionIndex);
+
+	UPROPERTY(BlueprintAssignable, Category = "Session")
+	FGOnSessionsFound onSessionsFound;
+
+	UPROPERTY(BlueprintAssignable, Category = "Session")
+	FGOnJoiningFailed onJoiningFailed;
+
 private:
-	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
-	FDelegateHandle createSessionDelegateHandle;
-
-	void OnDestroySessionComplete(FName SessionName, bool bWasSuccessful);
-	FDelegateHandle destroySessionDelegateHandle;
-
+	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
+	void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
 	void OnFindSessionsComplete(bool bWasSuccessful);
+	void OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result);
+
+	FDelegateHandle createSessionDelegateHandle;
+	FDelegateHandle destroySessionDelegateHandle;
 	FDelegateHandle findSessionsDelegateHandle;
+	FDelegateHandle joinSessionDelegateHandle;
 	TArray<FString> sessionsNames;
 	TArray<int32> sessionIndices;
 	TSharedPtr<FOnlineSessionSearch> sessionsFound;
-	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
-	FDelegateHandle joinSessionDelegateHandle;
-public:
-	UPROPERTY(BlueprintAssignable, Category = "Session")
-	FOnSessionsFound OnSessionsFound;
-	UPROPERTY(BlueprintAssignable, Category = "Session")
-	FOnJoiningFailed FOnJoiningFailed;
-	UFUNCTION(BlueprintCallable, Category = "Session")
-	void HostSession(FString sessionName);
-	UFUNCTION(BlueprintCallable, Category = "Session")
-	void DestroySession();
-	UFUNCTION(BlueprintCallable, Category = "Session")
-	void FindSessions();
-	UFUNCTION(BlueprintCallable, Category = "Session")
-	bool JoinSessionByIndex(int32 ind);
 };

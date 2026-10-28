@@ -1,11 +1,11 @@
 #include "GPlayerController.h"
 #include "GPlayerCar.h"
-#include "G_Vehicle_Seat_Component.h"
-#include "G_Vehicle_Seating_Component.h"
-#include "G_Vehicle_Combat_Component.h"
+#include "GVehicleSeatComponent.h"
+#include "GVehicleSeatingComponent.h"
+#include "GVehicleCombatComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Whos_DrivingCharacter.h"
+#include "GWhosDrivingCharacter.h"
 #include "InputActionValue.h"
 #include "InputAction.h"
 #include "Engine/World.h"
@@ -58,9 +58,9 @@ void AGPlayerController::EndPlay(const EEndPlayReason::Type endPlayReason)
 	Super::EndPlay(endPlayReason);
 }
 
-void AGPlayerController::Tick(float DeltaTime)
+void AGPlayerController::Tick(float deltaTime)
 {
-	Super::Tick(DeltaTime);
+	Super::Tick(deltaTime);
 
 	FName moduleId = NAME_None;
 	float currentHpInPercentage = 0.0f;
@@ -68,7 +68,7 @@ void AGPlayerController::Tick(float DeltaTime)
 	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState);
 	if (bFoundModule)
 	{
-		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
+		onModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
 		currentModule = moduleId;
 	}
 	if (bIsLookingOnModule != bFoundModule)
@@ -153,7 +153,7 @@ void AGPlayerController::SetupInputComponent()
 
 void AGPlayerController::LookInput(const FInputActionValue& value)
 {
-	AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+	AGWhosDrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AGWhosDrivingCharacter>(GetPawn());
 	if (character)
 	{
 		const FVector2D lookAxis = value.Get<FVector2D>();
@@ -165,11 +165,11 @@ void AGPlayerController::TryToSendDelegate()
 {
 	if (bIsLookingOnModule)
 	{
-		TryToRepair.Execute(currentModule);
+		tryToRepair.Execute(currentModule);
 	}
 }
 
-void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
+void AGPlayerController::SetDriverCharacter(AGWhosDrivingCharacter* newDriver)
 {
 	if (HasAuthority())
 	{
@@ -180,7 +180,7 @@ void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
 	RefreshVehicleView();
 }
 
-void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCharacter* character)
+void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AGWhosDrivingCharacter* character)
 {
 	if (!HasAuthority())
 	{
@@ -193,7 +193,8 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 	{
 		character->SetOwner(this);
 		character->ForceNetUpdate();
-	}else
+	}
+	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("character invalid in AGPlayerController::SetVehicleContext"));
 	}
@@ -202,7 +203,7 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 	RefreshVehicleView();
 }
 
-AWhos_DrivingCharacter* AGPlayerController::GetDriverCharacter() const
+AGWhosDrivingCharacter* AGPlayerController::GetDriverCharacter() const
 {
 	return driverCharacter;
 }
@@ -344,7 +345,7 @@ bool AGPlayerController::IsVehicleOccupant() const
 
 bool AGPlayerController::IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const
 {
-	const AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+	const AGWhosDrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AGWhosDrivingCharacter>(GetPawn());
 	if (!IsValid(vehicle) || !IsValid(character) || (seatedVehicle && (seatedVehicle != vehicle || !IsVehicleOccupant()))
 		|| origin.ContainsNaN() || direction.ContainsNaN() || !direction.IsNormalized()
 		|| FVector::DistSquared(origin, character->GetActorLocation()) > FMath::Square(150.0f))
@@ -408,7 +409,7 @@ void AGPlayerController::ServerRequestVehicleExit_Implementation()
 
 UGVehicleCombatComponent* AGPlayerController::GetOwnedCombat() const
 {
-	AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+	AGWhosDrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AGWhosDrivingCharacter>(GetPawn());
 	if (!IsValid(character) || character->GetOwner() != this)
 	{
 		return nullptr;
@@ -566,12 +567,12 @@ void AGPlayerController::ServerCombatView_Implementation(FVector_NetQuantizeNorm
 }
 
 
-void AGPlayerController::Client_SetupLobbyInput_Implementation()
+void AGPlayerController::ClientSetupLobbyInput_Implementation()
 {
-	//FInputModeGameAndUI InputMode;
-	FInputModeGameOnly InputMode;
+	//FInputModeGameAndUI inputMode;
+	FInputModeGameOnly inputMode;
 	this->bShowMouseCursor = false;
-	this->SetInputMode(InputMode);
+	this->SetInputMode(inputMode);
 }
 
 bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState)

@@ -5,4 +5,4 @@
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Whos_Driving, "Whos_Driving" );
 
-DEFINE_LOG_CATEGORY(LogWhos_Driving)
+DEFINE_LOG_CATEGORY(LogWhosDriving)

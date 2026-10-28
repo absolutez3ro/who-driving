@@ -32,11 +32,11 @@ void UGVehicleMovementComponent::BeginPlay()
 
 	if (carData)
 	{
-		SetMaxEngineTorque(carData->MaxTorque);
-		BrokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
-		BrokenSteeringWheelAngle = carData->BrokenSteeringWheelAngle;
-		BrokenEngineTorqueMultiplier = carData->BrokenEngineTorqueMultiplier;
-		BrokenEngineMaxSpeed = carData->BrokenEngineMaxSpeed;
+		SetMaxEngineTorque(carData->maxTorque);
+		brokenWheelFrictionMultiplier = carData->brokenWheelFrictionMultiplier;
+		brokenSteeringWheelAngle = carData->brokenSteeringWheelAngle;
+		brokenEngineTorqueMultiplier = carData->brokenEngineTorqueMultiplier;
+		brokenEngineMaxSpeed = carData->brokenEngineMaxSpeed;
 	}
 }
 
@@ -51,7 +51,7 @@ void UGVehicleMovementComponent::BreakWheel(int32 wheelIndex)
 	SetAffectedByBrake(wheelIndex, false);
 	SetAffectedBySteering(wheelIndex, true);
 
-	SetWheelFrictionMultiplier(wheelIndex, BrokenWheelFrictionMultiplier);
+	SetWheelFrictionMultiplier(wheelIndex, brokenWheelFrictionMultiplier);
 	SetWheelMaxBrakeTorque(wheelIndex, 0.0f);
 	SetWheelHandbrakeTorque(wheelIndex, 0.0f);
 
@@ -76,7 +76,7 @@ void UGVehicleMovementComponent::BreakSteeringWheel()
 {
 	for (int i = 0; i < 4; ++i)
 	{
-		SetWheelMaxSteerAngle(i, BrokenSteeringWheelAngle);
+		SetWheelMaxSteerAngle(i, brokenSteeringWheelAngle);
 	}
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The steering whel is broken"), true);
 }
@@ -92,14 +92,14 @@ void UGVehicleMovementComponent::RepairSteeringWheel()
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
-	SetMaxEngineTorque(carData->MaxTorque * BrokenEngineTorqueMultiplier);
+	SetMaxEngineTorque(carData->maxTorque * brokenEngineTorqueMultiplier);
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
 void UGVehicleMovementComponent::RepairEngine()
 {
 	bEngineBroken = false;
-	SetMaxEngineTorque(carData->MaxTorque);
+	SetMaxEngineTorque(carData->maxTorque);
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()
@@ -128,7 +128,10 @@ void UGVehicleMovementComponent::UpdateState(float deltaTime)
 	{
 		StopDrivingInput();
 	}
-	if (bWindowDrivingLocked) { ApplyWindowDrivingLock(); }
+	if (bWindowDrivingLocked)
+	{
+		ApplyWindowDrivingLock();
+	}
 	Super::UpdateState(deltaTime);
 	if (bWindowDrivingLocked)
 	{
@@ -145,7 +148,11 @@ void UGVehicleMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 
 void UGVehicleMovementComponent::SetWindowDrivingLock(bool bLocked)
 {
-	if (!GetOwner() || !GetOwner()->HasAuthority() || bWindowDrivingLocked == bLocked) { return; }
+	const bool bHasAuthority = GetOwner() && GetOwner()->HasAuthority();
+	if (!bHasAuthority || bWindowDrivingLocked == bLocked)
+	{
+		return;
+	}
 	if (bLocked)
 	{
 		windowThrottle = FMath::Clamp(GetController() && GetController()->IsLocalController() ? GetThrottleInput() : ReplicatedState.ThrottleInput, 0.0f, 1.0f);

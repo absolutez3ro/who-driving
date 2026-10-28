@@ -47,7 +47,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
 	float GetBrokenEngineMaxSpeed()
 	{
-		return BrokenEngineMaxSpeed;
+		return brokenEngineMaxSpeed;
 	}
 
 public:
@@ -66,16 +66,16 @@ protected:
 	void OnRep_WindowDrivingLock();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenWheelFrictionMultiplier;
+	float brokenWheelFrictionMultiplier;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "90", ClampMin = "0.0"))
-	float BrokenSteeringWheelAngle;
+	float brokenSteeringWheelAngle;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
-	float BrokenEngineTorqueMultiplier;
+	float brokenEngineTorqueMultiplier;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
-	float BrokenEngineMaxSpeed;
+	float brokenEngineMaxSpeed;
 
 	bool bEngineBroken = false;
 

@@ -5,229 +5,238 @@
 
 void UGGIWhosDriving::HostSession(FString sessionName)
 {
-    GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Trying to create session..."));
-    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
-    if (Subsystem)
-    {
-        IOnlineSessionPtr sessionInterface = Subsystem->GetSessionInterface();
-        if (sessionInterface.IsValid())
-        {
-            //handle to track when session is done creating
-            createSessionDelegateHandle = sessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
-                FOnCreateSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnCreateSessionComplete));
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Trying to create session..."));
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			// Handle to track when the session is done creating
+			createSessionDelegateHandle = sessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
+				FOnCreateSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnCreateSessionComplete));
 
-            FOnlineSessionSettings SessionSettings;
-            SessionSettings.bIsLANMatch = true;
-            SessionSettings.bShouldAdvertise = true;
-            SessionSettings.NumPublicConnections = 2;
-            FOnlineSessionSetting ServerNameSetting;
-            ServerNameSetting.Data.SetValue(sessionName);
-            // MANDATORY: This makes the setting visible to clients during search
-            ServerNameSetting.AdvertisementType = EOnlineDataAdvertisementType::ViaOnlineServiceAndPing;
-            // Add to the settings map using a custom FName key
-            SessionSettings.Settings.Add(FName("CUSTOM_SERVER_NAME"), ServerNameSetting);
-            if (!sessionInterface->CreateSession(0, NAME_GameSession, SessionSettings))
-            {
-                sessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(createSessionDelegateHandle);
-                GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Failed to start session creation request!"));
-            }
-        }
-    }
+			FOnlineSessionSettings sessionSettings;
+			sessionSettings.bIsLANMatch = true;
+			sessionSettings.bShouldAdvertise = true;
+			sessionSettings.NumPublicConnections = 2;
+			FOnlineSessionSetting serverNameSetting;
+			serverNameSetting.Data.SetValue(sessionName);
+			// MANDATORY: This makes the setting visible to clients during search
+			serverNameSetting.AdvertisementType = EOnlineDataAdvertisementType::ViaOnlineServiceAndPing;
+			// Add to the settings map using a custom FName key
+			sessionSettings.Settings.Add(FName(TEXT("CUSTOM_SERVER_NAME")), serverNameSetting);
+			if (!sessionInterface->CreateSession(0, NAME_GameSession, sessionSettings))
+			{
+				sessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(createSessionDelegateHandle);
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Failed to start session creation request!"));
+			}
+		}
+	}
 }
-void UGGIWhosDriving::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
-{
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS)
-    {
-        IOnlineSessionPtr Sessions = OSS->GetSessionInterface();
-        if (Sessions.IsValid())
-        {
-            // 1. CLEAR THE DELEGATE (Crucial for cleanup)
-            Sessions->ClearOnCreateSessionCompleteDelegate_Handle(createSessionDelegateHandle);
-        }
-    }
 
-    // 2. CHECK THE RESULT
-    if (bWasSuccessful)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session created!"));
-    }
-    else
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session failed to create!"));
-    }
+void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSuccessful)
+{
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			// 1. CLEAR THE DELEGATE (Crucial for cleanup)
+			sessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(createSessionDelegateHandle);
+		}
+	}
+
+	// 2. CHECK THE RESULT
+	if (bWasSuccessful)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session created!"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session failed to create!"));
+	}
 }
 
 
 void UGGIWhosDriving::DestroySession()
 {
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS)
-    {
-        IOnlineSessionPtr Sessions = OSS->GetSessionInterface();
-        if (Sessions.IsValid())
-        {
-            destroySessionDelegateHandle = Sessions->AddOnDestroySessionCompleteDelegate_Handle(
-                FOnDestroySessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnDestroySessionComplete));
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			destroySessionDelegateHandle = sessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+				FOnDestroySessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnDestroySessionComplete));
 
-            if (!Sessions->DestroySession(NAME_GameSession))
-            {
-                Sessions->ClearOnDestroySessionCompleteDelegate_Handle(destroySessionDelegateHandle);
-                GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("No session to destroy!"));
-            }
-        }
-    }
+			if (!sessionInterface->DestroySession(NAME_GameSession))
+			{
+				sessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(destroySessionDelegateHandle);
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("No session to destroy!"));
+			}
+		}
+	}
 }
-void UGGIWhosDriving::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful)
-{
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS)
-    {
-        IOnlineSessionPtr Sessions = OSS->GetSessionInterface();
-        if (Sessions.IsValid())
-        {
-            Sessions->ClearOnDestroySessionCompleteDelegate_Handle(destroySessionDelegateHandle);
-        }
-    }
 
-    if (bWasSuccessful)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session eliminated!"));
-    }
-    else
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT eliminated!"));
-    }
+void UGGIWhosDriving::OnDestroySessionComplete(FName sessionName, bool bWasSuccessful)
+{
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			sessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(destroySessionDelegateHandle);
+		}
+	}
+
+	if (bWasSuccessful)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session eliminated!"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT eliminated!"));
+	}
 }
 
 
 void UGGIWhosDriving::FindSessions()
 {
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS)
-    {
-        IOnlineSessionPtr Sessions = OSS->GetSessionInterface();
-        if (Sessions.IsValid())
-        {
-            // 1. CREATE AND CONFIGURE SEARCH
-            sessionsFound = MakeShareable(new FOnlineSessionSearch());
-            sessionsFound->bIsLanQuery = true;
-            sessionsFound->MaxSearchResults = 8;
-            // 2. BIND DELEGATE
-            findSessionsDelegateHandle = Sessions->AddOnFindSessionsCompleteDelegate_Handle(
-                FOnFindSessionsCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnFindSessionsComplete));
-            if (!Sessions->FindSessions(0, sessionsFound.ToSharedRef()))
-            {
-                Sessions->ClearOnFindSessionsCompleteDelegate_Handle(findSessionsDelegateHandle);
-                GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Failed to start searching for sessions!"));
-            }
-        }
-    }
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			// 1. CREATE AND CONFIGURE SEARCH
+			sessionsFound = MakeShareable(new FOnlineSessionSearch());
+			sessionsFound->bIsLanQuery = true;
+			sessionsFound->MaxSearchResults = 8;
+			// 2. BIND DELEGATE
+			findSessionsDelegateHandle = sessionInterface->AddOnFindSessionsCompleteDelegate_Handle(
+				FOnFindSessionsCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnFindSessionsComplete));
+			if (!sessionInterface->FindSessions(0, sessionsFound.ToSharedRef()))
+			{
+				sessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(findSessionsDelegateHandle);
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Failed to start searching for sessions!"));
+			}
+		}
+	}
 }
+
 void UGGIWhosDriving::OnFindSessionsComplete(bool bWasSuccessful)
 {
-    sessionsNames.Empty();
-    sessionIndices.Empty();
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS)
-    {
-        IOnlineSessionPtr Sessions = OSS->GetSessionInterface();
-        if (Sessions.IsValid())
-        {
-            Sessions->ClearOnFindSessionsCompleteDelegate_Handle(findSessionsDelegateHandle);
-        }
-    }
-    if (bWasSuccessful) {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Sessions found!"));
-        int32 ind = 0;
-        for (const FOnlineSessionSearchResult& Result : sessionsFound->SearchResults)
-        {
-            FString sessionName = "random_ahh_session";
-            FName KeyName = FName("CUSTOM_SERVER_NAME");
-            // 2. Look for this key in the Result's settings map
-            const FOnlineSessionSetting* Setting = Result.Session.SessionSettings.Settings.Find(KeyName);
-            if (Setting)
-            {
-                // 3. Extract the data into our FString variable
-                Setting->Data.GetValue(sessionName);
-            }
-            sessionIndices.Add(ind);
-            ind++;
-            sessionsNames.Add(sessionName);
-        }
+	sessionsNames.Empty();
+	sessionIndices.Empty();
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			sessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(findSessionsDelegateHandle);
+		}
+	}
+	if (bWasSuccessful)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Sessions found!"));
+		int32 sessionIndex = 0;
+		for (const FOnlineSessionSearchResult& searchResult : sessionsFound->SearchResults)
+		{
+			FString sessionName = TEXT("random_ahh_session");
+			const FName keyName = FName(TEXT("CUSTOM_SERVER_NAME"));
+			// 2. Look for this key in the result's settings map
+			const FOnlineSessionSetting* setting = searchResult.Session.SessionSettings.Settings.Find(keyName);
+			if (setting)
+			{
+				// 3. Extract the data into our FString variable
+				setting->Data.GetValue(sessionName);
+			}
+			sessionIndices.Add(sessionIndex);
+			sessionIndex++;
+			sessionsNames.Add(sessionName);
+		}
 
 
-        OnSessionsFound.Broadcast(sessionsNames);
-    }
-    else
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Sessions NOT found!"));
-    }
+		onSessionsFound.Broadcast(sessionsNames);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Sessions NOT found!"));
+	}
 
 }
 
 
-bool UGGIWhosDriving::JoinSessionByIndex(int32 ind)
+bool UGGIWhosDriving::JoinSessionByIndex(int32 sessionIndex)
 {
-    if (sessionsFound.IsValid()) {
-        const auto& Results = sessionsFound->SearchResults;
+	if (sessionsFound.IsValid())
+	{
+		const TArray<FOnlineSessionSearchResult>& searchResults = sessionsFound->SearchResults;
 
-        if (!Results.IsValidIndex(ind))
-            return false;
+		if (!searchResults.IsValidIndex(sessionIndex))
+		{
+			return false;
+		}
 
-        IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-        if (!OSS)
-            return false;
+		IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+		if (!onlineSubsystem)
+		{
+			return false;
+		}
 
-        IOnlineSessionPtr sessionInterface = OSS->GetSessionInterface();
-        if (!sessionInterface.IsValid())
-            return false;
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (!sessionInterface.IsValid())
+		{
+			return false;
+		}
 
 
-        joinSessionDelegateHandle = sessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
-            FOnJoinSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnJoinSessionComplete));
-        if (!sessionInterface->JoinSession(0, NAME_GameSession, Results[ind]))
-        {
-            sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
-            return false;
-            GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session could not be joined to!"));
-        }
-        return true;
-    }
-    return false;
+		joinSessionDelegateHandle = sessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
+			FOnJoinSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnJoinSessionComplete));
+		if (!sessionInterface->JoinSession(0, NAME_GameSession, searchResults[sessionIndex]))
+		{
+			sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session could not be joined to!"));
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
-void UGGIWhosDriving::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+
+void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)
 {
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    IOnlineSessionPtr SessionInterface = OSS->GetSessionInterface();
-    if (OSS)
-    {
-        if (SessionInterface.IsValid())
-        {
-            SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
-        }
-    }
-    if (Result == EOnJoinSessionCompleteResult::Success)
-    {
-        /**/
-        FString ConnectString;
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
+	IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+	if (onlineSubsystem)
+	{
+		if (sessionInterface.IsValid())
+		{
+			sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
+		}
+	}
+	if (result == EOnJoinSessionCompleteResult::Success)
+	{
+		FString connectString;
 
-        if (SessionInterface->GetResolvedConnectString(
-            SessionName, ConnectString))
-        {
-            
-            APlayerController* PC = GetFirstLocalPlayerController();
+		if (sessionInterface->GetResolvedConnectString(sessionName, connectString))
+		{
+			APlayerController* playerController = GetFirstLocalPlayerController();
 
-            if (PC)
-            {
-                PC->ClientTravel(ConnectString, TRAVEL_Absolute);
-            }
-        }
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session joined!"));
-    }
-    else
-    {
-        FOnJoiningFailed.Broadcast();
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT joined!"));
-    }
+			if (playerController)
+			{
+				playerController->ClientTravel(connectString, TRAVEL_Absolute);
+			}
+		}
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session joined!"));
+	}
+	else
+	{
+		onJoiningFailed.Broadcast();
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT joined!"));
+	}
 }

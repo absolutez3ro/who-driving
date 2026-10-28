@@ -3,20 +3,20 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetSerialization.h"
-#include "G_Vehicle_Radio_Component.h"
-#include "G_Weapon_Definition.h"
+#include "GVehicleRadioComponent.h"
+#include "GWeaponDefinition.h"
 #include "GVehicleModule.h"
 
 #include "GPlayerController.generated.h"
 
 struct FInputActionValue;
 class UInputAction;
-class AWhos_DrivingCharacter;
+class AGWhosDrivingCharacter;
 class AGPlayerCar;
 class UInputMappingContext;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnModuleInfoUpdated, FName, ModuleId, float, CurrentHpInPercentage, EGModuleState, moduleState);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FTryToRepair, FName, ModuleId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -25,13 +25,13 @@ class WHOS_DRIVING_API AGPlayerController : public APlayerController
 
 public:
 	AGPlayerController();
-	void SetDriverCharacter(AWhos_DrivingCharacter* newDriver);
+	void SetDriverCharacter(AGWhosDrivingCharacter* newDriver);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
-	AWhos_DrivingCharacter* GetDriverCharacter() const;
+	AGWhosDrivingCharacter* GetDriverCharacter() const;
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	AGPlayerCar* GetSeatedVehicle() const;
-	void SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCharacter* character);
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	void SetVehicleContext(AGPlayerCar* vehicle, AGWhosDrivingCharacter* character);
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnRep_Pawn() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Seats")
@@ -67,18 +67,18 @@ public:
 	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
 
 	UFUNCTION(Client, Reliable)
-	void Client_SetupLobbyInput();
+	void ClientSetupLobbyInput();
 
 	UPROPERTY(BlueprintAssignable)
-	FOnModuleInfoUpdated OnModuleInfoUpdated;
+	FGOnModuleInfoUpdated onModuleInfoUpdated;
 
 	UPROPERTY()
-	FTryToRepair TryToRepair;
+	FGTryToRepair tryToRepair;
 
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
-	void Tick(float DeltaTime) override;
+	void Tick(float deltaTime) override;
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
@@ -101,7 +101,7 @@ protected:
 		FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext)
-	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
+	TObjectPtr<AGWhosDrivingCharacter> driverCharacter;
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext, BlueprintReadOnly, Category = "Vehicle|Seats")
 	TObjectPtr<AGPlayerCar> seatedVehicle;

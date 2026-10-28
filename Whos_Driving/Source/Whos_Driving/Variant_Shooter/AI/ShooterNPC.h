@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Whos_DrivingCharacter.h"
+#include "GWhosDrivingCharacter.h"
 #include "ShooterWeaponHolder.h"
 #include "ShooterNPC.generated.h"
 
@@ -17,7 +17,7 @@ class AShooterWeapon;
  *  Holds and manages a weapon
  */
 UCLASS(abstract)
-class WHOS_DRIVING_API AShooterNPC : public AWhos_DrivingCharacter, public IShooterWeaponHolder
+class WHOS_DRIVING_API AShooterNPC : public AGWhosDrivingCharacter, public IShooterWeaponHolder
 {
 	GENERATED_BODY()
 

@@ -45,7 +45,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float electronicsWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-	TObjectPtr<USoundBase> HitSound;
+	TObjectPtr<USoundBase> hitSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-	TObjectPtr<USoundBase> MissSound;
+	TObjectPtr<USoundBase> missSound;
 };

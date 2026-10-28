@@ -9,42 +9,31 @@
 
 class UGEnemyBaseDataAsset;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnEnemyDeath, float, scrapPrice);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, float, scrapPrice_);
 UCLASS()
 class WHOS_DRIVING_API AGBaseEnemyCar : public APawn
 {
 	GENERATED_BODY()
 
-protected:
-	virtual void BeginPlay() override;
-	float maxHp=1;
-	float scrapPrice = 0;
-	float currentHp = 1;
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<USoundBase> HitSound;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<USoundBase> MissSound;
+	// Sets default values for this character's properties
+	AGBaseEnemyCar();
+
+	// Called every frame
+	void Tick(float deltaTime) override;
+
+	// Applies incoming damage on the server
+	float TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
+
+	// handles enemy death event
+	void HandleDeath();
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void PlayShotSound();
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void PlayMissSound();
-	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FOnEnemyDeath OnDeath;
-	// Sets default values for this character's properties
-	AGBaseEnemyCar();
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UGEnemyBaseDataAsset> baseData;
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
-	// handles enemy death event
-	void HandleDeath();
 
 	// Cosmetic side of a shot (muzzle flash, sound, tracer); damage is applied by the AI controller
 	//UFUNCTION(NetMulticast, Unreliable)
@@ -53,4 +42,22 @@ public:
 	//UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
 	//void OnShotFired(FVector target, bool bHit);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<USoundBase> hitSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<USoundBase> missSound;
+
+	UPROPERTY(BlueprintAssignable, Category = "Game Events")
+	FGOnEnemyDeath onDeath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEnemyBaseDataAsset> baseData;
+
+protected:
+	void BeginPlay() override;
+
+	float maxHp = 1;
+	float scrapPrice = 0;
+	float currentHp = 1;
 };

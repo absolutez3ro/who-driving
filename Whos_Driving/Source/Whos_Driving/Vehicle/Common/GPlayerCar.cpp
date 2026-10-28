@@ -2,9 +2,9 @@
 
 
 #include "GPlayerCar.h"
-#include "G_Vehicle_Seat_Component.h"
-#include "G_Vehicle_Radio_Component.h"
-#include "G_Vehicle_Seating_Component.h"
+#include "GVehicleSeatComponent.h"
+#include "GVehicleRadioComponent.h"
+#include "GVehicleSeatingComponent.h"
 #include "ChaosVehicleWheel.h"
 #include "Components/BoxComponent.h"
 #include "Engine/DamageEvents.h"
@@ -13,7 +13,7 @@
 #include "InputActionValue.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Whos_DrivingCharacter.h"
+#include "GWhosDrivingCharacter.h"
 #include "GPlayerController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -112,7 +112,7 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 		const FName subobjectName(*FString::Printf(TEXT("DoorModule_%d"), i));
 		UGVehicleDoorModule* doorModule = objectInitializer.CreateDefaultSubobject<UGVehicleDoorModule>(this, subobjectName);
 
-		const FName moduleId(*FString::Printf(TEXT("part_door_%d"), i));
+		const FName moduleId(*FString::Printf(TEXT("partDoor%d"), i));
 
 		doorModule->doorId = i;
 		doorModule->moduleId = moduleId;
@@ -136,7 +136,7 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
 {
 	UGVehicleSteeringWheelModule* steeringWheel = objectInitializer.CreateDefaultSubobject<UGVehicleSteeringWheelModule>(this, TEXT("SteeringWheel"));
-	const FName moduleId("Steering_Wheel");
+	const FName moduleId(TEXT("Steering_Wheel"));
 	steeringWheel->moduleId = moduleId;
 	steeringWheel->maxHP = 50.0f;
 	steeringWheel->currentHP = steeringWheel->maxHP;
@@ -158,7 +158,7 @@ void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
 void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 {
 	UGVehicleEngineModule* engineModule = objectInitializer.CreateDefaultSubobject<UGVehicleEngineModule>(this, TEXT("Engine"));
-	const FName moduleId("Engine");
+	const FName moduleId(TEXT("Engine"));
 	engineModule->moduleId = moduleId;
 	engineModule->maxHP = 50.0f;
 	engineModule->currentHP = engineModule->maxHP;
@@ -179,7 +179,7 @@ void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
 {
 	UGVehicleElectricianModule* electricianModule = objectInitializer.CreateDefaultSubobject<UGVehicleElectricianModule>(this, TEXT("Electrician"));
-	const FName moduleId("Electrician");
+	const FName moduleId(TEXT("Electrician"));
 	electricianModule->moduleId = moduleId;
 	electricianModule->maxHP = 50.0f;
 	electricianModule->currentHP = electricianModule->maxHP;
@@ -339,45 +339,45 @@ void AGPlayerCar::BeginPlay()
 
 void AGPlayerCar::LoadCarData()
 {
-	baseCarHealth = carData->BaseCarHealth;
-	auto wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
+	baseCarHealth = carData->baseCarHealth;
+	TArray<TObjectPtr<UGVehicleWheelModule>> wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
 	for (auto& wheel : wheels)
 	{
-		wheel->maxHP = carData->WheelMaxHealth;
+		wheel->maxHP = carData->wheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
-		wheel->repairThreshold = carData->WheelRepairThreshold;
+		wheel->repairThreshold = carData->wheelRepairThreshold;
 	}
 
-	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
+	TArray<TObjectPtr<UGVehicleDoorModule>> doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
 	for (auto& door : doors)
 	{
-		door->maxHP = carData->DoorMaxHealth;
+		door->maxHP = carData->doorMaxHealth;
 		door->currentHP = door->maxHP;
-		door->repairThreshold = carData->DoorRepairThreshold;
+		door->repairThreshold = carData->doorRepairThreshold;
 	}
 
-	auto steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
+	TArray<TObjectPtr<UGVehicleSteeringWheelModule>> steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
 	for (auto& steeringWheel : steeringWheels)
 	{
-		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
+		steeringWheel->maxHP = carData->steeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
-		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
+		steeringWheel->repairThreshold = carData->steeringWheelRepairThreshold;
 	}
 
-	auto engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
+	TArray<TObjectPtr<UGVehicleEngineModule>> engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
 	for (auto& engine : engines)
 	{
-		engine->maxHP = carData->EngineMaxHealth;
+		engine->maxHP = carData->engineMaxHealth;
 		engine->currentHP = engine->maxHP;
-		engine->repairThreshold = carData->EngineRepairThreshold;
+		engine->repairThreshold = carData->engineRepairThreshold;
 	}
 
-	auto electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
+	TArray<TObjectPtr<UGVehicleElectricianModule>> electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
 	for (auto& electrician : electricians)
 	{
-		electrician->maxHP = carData->ElectricianMaxHealth;
+		electrician->maxHP = carData->electricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
-		electrician->repairThreshold = carData->ElectricianRepairThreshold;
+		electrician->repairThreshold = carData->electricianRepairThreshold;
 	}
 }
 
@@ -389,7 +389,7 @@ void AGPlayerCar::SubscribeToRepairEvent()
 		return;
 	}
 
-	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
+	controller->tryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
 }
 
 void AGPlayerCar::HandleToRepair(FName moduleId)
@@ -400,7 +400,7 @@ void AGPlayerCar::HandleToRepair(FName moduleId)
 }
 
 
-TSubclassOf<AWhos_DrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
+TSubclassOf<AGWhosDrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
 {
 	return driverCharacterClass;
 }
@@ -427,19 +427,19 @@ void AGPlayerCar::OnConstruction(const FTransform& transform)
 	}
 }
 
-void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController)
+void AGPlayerCar::SpawnDriver_Implementation(APlayerController* playerController)
 {
-	if (PlayerController->GetPawn() != nullptr) 
+	if (playerController->GetPawn() != nullptr) 
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("player already posseses pawn"));
 		return;
 	}
 	
 	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("spawning Driver"));
-	bool seatTaken = IsValid(seatingComponent->GetSeatState(0).occupant);
-	AGPlayerController* controller = Cast<AGPlayerController>(PlayerController);
+	const bool bSeatTaken = IsValid(seatingComponent->GetSeatState(0).occupant);
+	AGPlayerController* controller = Cast<AGPlayerController>(playerController);
 	controller->bShowMouseCursor = false;
-	controller->Client_SetupLobbyInput();
+	controller->ClientSetupLobbyInput();
 	if (!controller || !driverCharacterClass || !seatingComponent)
 	{
 		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER controller %d char class %d seat component %d "), (!controller), (!driverCharacterClass), (!seatingComponent));
@@ -447,19 +447,20 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController
 			!IsValid(controller),!IsValid(driverCharacterClass),!IsValid(seatingComponent)));
 		return;
 	}
-	int32 seatID = 0;
-	if (seatTaken) {
+	int32 seatIndex = 0;
+	if (bSeatTaken)
+	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("seat taken"));
 		UE_LOG(LogTemp, Display, TEXT("seat taken"));
-		seatID = 1;
+		seatIndex = 1;
 	}
 	else 
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("seat free"));
 		UE_LOG(LogTemp, Display, TEXT("seat free"));
 	}
-	UE_LOG(LogTemp, Display, TEXT("taking seat number %d"), seatID);
-	UGVehicleSeatComponent* seat = seatingComponent->GetSeatComponent(seatID);
+	UE_LOG(LogTemp, Display, TEXT("taking seat number %d"), seatIndex);
+	UGVehicleSeatComponent* seat = seatingComponent->GetSeatComponent(seatIndex);
 	if (!seat)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("seat invalid during driver spawn"));
@@ -471,17 +472,17 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* PlayerController
 	parameters.Instigator = this;
 	parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	const FTransform transform = seat->characterOffset * seat->GetComponentTransform();
-	driverCharacter = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(driverCharacterClass, transform, parameters);
+	driverCharacter = GetWorld()->SpawnActor<AGWhosDrivingCharacter>(driverCharacterClass, transform, parameters);
 	if (driverCharacter)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("spawned driver, initializing"));
 		driverCharacter->SetReplicates(true);
-		seatingComponent->InitializeDriver(controller, driverCharacter, seatID);
+		seatingComponent->InitializeDriver(controller, driverCharacter, seatIndex);
 	}
-	else {
+	else
+	{
 		UE_LOG(LogTemp, Error, TEXT("DIDN'T SPAWN DRIVER"));
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Character invalid, didn't spawn"));
-
 	}
 }
 
@@ -502,10 +503,11 @@ void AGPlayerCar::UnPossessed()
 }
 
 
-void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* playerInputComponent)
+{
+	Super::SetupPlayerInputComponent(playerInputComponent);
 
-	UEnhancedInputComponent* enhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	UEnhancedInputComponent* enhancedInputComponent = Cast<UEnhancedInputComponent>(playerInputComponent);
 	if (!enhancedInputComponent) 
 	{
 		return;
@@ -549,7 +551,8 @@ void AGPlayerCar::InputThrottle(const FInputActionValue& value)
 	GetVehicleMovementComponent()->SetThrottleInput(throttle);
 }
 
-void AGPlayerCar::InputThrottleReleased(const FInputActionValue& value) {
+void AGPlayerCar::InputThrottleReleased(const FInputActionValue& value)
+{
 	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
 	{ 
 		return; 
@@ -567,7 +570,8 @@ void AGPlayerCar::InputSteering(const FInputActionValue& value)
 	GetVehicleMovementComponent()->SetSteeringInput(steering);
 }
 
-void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value) {
+void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value)
+{
 	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
 	{ 
 		return; 
@@ -596,7 +600,11 @@ void AGPlayerCar::InputBrakeReleased(const FInputActionValue& value)
 
 float AGPlayerCar::TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
-	if (!HasAuthority() || !FMath::IsFinite(damageAmount) || damageAmount <= 0.0f) { return 0.0f; }
+	const bool bIsDamageValid = FMath::IsFinite(damageAmount) && damageAmount > 0.0f;
+	if (!HasAuthority() || !bIsDamageValid)
+	{
+		return 0.0f;
+	}
 	const float applied = FMath::Min(currentCarHealth, damageAmount);
 	if (damageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{

@@ -7,7 +7,7 @@
 // Sets default values
 AGBaseEnemy::AGBaseEnemy()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 }
@@ -19,20 +19,20 @@ void AGBaseEnemy::BeginPlay()
 	maxHp = baseData->maxHp;
 	currentHp = maxHp;
 	scrapPrice = baseData->scrapPrice;
-	USkeletalMesh* TargetMesh = baseData->mesh;
-	if (TargetMesh)
+	USkeletalMesh* targetMesh = baseData->mesh;
+	if (targetMesh)
 	{
 		// For ACharacter, use GetMesh(). For AActor, use FindComponentByClass<USkeletalMeshComponent>()
-		USkeletalMeshComponent* MeshComp = FindComponentByClass<USkeletalMeshComponent>();
+		USkeletalMeshComponent* meshComponent = FindComponentByClass<USkeletalMeshComponent>();
 
-		if (!MeshComp)
+		if (!meshComponent)
 		{
 			UE_LOG(LogTemp, Error, TEXT("No skeletal mesh found for enemy"));
-			MeshComp = NewObject<USkeletalMeshComponent>(this, USkeletalMeshComponent::StaticClass());
-			MeshComp->RegisterComponent();
-			MeshComp->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
+			meshComponent = NewObject<USkeletalMeshComponent>(this, USkeletalMeshComponent::StaticClass());
+			meshComponent->RegisterComponent();
+			meshComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 		}
-		MeshComp->SetSkeletalMesh(TargetMesh);
+		meshComponent->SetSkeletalMesh(targetMesh);
 	}
 	else
 	{
@@ -41,13 +41,14 @@ void AGBaseEnemy::BeginPlay()
 }
 
 // Called every frame
-void AGBaseEnemy::Tick(float DeltaTime)
+void AGBaseEnemy::Tick(float deltaTime)
 {
-	Super::Tick(DeltaTime);
+	Super::Tick(deltaTime);
 
 }
 
-void AGBaseEnemy::HandleDeath() {
+void AGBaseEnemy::HandleDeath()
+{
 	if (!HasAuthority())
 	{
 		return;
@@ -55,24 +56,23 @@ void AGBaseEnemy::HandleDeath() {
 	Destroy(true, false);
 }
 
-float AGBaseEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float AGBaseEnemy::TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
 	if (!HasAuthority())
 	{
 		return 0.0f;
 	}
-	if (DamageAmount > 0)
+	if (damageAmount > 0)
 	{
-		currentHp -= DamageAmount;
-		UE_LOG(LogTemp, Log, TEXT("damage: %f"), DamageAmount);
+		currentHp -= damageAmount;
+		UE_LOG(LogTemp, Log, TEXT("damage: %f"), damageAmount);
 
 		UE_LOG(LogTemp, Log, TEXT("hp left: %f / %f"), currentHp, maxHp);
 		if (currentHp <= 0)
 		{
-			OnDeath.Broadcast(scrapPrice);
+			onDeath.Broadcast(scrapPrice);
 			HandleDeath();
 		}
 	}
-	return DamageAmount;
+	return damageAmount;
 }
-

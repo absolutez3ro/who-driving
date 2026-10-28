@@ -10,7 +10,7 @@
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
-class AWhos_DrivingCharacter;
+class AGWhosDrivingCharacter;
 class UStaticMesh;
 class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
@@ -70,19 +70,22 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
 	void DamageModule(const FName& moduleId, float damage);
 
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
 
 	void PublishModuleStates();
 	float GetSpeed();
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Radio")
-	UGVehicleRadioComponent* GetRadioComponent() const { return radioComponent; }
+	UGVehicleRadioComponent* GetRadioComponent() const
+	{
+		return radioComponent;
+	}
 
 	void OnConstruction(const FTransform& transform) override;
-	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
+	TSubclassOf<AGWhosDrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
-	void SpawnDriver(APlayerController* PlayerController);
+	void SpawnDriver(APlayerController* playerController);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Damage")
 	FGVehicleModuleState GetModuleDamageState(const FName& moduleId) const;
@@ -107,7 +110,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
 
-	void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
 	void BeginPlay() override;
 	void UnPossessed() override;
 
@@ -125,7 +128,7 @@ protected:
 	void InputBrakeReleased(const FInputActionValue& value);
 	void InputRepair(const FInputActionValue& value);
 
-	void PossessedBy(AController* NewController) override;
+	void PossessedBy(AController* newController) override;
 
 	void InitSeats();
 	void InitWheels(const FObjectInitializer& objectInitializer);
@@ -154,13 +157,13 @@ protected:
 	TObjectPtr<UInputAction> brakeAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Driver")
-	TSubclassOf<AWhos_DrivingCharacter> driverCharacterClass;
+	TSubclassOf<AGWhosDrivingCharacter> driverCharacterClass;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Driver")
 	TObjectPtr<USceneComponent> driverSeat;
 
 	UPROPERTY()
-	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
+	TObjectPtr<AGWhosDrivingCharacter> driverCharacter;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheelModules;

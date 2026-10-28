@@ -3,7 +3,8 @@
 
 #include "GRearWheel.h"
 
-UGRearWheel::UGRearWheel() {
+UGRearWheel::UGRearWheel()
+{
 	bAffectedBySteering = false;
 	bAffectedByBrake = true;
 	bAffectedByEngine = true;

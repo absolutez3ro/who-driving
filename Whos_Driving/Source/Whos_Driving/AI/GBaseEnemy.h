@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GBaseEnemy.generated.h"
+
 class UGEnemyBaseDataAsset;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeath, float, scrapPrice_);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnDeath, float, scrapPrice);
 
 UCLASS()
 class WHOS_DRIVING_API AGBaseEnemy : public ACharacter
@@ -18,22 +19,25 @@ public:
 	// Sets default values for this character's properties
 	AGBaseEnemy();
 
-protected:
-	virtual void BeginPlay() override;
-	float maxHp = 1;
-	float scrapPrice = 0;
-	float currentHp = 1;
-public:
-	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FOnDeath OnDeath;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UGEnemyBaseDataAsset> baseData;
 	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	void Tick(float deltaTime) override;
 
-	// Called to bind functionality to input
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	// Applies incoming damage on the server
+	float TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
+
 	// handles enemy death event
 	void HandleDeath();
 
+	UPROPERTY(BlueprintAssignable, Category = "Game Events")
+	FGOnDeath onDeath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEnemyBaseDataAsset> baseData;
+
+protected:
+	void BeginPlay() override;
+
+	float maxHp = 1;
+	float scrapPrice = 0;
+	float currentHp = 1;
 };
