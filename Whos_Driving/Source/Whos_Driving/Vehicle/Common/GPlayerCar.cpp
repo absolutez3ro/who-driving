@@ -13,7 +13,7 @@
 #include "InputActionValue.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "GPlayerController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -339,45 +339,45 @@ void AGPlayerCar::BeginPlay()
 
 void AGPlayerCar::LoadCarData()
 {
-	baseCarHealth = carData->baseCarHealth;
+	baseCarHealth = carData->BaseCarHealth;
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
 	for (auto& wheel : wheels)
 	{
-		wheel->maxHP = carData->wheelMaxHealth;
+		wheel->maxHP = carData->WheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
-		wheel->repairThreshold = carData->wheelRepairThreshold;
+		wheel->repairThreshold = carData->WheelRepairThreshold;
 	}
 
 	TArray<TObjectPtr<UGVehicleDoorModule>> doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
 	for (auto& door : doors)
 	{
-		door->maxHP = carData->doorMaxHealth;
+		door->maxHP = carData->DoorMaxHealth;
 		door->currentHP = door->maxHP;
-		door->repairThreshold = carData->doorRepairThreshold;
+		door->repairThreshold = carData->DoorRepairThreshold;
 	}
 
 	TArray<TObjectPtr<UGVehicleSteeringWheelModule>> steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
 	for (auto& steeringWheel : steeringWheels)
 	{
-		steeringWheel->maxHP = carData->steeringWheelMaxHealth;
+		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
-		steeringWheel->repairThreshold = carData->steeringWheelRepairThreshold;
+		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
 	}
 
 	TArray<TObjectPtr<UGVehicleEngineModule>> engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
 	for (auto& engine : engines)
 	{
-		engine->maxHP = carData->engineMaxHealth;
+		engine->maxHP = carData->EngineMaxHealth;
 		engine->currentHP = engine->maxHP;
-		engine->repairThreshold = carData->engineRepairThreshold;
+		engine->repairThreshold = carData->EngineRepairThreshold;
 	}
 
 	TArray<TObjectPtr<UGVehicleElectricianModule>> electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
 	for (auto& electrician : electricians)
 	{
-		electrician->maxHP = carData->electricianMaxHealth;
+		electrician->maxHP = carData->ElectricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
-		electrician->repairThreshold = carData->electricianRepairThreshold;
+		electrician->repairThreshold = carData->ElectricianRepairThreshold;
 	}
 }
 
@@ -389,7 +389,7 @@ void AGPlayerCar::SubscribeToRepairEvent()
 		return;
 	}
 
-	controller->tryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
+	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
 }
 
 void AGPlayerCar::HandleToRepair(FName moduleId)
@@ -400,7 +400,7 @@ void AGPlayerCar::HandleToRepair(FName moduleId)
 }
 
 
-TSubclassOf<AGWhosDrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
+TSubclassOf<AWhos_DrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
 {
 	return driverCharacterClass;
 }
@@ -472,7 +472,7 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* playerController
 	parameters.Instigator = this;
 	parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	const FTransform transform = seat->characterOffset * seat->GetComponentTransform();
-	driverCharacter = GetWorld()->SpawnActor<AGWhosDrivingCharacter>(driverCharacterClass, transform, parameters);
+	driverCharacter = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(driverCharacterClass, transform, parameters);
 	if (driverCharacter)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("spawned driver, initializing"));

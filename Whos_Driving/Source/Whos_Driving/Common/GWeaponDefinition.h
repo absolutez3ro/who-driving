@@ -35,28 +35,28 @@ struct FGWeaponAttachment
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName id = TEXT("Base");
+	FName Id = TEXT("Base");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UStaticMesh> mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName socket;
+	FName Socket;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FTransform offset;
+	FTransform Offset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float damageModifier = 0.0f;
+	float DamageModifier = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 magazineCapacity = 0;
+	int32 MagazineCapacity = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float aimFov = 70.0f;
+	float AimFov = 70.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<USoundBase> fireSound;
+	TObjectPtr<USoundBase> FireSound;
 };
 
 // M8 weapon defaults and presentation assets, separated from its Survival character and UI.
@@ -67,93 +67,93 @@ class WHOS_DRIVING_API UGWeaponDefinition : public UDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<AGVehicleWeapon> weaponClass;
+	TSubclassOf<AGVehicleWeapon> WeaponClass;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	FText displayName;
+	FText DisplayName;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	EGWeaponSlot slot = EGWeaponSlot::Primary;
+	EGWeaponSlot Slot = EGWeaponSlot::Primary;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<UTexture2D> icon;
+	TObjectPtr<UTexture2D> Icon;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<USkeletalMesh> mesh;
+	TObjectPtr<USkeletalMesh> Mesh;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<UStaticMesh> magazineMesh;
+	TObjectPtr<UStaticMesh> MagazineMesh;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	FName gripSocket = TEXT("M8_Weapon_R");
+	FName GripSocket = TEXT("M8_Weapon_R");
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	FTransform gripOffset;
+	FTransform GripOffset;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0"))
-	float damage = 20.0f;
+	float Damage = 20.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "1"))
-	float range = 30000.0f;
+	float Range = 30000.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0", ClampMax = "45"))
-	float spreadDegrees = 3.0f;
+	float SpreadDegrees = 3.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.03"))
-	float fireInterval = 0.12f;
+	float FireInterval = 0.12f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.03"))
-	float burstInterval = 0.15f;
+	float BurstInterval = 0.15f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "1", ClampMax = "10"))
-	int32 burstSize = 3;
+	int32 BurstSize = 3;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
-	TArray<EGWeaponFireMode> fireModes;
+	TArray<EGWeaponFireMode> FireModes;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "1"))
-	int32 magazineSize = 40;
+	int32 MagazineSize = 40;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
-	int32 initialReserve = 120;
+	int32 InitialReserve = 120;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0.1"))
-	float reloadTime = 1.8f;
+	float ReloadTime = 1.8f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0.1"))
-	float emptyReloadTime = 2.3f;
+	float EmptyReloadTime = 2.3f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling", meta = (ClampMin = "0.05"))
-	float equipTime = 0.8f;
+	float EquipTime = 0.8f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling", meta = (ClampMin = "0.05"))
-	float aimTime = 0.4f;
+	float AimTime = 0.4f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling")
-	float aimFov = 70.0f;
+	float AimFov = 70.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling")
-	float recoil = 0.5f;
+	float Recoil = 0.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling|Pose")
-	FVector rightHandOffset = FVector(30.0f, 12.0f, -12.0f);
+	FVector RightHandOffset = FVector(30.0f, 12.0f, -12.0f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling|Pose")
-	FVector leftHandOffset = FVector(50.0f, -6.0f, -10.0f);
+	FVector LeftHandOffset = FVector(50.0f, -6.0f, -10.0f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Handling|Pose")
-	FVector aimHandOffset = FVector(25.0f, 0.0f, -10.0f);
+	FVector AimHandOffset = FVector(25.0f, 0.0f, -10.0f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> idlePose;
+	TObjectPtr<UAnimSequence> IdlePose;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> equipPose;
+	TObjectPtr<UAnimSequence> EquipPose;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> reloadPose;
+	TObjectPtr<UAnimSequence> ReloadPose;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> emptyReloadPose;
+	TObjectPtr<UAnimSequence> EmptyReloadPose;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> weaponFire;
+	TObjectPtr<UAnimSequence> WeaponFire;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> weaponEquip;
+	TObjectPtr<UAnimSequence> WeaponEquip;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> weaponReload;
+	TObjectPtr<UAnimSequence> WeaponReload;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UAnimSequence> weaponEmptyReload;
+	TObjectPtr<UAnimSequence> WeaponEmptyReload;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UCurveVector> recoilLocationCurve;
+	TObjectPtr<UCurveVector> RecoilLocationCurve;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UCurveVector> recoilRotationCurve;
+	TObjectPtr<UCurveVector> RecoilRotationCurve;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UCurveVector> sustainedRecoilCurve;
+	TObjectPtr<UCurveVector> SustainedRecoilCurve;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-	TObjectPtr<UCurveVector> equipCurve;
+	TObjectPtr<UCurveVector> EquipCurve;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TObjectPtr<USoundBase> fireSound;
+	TObjectPtr<USoundBase> FireSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TObjectPtr<USoundBase> equipSound;
+	TObjectPtr<USoundBase> EquipSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TObjectPtr<UParticleSystem> muzzleEffect;
+	TObjectPtr<UParticleSystem> MuzzleEffect;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TObjectPtr<UParticleSystem> shellEffect;
+	TObjectPtr<UParticleSystem> ShellEffect;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TObjectPtr<UParticleSystem> impactEffect;
+	TObjectPtr<UParticleSystem> ImpactEffect;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	TSubclassOf<UCameraShakeBase> cameraShake;
+	TSubclassOf<UCameraShakeBase> CameraShake;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attachments")
-	TArray<FGWeaponAttachment> attachments;
+	TArray<FGWeaponAttachment> Attachments;
 };

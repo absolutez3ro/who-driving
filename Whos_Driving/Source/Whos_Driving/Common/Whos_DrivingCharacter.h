@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
-#include "GWhosDrivingCharacter.generated.h"
+#include "Whos_DrivingCharacter.generated.h"
 
 class UInputComponent;
 class USkeletalMeshComponent;
@@ -21,12 +21,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
  *  A basic first person character
  */
 UCLASS(abstract)
-class AGWhosDrivingCharacter : public ACharacter
+class AWhos_DrivingCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	AGWhosDrivingCharacter();
+	AWhos_DrivingCharacter();
 	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
 
 	UFUNCTION(BlueprintPure, Category = "Combat")

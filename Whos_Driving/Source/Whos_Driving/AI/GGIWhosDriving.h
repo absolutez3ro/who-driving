@@ -34,10 +34,10 @@ public:
 	bool JoinSessionByIndex(int32 sessionIndex);
 
 	UPROPERTY(BlueprintAssignable, Category = "Session")
-	FGOnSessionsFound onSessionsFound;
+	FGOnSessionsFound OnSessionsFound;
 
 	UPROPERTY(BlueprintAssignable, Category = "Session")
-	FGOnJoiningFailed onJoiningFailed;
+	FGOnJoiningFailed OnJoiningFailed;
 
 private:
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);

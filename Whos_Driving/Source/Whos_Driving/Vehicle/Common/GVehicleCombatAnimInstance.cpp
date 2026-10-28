@@ -4,7 +4,7 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GPlayerCar.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "Animation/AnimSequence.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -13,7 +13,7 @@
 void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 {
 	Super::NativeUpdateAnimation(deltaSeconds);
-	AGWhosDrivingCharacter* character = Cast<AGWhosDrivingCharacter>(TryGetPawnOwner());
+	AWhos_DrivingCharacter* character = Cast<AWhos_DrivingCharacter>(TryGetPawnOwner());
 	if (!character)
 	{
 		return;
@@ -23,7 +23,7 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	UGWeaponDefinition* definition = weapon ? weapon->GetDefinition() : nullptr;
 	seatAlpha = combat->GetSeatIndex() != INDEX_NONE ? 1.0f : 0.0f;
 	weaponAlpha = definition && seatAlpha > 0.0f ? 1.0f : 0.0f;
-	weaponPose = definition && definition->idlePose ? definition->idlePose : basePose;
+	weaponPose = definition && definition->IdlePose ? definition->IdlePose : basePose;
 	poseTime = 0.0f;
 	const float now = combat->GetServerTime();
 	float handReadiness = 1.0f;
@@ -36,7 +36,7 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	else if (definition)
 	{
 		handReadiness =
-			FMath::Clamp((now - combat->GetEquipStartTime() - definition->equipTime + 0.2f) / 0.2f, 0.0f, 1.0f);
+			FMath::Clamp((now - combat->GetEquipStartTime() - definition->EquipTime + 0.2f) / 0.2f, 0.0f, 1.0f);
 	}
 	handIkAlpha = definition ? seatAlpha * handReadiness : 0.0f;
 	if (definition)
@@ -47,8 +47,8 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 		// Donor guns point along mesh +Y. Solve the hand orientation from the grip
 		// socket instead of retaining the retargeted hand's unrelated local axes.
 		const FQuat gripRotation =
-			GetSkelMeshComponent()->GetSocketTransform(definition->gripSocket, RTS_ParentBoneSpace).GetRotation() *
-			definition->gripOffset.GetRotation();
+			GetSkelMeshComponent()->GetSocketTransform(definition->GripSocket, RTS_ParentBoneSpace).GetRotation() *
+			definition->GripOffset.GetRotation();
 		const FQuat weaponWorldRotation = aimTransform.GetRotation() * FRotator(0.0f, -90.0f, 0.0f).Quaternion();
 		rightHandRotation =
 			(meshTransform.GetRotation().Inverse() * weaponWorldRotation * gripRotation.Inverse()).Rotator();
@@ -60,16 +60,16 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 			return meshTransform.InverseTransformPosition(
 				aimTransform.TransformPosition(localOffset + viewmodelOffset));
 		};
-		rightHandLocation = target(combat->IsAiming() ? definition->aimHandOffset : definition->rightHandOffset);
+		rightHandLocation = target(combat->IsAiming() ? definition->AimHandOffset : definition->RightHandOffset);
 		leftHandLocation = target(
-			definition->leftHandOffset +
-			(combat->IsAiming() ? definition->aimHandOffset - definition->rightHandOffset : FVector::ZeroVector));
+			definition->LeftHandOffset +
+			(combat->IsAiming() ? definition->AimHandOffset - definition->RightHandOffset : FVector::ZeroVector));
 		rightElbowLocation = target(FVector(-5.0f, 42.0f, -35.0f));
 		leftElbowLocation = target(FVector(-5.0f, -42.0f, -35.0f));
 	}
 	if (definition && weapon->IsReloading())
 	{
-		weaponPose = weapon->IsEmptyReload() ? definition->emptyReloadPose : definition->reloadPose;
+		weaponPose = weapon->IsEmptyReload() ? definition->EmptyReloadPose : definition->ReloadPose;
 		poseTime = now - weapon->GetActionStartTime();
 		if (weaponPose)
 		{
@@ -77,9 +77,9 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 						FMath::Max(0.1f, weapon->GetReloadEndTime() - weapon->GetActionStartTime());
 		}
 	}
-	else if (definition && now - combat->GetEquipStartTime() < definition->equipTime)
+	else if (definition && now - combat->GetEquipStartTime() < definition->EquipTime)
 	{
-		weaponPose = definition->equipPose ? definition->equipPose : definition->idlePose;
+		weaponPose = definition->EquipPose ? definition->EquipPose : definition->IdlePose;
 		poseTime = now - combat->GetEquipStartTime();
 	}
 	if (weaponPose)
@@ -107,12 +107,12 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 		}
 	}
 	// M8 uses vector curves for recoil and procedural hand motion in its AnimBP.
-	if (definition && definition->recoilRotationCurve)
+	if (definition && definition->RecoilRotationCurve)
 	{
 		const float elapsed = now - combat->GetCosmeticShotTime();
 		if (elapsed >= 0.0f && elapsed < 0.5f)
 		{
-			const FVector recoil = definition->recoilRotationCurve->GetVectorValue(elapsed) * definition->recoil;
+			const FVector recoil = definition->RecoilRotationCurve->GetVectorValue(elapsed) * definition->Recoil;
 			weaponRotation = FRotator(recoil.Y, recoil.Z, recoil.X);
 		}
 	}
@@ -120,7 +120,7 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 
 void UGVehicleCombatAnimInstance::AnimNotify_MagOut_LeftHand()
 {
-	if (AGWhosDrivingCharacter* character = Cast<AGWhosDrivingCharacter>(TryGetPawnOwner()))
+	if (AWhos_DrivingCharacter* character = Cast<AWhos_DrivingCharacter>(TryGetPawnOwner()))
 	{
 		if (AGVehicleWeapon* weapon = character->GetCombatComponent()->GetCurrentWeapon())
 		{
@@ -131,7 +131,7 @@ void UGVehicleCombatAnimInstance::AnimNotify_MagOut_LeftHand()
 
 void UGVehicleCombatAnimInstance::AnimNotify_MagOut_RightHand()
 {
-	if (AGWhosDrivingCharacter* character = Cast<AGWhosDrivingCharacter>(TryGetPawnOwner()))
+	if (AWhos_DrivingCharacter* character = Cast<AWhos_DrivingCharacter>(TryGetPawnOwner()))
 	{
 		if (AGVehicleWeapon* weapon = character->GetCombatComponent()->GetCurrentWeapon())
 		{
@@ -142,7 +142,7 @@ void UGVehicleCombatAnimInstance::AnimNotify_MagOut_RightHand()
 
 void UGVehicleCombatAnimInstance::AnimNotify_MagIn()
 {
-	if (AGWhosDrivingCharacter* character = Cast<AGWhosDrivingCharacter>(TryGetPawnOwner()))
+	if (AWhos_DrivingCharacter* character = Cast<AWhos_DrivingCharacter>(TryGetPawnOwner()))
 	{
 		if (AGVehicleWeapon* weapon = character->GetCombatComponent()->GetCurrentWeapon())
 		{

@@ -7,7 +7,7 @@
 class AGPlayerCar;
 class AGPlayerController;
 class APlayerState;
-class AGWhosDrivingCharacter;
+class AWhos_DrivingCharacter;
 class UGVehicleSeatComponent;
 
 USTRUCT(BlueprintType)
@@ -16,7 +16,7 @@ struct FGVehicleSeatState
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Seats")
-	TObjectPtr<AGWhosDrivingCharacter> occupant;
+	TObjectPtr<AWhos_DrivingCharacter> occupant;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Seats")
 	TObjectPtr<APlayerState> playerState;
@@ -57,14 +57,14 @@ public:
 	UGVehicleSeatComponent* GetSeatComponent(int32 seatIndex) const;
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
-	int32 GetCharacterSeat(AGWhosDrivingCharacter* character) const;
+	int32 GetCharacterSeat(AWhos_DrivingCharacter* character) const;
 
 	
 	bool RequestSeat(AGPlayerController* controller, int32 seatIndex, const FVector& viewOrigin, const FVector& viewDirection);
 	bool RequestExit(AGPlayerController* controller);
 	bool CancelTransition(AGPlayerController* controller);
-	bool InitializeDriver(AGPlayerController* controller, AGWhosDrivingCharacter* character, int32 seatIndex);
-	bool InitializeOccupant(AGPlayerController* controller, AGWhosDrivingCharacter* character, int32 seatIndex);
+	bool InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex);
+	bool InitializeOccupant(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex);
 	void RemovePlayer(AGPlayerController* controller, bool bDestroyCharacter);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Seats", meta = (ClampMin = "0.1"))
@@ -92,10 +92,10 @@ private:
 	void ClearReservation(int32 seatIndex);
 	void PublishSeatStates();
 	void ApplySeatStates();
-	void RestoreCharacter(AGWhosDrivingCharacter* character);
+	void RestoreCharacter(AWhos_DrivingCharacter* character);
 	void StopVehicleControls();
 
 	TArray<TWeakObjectPtr<AGPlayerController>> occupantControllers;
 	TArray<TWeakObjectPtr<AGPlayerController>> reservationControllers;
-	TMap<TWeakObjectPtr<AGWhosDrivingCharacter>, FGVehicleCharacterRestore> characterRestoreStates;
+	TMap<TWeakObjectPtr<AWhos_DrivingCharacter>, FGVehicleCharacterRestore> characterRestoreStates;
 };

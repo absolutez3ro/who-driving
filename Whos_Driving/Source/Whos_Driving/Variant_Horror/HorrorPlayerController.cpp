@@ -5,7 +5,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
-#include "GWhosDrivingCameraManager.h"
+#include "Whos_DrivingCameraManager.h"
 #include "HorrorCharacter.h"
 #include "HorrorUI.h"
 #include "Whos_Driving.h"
@@ -14,7 +14,7 @@
 AHorrorPlayerController::AHorrorPlayerController()
 {
 	// set the player camera manager class
-	PlayerCameraManagerClass = AGWhosDrivingCameraManager::StaticClass();
+	PlayerCameraManagerClass = AWhos_DrivingCameraManager::StaticClass();
 }
 
 void AHorrorPlayerController::BeginPlay()
@@ -82,7 +82,7 @@ void AHorrorPlayerController::SetupInputComponent()
 
 			} else {
 
-				UE_LOG(LogWhosDriving, Error, TEXT("Could not spawn mobile controls widget."));
+				UE_LOG(LogWhos_Driving, Error, TEXT("Could not spawn mobile controls widget."));
 
 			}
 

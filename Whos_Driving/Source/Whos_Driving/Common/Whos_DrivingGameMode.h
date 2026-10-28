@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "GPlayerCar.h"
-#include "GWhosDrivingGameMode.generated.h"
+#include "Whos_DrivingGameMode.generated.h"
 
 /**
  *  Simple GameMode for a first person game
  */
 UCLASS(abstract)
-class AGWhosDrivingGameMode : public AGameModeBase
+class AWhos_DrivingGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
-	AGWhosDrivingGameMode();
+	AWhos_DrivingGameMode();
 	void BeginPlay() override;
 	void HandleStartingNewPlayer_Implementation(APlayerController* newPlayer) override;
 

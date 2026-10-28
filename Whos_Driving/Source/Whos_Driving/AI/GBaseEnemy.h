@@ -29,7 +29,7 @@ public:
 	void HandleDeath();
 
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FGOnDeath onDeath;
+	FGOnDeath OnDeath;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGEnemyBaseDataAsset> baseData;

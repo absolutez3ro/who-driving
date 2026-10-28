@@ -5,7 +5,7 @@
 #include "GVehicleMovementComponent.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -37,9 +37,9 @@ void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(UGVehicleCombatComponent, confirmedShots);
 }
 
-AGWhosDrivingCharacter* UGVehicleCombatComponent::GetCharacter() const
+AWhos_DrivingCharacter* UGVehicleCombatComponent::GetCharacter() const
 {
-	return Cast<AGWhosDrivingCharacter>(GetOwner());
+	return Cast<AWhos_DrivingCharacter>(GetOwner());
 }
 
 AGPlayerController* UGVehicleCombatComponent::GetPlayerController() const
@@ -125,7 +125,7 @@ void UGVehicleCombatComponent::SpawnLoadout()
 		{
 			continue;
 		}
-		UClass* weaponClass = definition->weaponClass ? definition->weaponClass.Get() : AGVehicleWeapon::StaticClass();
+		UClass* weaponClass = definition->WeaponClass ? definition->WeaponClass.Get() : AGVehicleWeapon::StaticClass();
 		AGVehicleWeapon* weapon = GetWorld()->SpawnActorDeferred<AGVehicleWeapon>(
 			weaponClass, GetOwner()->GetActorTransform(), GetOwner(), GetCharacter(),
 			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
@@ -163,7 +163,7 @@ AGVehicleWeapon* UGVehicleCombatComponent::GetWeapon(EGWeaponSlot slot) const
 {
 	for (AGVehicleWeapon* weapon : weapons)
 	{
-		if (IsValid(weapon) && weapon->GetDefinition() && weapon->GetDefinition()->slot == slot)
+		if (IsValid(weapon) && weapon->GetDefinition() && weapon->GetDefinition()->Slot == slot)
 		{
 			return weapon;
 		}
@@ -240,7 +240,7 @@ void UGVehicleCombatComponent::OnRep_Loadout()
 		{
 			if (weapon && weapon->GetDefinition())
 			{
-				weapon->SetEquipped(weapon->GetDefinition()->slot == selectedSlot && GetSeatIndex() != INDEX_NONE &&
+				weapon->SetEquipped(weapon->GetDefinition()->Slot == selectedSlot && GetSeatIndex() != INDEX_NONE &&
 									health > 0.0f);
 			}
 		}
@@ -305,10 +305,10 @@ bool UGVehicleCombatComponent::CanFire() const
 {
 	const AGVehicleWeapon* weapon = GetCurrentWeapon();
 	if (!IsPlayerValid() || !weapon || !weapon->GetDefinition() || !weapon->IsEquipped() || weapon->IsReloading() ||
-		weapon->GetBulletCount() <= 0 || GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime)
+		weapon->GetBulletCount() <= 0 || GetServerTime() - equipStartTime < weapon->GetDefinition()->EquipTime)
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("cant fire IsPlayerValid %d weapon %d weapon->GetDefinition() %d weapon->IsEquipped() %d weapon->IsReloading() %d weapon->GetBulletCount() %d GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime %d"),
-		//	IsPlayerValid(), weapon, weapon->GetDefinition(), weapon->IsEquipped(), weapon->IsReloading(), weapon->GetBulletCount(), GetServerTime() - equipStartTime < weapon->GetDefinition()->equipTime);
+		//UE_LOG(LogTemp, Warning, TEXT("cant fire IsPlayerValid %d weapon %d weapon->GetDefinition() %d weapon->IsEquipped() %d weapon->IsReloading() %d weapon->GetBulletCount() %d GetServerTime() - equipStartTime < weapon->GetDefinition()->EquipTime %d"),
+		//	IsPlayerValid(), weapon, weapon->GetDefinition(), weapon->IsEquipped(), weapon->IsReloading(), weapon->GetBulletCount(), GetServerTime() - equipStartTime < weapon->GetDefinition()->EquipTime);
 		return false;
 	}
 	return true;
@@ -371,7 +371,7 @@ bool UGVehicleCombatComponent::SetTrigger(bool bPressed, const FVector& directio
 	}
 	bTriggerHeld = true;
 	burstRemaining =
-		weapon->GetFireMode() == EGWeaponFireMode::Burst ? FMath::Clamp(weapon->GetDefinition()->burstSize, 1, 10) : 0;
+		weapon->GetFireMode() == EGWeaponFireMode::Burst ? FMath::Clamp(weapon->GetDefinition()->BurstSize, 1, 10) : 0;
 	TryFire();
 	return true;
 }
@@ -390,7 +390,7 @@ void UGVehicleCombatComponent::TryFire()
 	{
 		return;
 	}
-	const float interval = FMath::Max(0.03f, definition->fireInterval);
+	const float interval = FMath::Max(0.03f, definition->FireInterval);
 	weapon->SetNextShotTime(GetServerTime() + interval);
 	FCollisionQueryParams query(SCENE_QUERY_STAT(VehicleWeapon), true, GetCharacter());
 	for (AGVehicleWeapon* ownedWeapon : weapons)
@@ -400,9 +400,9 @@ void UGVehicleCombatComponent::TryFire()
 	// Own vehicle and friendly occupants deliberately remain in the query.
 	const FVector origin = GetCharacter()->GetFirstPersonCameraComponent()->GetComponentLocation();
 	const FVector direction = FMath::VRandCone(
-		FVector(aimDirection), FMath::DegreesToRadians(definition->spreadDegrees * (bAiming ? 0.25f : 1.0f)));
+		FVector(aimDirection), FMath::DegreesToRadians(definition->SpreadDegrees * (bAiming ? 0.25f : 1.0f)));
 	FHitResult viewHit;
-	const FVector end = origin + direction * FMath::Clamp(definition->range, 1.0f, 100000.0f);
+	const FVector end = origin + direction * FMath::Clamp(definition->Range, 1.0f, 100000.0f);
 	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(viewHit, origin, end, ECC_GameTraceChannel3, query);
 	const FVector target = bViewHit ? viewHit.ImpactPoint : end;
 	const FVector muzzle = weapon->GetThirdPersonMesh()->GetSocketLocation(TEXT("MuzzleSocket"));
@@ -417,7 +417,7 @@ void UGVehicleCombatComponent::TryFire()
 		   *GetNameSafe(hit.GetComponent()));
 	if (bHit && hit.GetActor())
 	{
-		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, definition->damage),
+		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, definition->Damage),
 										   (target - muzzle).GetSafeNormal(), hit, GetPlayerController(), weapon,
 										   UDamageType::StaticClass());
 	}
@@ -431,7 +431,7 @@ void UGVehicleCombatComponent::TryFire()
 	}
 	else if (weapon->GetFireMode() == EGWeaponFireMode::Burst)
 	{
-		weapon->SetNextShotTime(GetServerTime() + FMath::Max(interval, definition->burstInterval));
+		weapon->SetNextShotTime(GetServerTime() + FMath::Max(interval, definition->BurstInterval));
 	}
 }
 
@@ -481,7 +481,7 @@ void UGVehicleCombatComponent::RefreshDriverLock()
 
 void UGVehicleCombatComponent::RefreshPresentation()
 {
-	AGWhosDrivingCharacter* character = GetCharacter();
+	AWhos_DrivingCharacter* character = GetCharacter();
 	if (!character)
 	{
 		return;
@@ -535,9 +535,9 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 		GetPlayerController()->SendCombatView(GetAimDirection());
 		UCameraComponent* camera = GetCharacter()->GetFirstPersonCameraComponent();
 		const UGWeaponDefinition* definition = GetCurrentWeapon() ? GetCurrentWeapon()->GetDefinition() : nullptr;
-		const float target = bAiming && definition ? definition->aimFov : initialCameraFov;
+		const float target = bAiming && definition ? definition->AimFov : initialCameraFov;
 		camera->SetFieldOfView(FMath::FInterpTo(camera->FieldOfView, target, deltaSeconds,
-												definition ? 3.0f / FMath::Max(0.05f, definition->aimTime) : 10.0f));
+												definition ? 3.0f / FMath::Max(0.05f, definition->AimTime) : 10.0f));
 	}
 }
 
@@ -574,9 +574,9 @@ void UGVehicleCombatComponent::ApplyShotRecoil(float amount)
 	{
 		GetCharacter()->DoAim(FMath::FRandRange(-0.2f, 0.2f) * amount, amount);
 		const UGWeaponDefinition* definition = GetCurrentWeapon() ? GetCurrentWeapon()->GetDefinition() : nullptr;
-		if (definition && definition->cameraShake && GetPlayerController()->PlayerCameraManager)
+		if (definition && definition->CameraShake && GetPlayerController()->PlayerCameraManager)
 		{
-			GetPlayerController()->PlayerCameraManager->StartCameraShake(definition->cameraShake);
+			GetPlayerController()->PlayerCameraManager->StartCameraShake(definition->CameraShake);
 		}
 	}
 }

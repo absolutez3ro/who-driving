@@ -4,19 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "Camera/PlayerCameraManager.h"
-#include "GWhosDrivingCameraManager.generated.h"
+#include "Whos_DrivingCameraManager.generated.h"
 
 /**
  *  Basic First Person camera manager.
  *  Limits min/max look pitch.
  */
 UCLASS()
-class AGWhosDrivingCameraManager : public APlayerCameraManager
+class AWhos_DrivingCameraManager : public APlayerCameraManager
 {
 	GENERATED_BODY()
 	
 public:
 
 	/** Constructor */
-	AGWhosDrivingCameraManager();
+	AWhos_DrivingCameraManager();
 };

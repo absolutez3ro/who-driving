@@ -16,10 +16,10 @@ AGBaseEnemyCar::AGBaseEnemyCar()
 void AGBaseEnemyCar::BeginPlay()
 {
 	Super::BeginPlay();
-	maxHp = baseData->maxHp;
+	maxHp = baseData->MaxHp;
 	currentHp = maxHp;
-	scrapPrice = baseData->scrapPrice;
-	USkeletalMesh* targetMesh = baseData->mesh;
+	scrapPrice = baseData->ScrapPrice;
+	USkeletalMesh* targetMesh = baseData->Mesh;
 	if (targetMesh)
 	{
 		// The car body is the root; the seated crew are skeletal meshes too, so don't just take the first one found
@@ -99,7 +99,7 @@ float AGBaseEnemyCar::TakeDamage(float damageAmount, FDamageEvent const& damageE
 		UE_LOG(LogTemp, Log, TEXT("hp left: %f / %f"), currentHp, maxHp);
 		if (currentHp <= 0)
 		{
-			onDeath.Broadcast(scrapPrice);
+			OnDeath.Broadcast(scrapPrice);
 			HandleDeath();
 		}
 	}

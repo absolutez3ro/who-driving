@@ -3,7 +3,7 @@
 #include "GPlayerController.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -46,7 +46,7 @@ void AGVehicleGameMode::RestartPlayer(AController* newPlayer)
 		parameters.Owner = controller;
 		parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		const FTransform transform = seat->characterOffset * seat->GetComponentTransform();
-		AGWhosDrivingCharacter* character = GetWorld()->SpawnActor<AGWhosDrivingCharacter>(
+		AWhos_DrivingCharacter* character = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(
 			sharedVehicle->GetSeatCharacterClass(), transform, parameters);
 		if (character && seating->InitializeOccupant(controller, character, seatIndex))
 		{
@@ -62,7 +62,7 @@ void AGVehicleGameMode::RestartPlayer(AController* newPlayer)
 	parameters.Owner = controller;
 	parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	const FVector location = sharedVehicle->GetMesh()->GetComponentTransform().TransformPosition(FVector(-350.0f, 230.0f, 110.0f));
-	AGWhosDrivingCharacter* character = GetWorld()->SpawnActor<AGWhosDrivingCharacter>(
+	AWhos_DrivingCharacter* character = GetWorld()->SpawnActor<AWhos_DrivingCharacter>(
 		sharedVehicle->GetSeatCharacterClass(), location, sharedVehicle->GetActorRotation(), parameters);
 	if (character)
 	{

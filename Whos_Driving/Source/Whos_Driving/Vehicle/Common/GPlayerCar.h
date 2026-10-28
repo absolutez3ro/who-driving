@@ -10,7 +10,7 @@
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
-class AGWhosDrivingCharacter;
+class AWhos_DrivingCharacter;
 class UStaticMesh;
 class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
@@ -83,7 +83,7 @@ public:
 	}
 
 	void OnConstruction(const FTransform& transform) override;
-	TSubclassOf<AGWhosDrivingCharacter> GetSeatCharacterClass() const;
+	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
 	void SpawnDriver(APlayerController* playerController);
 
@@ -157,13 +157,13 @@ protected:
 	TObjectPtr<UInputAction> brakeAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Driver")
-	TSubclassOf<AGWhosDrivingCharacter> driverCharacterClass;
+	TSubclassOf<AWhos_DrivingCharacter> driverCharacterClass;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Driver")
 	TObjectPtr<USceneComponent> driverSeat;
 
 	UPROPERTY()
-	TObjectPtr<AGWhosDrivingCharacter> driverCharacter;
+	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheelModules;

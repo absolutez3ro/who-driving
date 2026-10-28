@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GWhosDrivingGameMode.h"
+#include "Whos_DrivingGameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 
-AGWhosDrivingGameMode::AGWhosDrivingGameMode()
+AWhos_DrivingGameMode::AWhos_DrivingGameMode()
 {
 	// stub
 }
 
-void AGWhosDrivingGameMode::SpawnCar()
+void AWhos_DrivingGameMode::SpawnCar()
 {
 	if (!car)
 	{
@@ -27,7 +27,7 @@ void AGWhosDrivingGameMode::SpawnCar()
 	}
 }
 
-void AGWhosDrivingGameMode::SpawnPlayer(APlayerController* newPlayer)
+void AWhos_DrivingGameMode::SpawnPlayer(APlayerController* newPlayer)
 {
 	UE_LOG(LogTemp, Log, TEXT("Iterating over Player Controller: %s"), *newPlayer->GetName());
 	if (car)
@@ -51,7 +51,7 @@ void AGWhosDrivingGameMode::SpawnPlayer(APlayerController* newPlayer)
 	}
 }
 
-void AGWhosDrivingGameMode::BeginPlay()
+void AWhos_DrivingGameMode::BeginPlay()
 {
 	SpawnCar();
 	if (car)
@@ -63,7 +63,7 @@ void AGWhosDrivingGameMode::BeginPlay()
 	return;
 }
 
-void AGWhosDrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerController* newPlayer)
+void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerController* newPlayer)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("EVENT STARTING NEW PLAYER IN LOBBY"));
 	Super::HandleStartingNewPlayer_Implementation(newPlayer);

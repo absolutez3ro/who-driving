@@ -11,7 +11,7 @@
 
 struct FInputActionValue;
 class UInputAction;
-class AGWhosDrivingCharacter;
+class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UInputMappingContext;
 
@@ -25,12 +25,12 @@ class WHOS_DRIVING_API AGPlayerController : public APlayerController
 
 public:
 	AGPlayerController();
-	void SetDriverCharacter(AGWhosDrivingCharacter* newDriver);
+	void SetDriverCharacter(AWhos_DrivingCharacter* newDriver);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
-	AGWhosDrivingCharacter* GetDriverCharacter() const;
+	AWhos_DrivingCharacter* GetDriverCharacter() const;
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	AGPlayerCar* GetSeatedVehicle() const;
-	void SetVehicleContext(AGPlayerCar* vehicle, AGWhosDrivingCharacter* character);
+	void SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCharacter* character);
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnRep_Pawn() override;
 
@@ -70,10 +70,10 @@ public:
 	void ClientSetupLobbyInput();
 
 	UPROPERTY(BlueprintAssignable)
-	FGOnModuleInfoUpdated onModuleInfoUpdated;
+	FGOnModuleInfoUpdated OnModuleInfoUpdated;
 
 	UPROPERTY()
-	FGTryToRepair tryToRepair;
+	FGTryToRepair TryToRepair;
 
 protected:
 	void BeginPlay() override;
@@ -101,7 +101,7 @@ protected:
 		FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext)
-	TObjectPtr<AGWhosDrivingCharacter> driverCharacter;
+	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext, BlueprintReadOnly, Category = "Vehicle|Seats")
 	TObjectPtr<AGPlayerCar> seatedVehicle;

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "HorrorCharacter.generated.h"
 
 class USpotLightComponent;
@@ -17,7 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSprintStateChangedDelegate, bool, b
  *  Provides stamina-based sprinting
  */
 UCLASS(abstract)
-class WHOS_DRIVING_API AHorrorCharacter : public AGWhosDrivingCharacter
+class WHOS_DRIVING_API AHorrorCharacter : public AWhos_DrivingCharacter
 {
 	GENERATED_BODY()
 

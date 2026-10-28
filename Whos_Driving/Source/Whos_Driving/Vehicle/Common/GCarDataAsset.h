@@ -16,53 +16,53 @@ class WHOS_DRIVING_API UGCarDataAsset : public UDataAsset
 	
 public:
 	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Base car health. This is not the total car health!"))
-	float baseCarHealth;
+	float BaseCarHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Maximum engine torque"))
-	float maxTorque;
+	float MaxTorque;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
-	float wheelMaxHealth;
+	float WheelMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float wheelRepairThreshold;
+	float WheelRepairThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors")
-	float doorMaxHealth;
+	float DoorMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float doorRepairThreshold;
+	float DoorRepairThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine")
-	float engineMaxHealth;
+	float EngineMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float engineRepairThreshold;
+	float EngineRepairThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel")
-	float steeringWheelMaxHealth;
+	float SteeringWheelMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float steeringWheelRepairThreshold;
+	float SteeringWheelRepairThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician")
-	float electricianMaxHealth;
+	float ElectricianMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float electricianRepairThreshold;
+	float ElectricianRepairThreshold;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0", ToolTip = "Friction multiplier of broken wheels"))
-	float brokenWheelFrictionMultiplier;
+	float BrokenWheelFrictionMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ClampMax = "90", ClampMin = "0.0", ToolTip = "Steering angle of a broken steering wheel (in degrees)"))
-	float brokenSteeringWheelAngle;
+	float BrokenSteeringWheelAngle;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0", ToolTip = "Torque multiplier of a broken engine"))
-	float brokenEngineTorqueMultiplier;
+	float BrokenEngineTorqueMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0", ToolTip = "RPM multiplier of a broken engine"))
-	float brokenEngineRpmMultiplier;
+	float BrokenEngineRPMMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ToolTip = "Maximum car speed with a broken engine (km/h)"))
-	float brokenEngineMaxSpeed;
+	float BrokenEngineMaxSpeed;
 };

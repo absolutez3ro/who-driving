@@ -49,7 +49,7 @@ public:
 	TObjectPtr<USoundBase> missSound;
 
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FGOnEnemyDeath onDeath;
+	FGOnEnemyDeath OnDeath;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGEnemyBaseDataAsset> baseData;

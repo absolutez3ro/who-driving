@@ -32,11 +32,11 @@ void UGVehicleMovementComponent::BeginPlay()
 
 	if (carData)
 	{
-		SetMaxEngineTorque(carData->maxTorque);
-		brokenWheelFrictionMultiplier = carData->brokenWheelFrictionMultiplier;
-		brokenSteeringWheelAngle = carData->brokenSteeringWheelAngle;
-		brokenEngineTorqueMultiplier = carData->brokenEngineTorqueMultiplier;
-		brokenEngineMaxSpeed = carData->brokenEngineMaxSpeed;
+		SetMaxEngineTorque(carData->MaxTorque);
+		brokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
+		brokenSteeringWheelAngle = carData->BrokenSteeringWheelAngle;
+		brokenEngineTorqueMultiplier = carData->BrokenEngineTorqueMultiplier;
+		brokenEngineMaxSpeed = carData->BrokenEngineMaxSpeed;
 	}
 }
 
@@ -92,14 +92,14 @@ void UGVehicleMovementComponent::RepairSteeringWheel()
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
-	SetMaxEngineTorque(carData->maxTorque * brokenEngineTorqueMultiplier);
+	SetMaxEngineTorque(carData->MaxTorque * brokenEngineTorqueMultiplier);
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
 void UGVehicleMovementComponent::RepairEngine()
 {
 	bEngineBroken = false;
-	SetMaxEngineTorque(carData->maxTorque);
+	SetMaxEngineTorque(carData->MaxTorque);
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()

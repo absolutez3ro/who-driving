@@ -15,9 +15,9 @@ class WHOS_DRIVING_API UGEnemyBaseDataAsset : public UDataAsset
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
-	float maxHp;
+	float MaxHp;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
-	float scrapPrice;
+	float ScrapPrice;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
-	USkeletalMesh* mesh;
+	USkeletalMesh* Mesh;
 };

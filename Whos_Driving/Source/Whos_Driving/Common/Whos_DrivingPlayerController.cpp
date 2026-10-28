@@ -1,22 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "GWhosDrivingPlayerController.h"
+#include "Whos_DrivingPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
-#include "GWhosDrivingCameraManager.h"
+#include "Whos_DrivingCameraManager.h"
 #include "Blueprint/UserWidget.h"
 #include "Whos_Driving.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
-AGWhosDrivingPlayerController::AGWhosDrivingPlayerController()
+AWhos_DrivingPlayerController::AWhos_DrivingPlayerController()
 {
 	// set the player camera manager class
-	PlayerCameraManagerClass = AGWhosDrivingCameraManager::StaticClass();
+	PlayerCameraManagerClass = AWhos_DrivingCameraManager::StaticClass();
 }
 
-void AGWhosDrivingPlayerController::BeginPlay()
+void AWhos_DrivingPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -34,13 +34,13 @@ void AGWhosDrivingPlayerController::BeginPlay()
 		}
 		else
 		{
-			UE_LOG(LogWhosDriving, Error, TEXT("Could not spawn mobile controls widget."));
+			UE_LOG(LogWhos_Driving, Error, TEXT("Could not spawn mobile controls widget."));
 		}
 
 	}
 }
 
-void AGWhosDrivingPlayerController::SetupInputComponent()
+void AWhos_DrivingPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
@@ -68,7 +68,7 @@ void AGWhosDrivingPlayerController::SetupInputComponent()
 	
 }
 
-bool AGWhosDrivingPlayerController::ShouldUseTouchControls() const
+bool AWhos_DrivingPlayerController::ShouldUseTouchControls() const
 {
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;

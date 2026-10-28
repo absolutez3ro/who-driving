@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "GWhosDrivingCameraManager.h"
+#include "Whos_DrivingCameraManager.h"
 
-AGWhosDrivingCameraManager::AGWhosDrivingCameraManager()
+AWhos_DrivingCameraManager::AWhos_DrivingCameraManager()
 {
 	// set the min/max pitch
 	ViewPitchMin = -70.0f;

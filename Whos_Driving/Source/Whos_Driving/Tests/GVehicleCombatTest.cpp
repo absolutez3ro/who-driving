@@ -6,7 +6,7 @@
 //#include "GVehicleCombatComponent.h"
 //#include "GVehicleSeatingComponent.h"
 //#include "GVehicleWeapon.h"
-//#include "GWhosDrivingCharacter.h"
+//#include "Whos_DrivingCharacter.h"
 //#include "Engine/World.h"
 //#include "Engine/EngineBaseTypes.h"
 //#include "Engine/DamageEvents.h"
@@ -27,7 +27,7 @@
 //															.ShouldSimulatePhysics(false);
 //	UWorld* world =
 //		UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &initialization);
-//	UClass* characterClass = LoadClass<AGWhosDrivingCharacter>(
+//	UClass* characterClass = LoadClass<AWhos_DrivingCharacter>(
 //		nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_GFirstPersonCharacter.BP_GFirstPersonCharacter_C"));
 //	if (!TestNotNull(TEXT("Configured character"), characterClass))
 //	{
@@ -44,8 +44,8 @@
 //	FActorSpawnParameters spawn;
 //	spawn.Owner = driver;
 //	spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-//	AGWhosDrivingCharacter* avatar =
-//		world->SpawnActor<AGWhosDrivingCharacter>(characterClass, FTransform::Identity, spawn);
+//	AWhos_DrivingCharacter* avatar =
+//		world->SpawnActor<AWhos_DrivingCharacter>(characterClass, FTransform::Identity, spawn);
 //	car->GetSeatingComponent()->InitializeOccupant(driver, avatar, 0);
 //	UGVehicleCombatComponent* combat = avatar->GetCombatComponent();
 //	AGVehicleWeapon* pistol = combat->GetWeapon(EGWeaponSlot::Secondary);

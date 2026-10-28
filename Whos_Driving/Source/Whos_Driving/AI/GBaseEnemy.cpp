@@ -16,10 +16,10 @@ AGBaseEnemy::AGBaseEnemy()
 void AGBaseEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-	maxHp = baseData->maxHp;
+	maxHp = baseData->MaxHp;
 	currentHp = maxHp;
-	scrapPrice = baseData->scrapPrice;
-	USkeletalMesh* targetMesh = baseData->mesh;
+	scrapPrice = baseData->ScrapPrice;
+	USkeletalMesh* targetMesh = baseData->Mesh;
 	if (targetMesh)
 	{
 		// For ACharacter, use GetMesh(). For AActor, use FindComponentByClass<USkeletalMeshComponent>()
@@ -70,7 +70,7 @@ float AGBaseEnemy::TakeDamage(float damageAmount, FDamageEvent const& damageEven
 		UE_LOG(LogTemp, Log, TEXT("hp left: %f / %f"), currentHp, maxHp);
 		if (currentHp <= 0)
 		{
-			onDeath.Broadcast(scrapPrice);
+			OnDeath.Broadcast(scrapPrice);
 			HandleDeath();
 		}
 	}

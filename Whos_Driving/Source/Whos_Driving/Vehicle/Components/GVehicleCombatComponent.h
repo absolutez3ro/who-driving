@@ -6,7 +6,7 @@
 #include "GWeaponDefinition.h"
 #include "GVehicleCombatComponent.generated.h"
 
-class AGWhosDrivingCharacter;
+class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class AGPlayerController;
 class AGVehicleWeapon;
@@ -151,7 +151,7 @@ protected:
 	void OnRep_Health();
 
 private:
-	AGWhosDrivingCharacter* GetCharacter() const;
+	AWhos_DrivingCharacter* GetCharacter() const;
 	AGPlayerController* GetPlayerController() const;
 	bool IsAuthority() const;
 	bool IsPlayerValid() const;

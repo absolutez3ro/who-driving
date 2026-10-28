@@ -2,7 +2,7 @@
 #include "GVehicleSeatComponent.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
-#include "GWhosDrivingCharacter.h"
+#include "Whos_DrivingCharacter.h"
 #include "GVehicleMovementComponent.h"
 #include "GVehicleCombatComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -51,7 +51,7 @@ void UGVehicleSeatingComponent::EndPlay(const EEndPlayReason::Type endPlayReason
 		for (int32 seatIndex = 0; seatIndex < seatStates.Num(); ++seatIndex)
 		{
 			AGPlayerController* controller = occupantControllers[seatIndex].Get();
-			AGWhosDrivingCharacter* character = seatStates[seatIndex].occupant;
+			AWhos_DrivingCharacter* character = seatStates[seatIndex].occupant;
 			if (IsValid(controller) && IsValid(character))
 			{
 				controller->Possess(character);
@@ -60,9 +60,9 @@ void UGVehicleSeatingComponent::EndPlay(const EEndPlayReason::Type endPlayReason
 			seatStates[seatIndex] = FGVehicleSeatState();
 		}
 	}
-	TArray<TWeakObjectPtr<AGWhosDrivingCharacter>> characters;
+	TArray<TWeakObjectPtr<AWhos_DrivingCharacter>> characters;
 	characterRestoreStates.GetKeys(characters);
-	for (const TWeakObjectPtr<AGWhosDrivingCharacter>& character : characters)
+	for (const TWeakObjectPtr<AWhos_DrivingCharacter>& character : characters)
 	{
 		RestoreCharacter(character.Get());
 	}
@@ -92,7 +92,7 @@ UGVehicleSeatComponent* UGVehicleSeatingComponent::GetSeatComponent(int32 seatIn
 	return nullptr;
 }
 
-int32 UGVehicleSeatingComponent::GetCharacterSeat(AGWhosDrivingCharacter* character) const
+int32 UGVehicleSeatingComponent::GetCharacterSeat(AWhos_DrivingCharacter* character) const
 {
 	if (!character)
 	{
@@ -114,7 +114,7 @@ bool UGVehicleSeatingComponent::IsPlayerValid(AGPlayerController* controller) co
 	{
 		return false;
 	}
-	AGWhosDrivingCharacter* character = controller->GetDriverCharacter();
+	AWhos_DrivingCharacter* character = controller->GetDriverCharacter();
 	if (controller->GetSeatedVehicle() == GetVehicle())
 	{
 		const int32 currentSeat = GetCharacterSeat(character);
@@ -122,15 +122,15 @@ bool UGVehicleSeatingComponent::IsPlayerValid(AGPlayerController* controller) co
 			&& controller->GetPawn() == (currentSeat == 0 ? static_cast<APawn*>(GetVehicle()) : character);
 	}
 	return controller->GetSeatedVehicle() == nullptr
-		&& Cast<AGWhosDrivingCharacter>(controller->GetPawn()) != nullptr;
+		&& Cast<AWhos_DrivingCharacter>(controller->GetPawn()) != nullptr;
 }
 
 bool UGVehicleSeatingComponent::IsSeatTargetValid(AGPlayerController* controller, int32 seatIndex,
 	const FVector& origin, const FVector& direction) const
 {
 	UGVehicleSeatComponent* targetSeat = GetSeatComponent(seatIndex);
-	AGWhosDrivingCharacter* character = controller->GetSeatedVehicle()
-		? controller->GetDriverCharacter() : Cast<AGWhosDrivingCharacter>(controller->GetPawn());
+	AWhos_DrivingCharacter* character = controller->GetSeatedVehicle()
+		? controller->GetDriverCharacter() : Cast<AWhos_DrivingCharacter>(controller->GetPawn());
 	if (!targetSeat || !IsValid(character) || origin.ContainsNaN() || direction.ContainsNaN()
 		|| !direction.IsNormalized() || FVector::DistSquared(origin, character->GetActorLocation()) > FMath::Square(150.0f))
 	{
@@ -190,7 +190,7 @@ bool UGVehicleSeatingComponent::RequestSeat(AGPlayerController* controller, int3
 		return false;
 	}
 	seatStates[seatIndex].reservedBy = playerState;
-	AGWhosDrivingCharacter* character = controller->GetSeatedVehicle() ? controller->GetDriverCharacter() : Cast<AGWhosDrivingCharacter>(controller->GetPawn());
+	AWhos_DrivingCharacter* character = controller->GetSeatedVehicle() ? controller->GetDriverCharacter() : Cast<AWhos_DrivingCharacter>(controller->GetPawn());
 	if (character)
 	{
 		character->GetCombatComponent()->CancelActions(true);
@@ -218,8 +218,8 @@ void UGVehicleSeatingComponent::CompleteTransition(int32 seatIndex)
 		PublishSeatStates();
 		return;
 	}
-	AGWhosDrivingCharacter* character = controller->GetSeatedVehicle()
-		? controller->GetDriverCharacter() : Cast<AGWhosDrivingCharacter>(controller->GetPawn());
+	AWhos_DrivingCharacter* character = controller->GetSeatedVehicle()
+		? controller->GetDriverCharacter() : Cast<AWhos_DrivingCharacter>(controller->GetPawn());
 	UGVehicleSeatComponent* targetSeat = GetSeatComponent(seatIndex);
 	if (!IsValid(character) || !targetSeat || (controller->GetSeatedVehicle() == nullptr
 		&& FVector::DistSquared(character->GetActorLocation(), targetSeat->GetComponentLocation()) > FMath::Square(interactionDistance)))
@@ -249,12 +249,12 @@ void UGVehicleSeatingComponent::CompleteTransition(int32 seatIndex)
 	PublishSeatStates();
 }
 
-bool UGVehicleSeatingComponent::InitializeDriver(AGPlayerController* controller, AGWhosDrivingCharacter* character, int32 seatIndex)
+bool UGVehicleSeatingComponent::InitializeDriver(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex)
 {
 	return InitializeOccupant(controller, character, seatIndex);
 }
 
-bool UGVehicleSeatingComponent::InitializeOccupant(AGPlayerController* controller, AGWhosDrivingCharacter* character, int32 seatIndex)
+bool UGVehicleSeatingComponent::InitializeOccupant(AGPlayerController* controller, AWhos_DrivingCharacter* character, int32 seatIndex)
 {
 	if (!IsAuthority() || !IsValid(controller) || !IsValid(character) || !seatStates.IsValidIndex(seatIndex)
 		|| !GetSeatComponent(seatIndex) || seatStates[seatIndex].occupant || seatStates[seatIndex].reservedBy)
@@ -317,7 +317,7 @@ bool UGVehicleSeatingComponent::RequestExit(AGPlayerController* controller)
 			GetCharacterSeat(controller ? controller->GetDriverCharacter() : nullptr), IsPlayerValid(controller));
 		return false;
 	}
-	AGWhosDrivingCharacter* character = controller->GetDriverCharacter();
+	AWhos_DrivingCharacter* character = controller->GetDriverCharacter();
 	const int32 currentSeat = GetCharacterSeat(character);
 	UGVehicleSeatComponent* seat = GetSeatComponent(currentSeat);
 	if (!seat)
@@ -370,7 +370,7 @@ void UGVehicleSeatingComponent::RemovePlayer(AGPlayerController* controller, boo
 		}
 		if (occupantControllers[seatIndex] == controller)
 		{
-			AGWhosDrivingCharacter* character = seatStates[seatIndex].occupant;
+			AWhos_DrivingCharacter* character = seatStates[seatIndex].occupant;
 			seatStates[seatIndex] = FGVehicleSeatState();
 			occupantControllers[seatIndex].Reset();
 			RestoreCharacter(character);
@@ -399,7 +399,7 @@ void UGVehicleSeatingComponent::TickComponent(float deltaSeconds, ELevelTick tic
 		FGVehicleSeatState& state = seatStates[seatIndex];
 		if (state.occupant && (!occupantControllers[seatIndex].IsValid() || !IsValid(state.occupant)))
 		{
-			AGWhosDrivingCharacter* character = state.occupant;
+			AWhos_DrivingCharacter* character = state.occupant;
 			state = FGVehicleSeatState();
 			occupantControllers[seatIndex].Reset();
 			RestoreCharacter(character);
@@ -432,7 +432,7 @@ void UGVehicleSeatingComponent::OnRep_SeatStates()
 	ApplySeatStates();
 }
 
-void UGVehicleSeatingComponent::RestoreCharacter(AGWhosDrivingCharacter* character)
+void UGVehicleSeatingComponent::RestoreCharacter(AWhos_DrivingCharacter* character)
 {
 	if (!character)
 	{
@@ -462,9 +462,9 @@ void UGVehicleSeatingComponent::RestoreCharacter(AGWhosDrivingCharacter* charact
 
 void UGVehicleSeatingComponent::ApplySeatStates()
 {
-	TArray<TWeakObjectPtr<AGWhosDrivingCharacter>> previousCharacters;
+	TArray<TWeakObjectPtr<AWhos_DrivingCharacter>> previousCharacters;
 	characterRestoreStates.GetKeys(previousCharacters);
-	for (const TWeakObjectPtr<AGWhosDrivingCharacter>& character : previousCharacters)
+	for (const TWeakObjectPtr<AWhos_DrivingCharacter>& character : previousCharacters)
 	{
 		if (!character.IsValid())
 		{
@@ -477,7 +477,7 @@ void UGVehicleSeatingComponent::ApplySeatStates()
 	}
 	for (int32 seatIndex = 0; seatIndex < seatStates.Num(); ++seatIndex)
 	{
-		AGWhosDrivingCharacter* character = seatStates[seatIndex].occupant;
+		AWhos_DrivingCharacter* character = seatStates[seatIndex].occupant;
 		UGVehicleSeatComponent* seat = GetSeatComponent(seatIndex);
 		if (!IsValid(character) || !seat)
 		{

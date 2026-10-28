@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "GWhosDrivingPlayerController.generated.h"
+#include "Whos_DrivingPlayerController.generated.h"
 
 class UInputMappingContext;
 class UUserWidget;
@@ -15,14 +15,14 @@ class UUserWidget;
  *  Overrides the Player Camera Manager class.
  */
 UCLASS(abstract, config="Game")
-class WHOS_DRIVING_API AGWhosDrivingPlayerController : public APlayerController
+class WHOS_DRIVING_API AWhos_DrivingPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
 public:
 
 	/** Constructor */
-	AGWhosDrivingPlayerController();
+	AWhos_DrivingPlayerController();
 
 protected:
 

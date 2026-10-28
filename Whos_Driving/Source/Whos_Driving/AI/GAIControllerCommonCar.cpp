@@ -51,21 +51,21 @@ void AGAIControllerCommonCar::BeginPlay()
 {
 	Super::BeginPlay();
 	// It is more memory efficient to copy them, surprisingly.
-	minAcceleration = commonCarData->minAcceleration;
-	maxAcceleration = commonCarData->maxAcceleration;
-	baseAcceleration = commonCarData->accelerationModifier;
-	minYDistance = commonCarData->minYDistanceCM;
-	maxYDistance = commonCarData->maxYDistanceCM;
-	fireRate = commonCarData->fireRate;
-	hitChance = commonCarData->hitChance;
-	minDamage = commonCarData->minDamage;
-	maxDamage = commonCarData->maxDamage;
-	weights.Add(commonCarData->wheelWeight);
-	weights.Add(commonCarData->doorWeight);
-	weights.Add(commonCarData->baseHealthWeight);
-	weights.Add(commonCarData->steeringWeight);
-	weights.Add(commonCarData->engineWeight);
-	weights.Add(commonCarData->electronicsWeight);
+	minAcceleration = commonCarData->MinAcceleration;
+	maxAcceleration = commonCarData->MaxAcceleration;
+	baseAcceleration = commonCarData->AccelerationModifier;
+	minYDistance = commonCarData->MinYDistanceCM;
+	maxYDistance = commonCarData->MaxYDistanceCM;
+	fireRate = commonCarData->FireRate;
+	hitChance = commonCarData->HitChance;
+	minDamage = commonCarData->MinDamage;
+	maxDamage = commonCarData->MaxDamage;
+	weights.Add(commonCarData->WheelWeight);
+	weights.Add(commonCarData->DoorWeight);
+	weights.Add(commonCarData->BaseHealthWeight);
+	weights.Add(commonCarData->SteeringWeight);
+	weights.Add(commonCarData->EngineWeight);
+	weights.Add(commonCarData->ElectronicsWeight);
 	// Must match the module ids created in AGPlayerCar; door ids are also the BP_GPlayerCar component names.
 	moduleNames[0].Add(FName(TEXT("Wheel_0")));
 	moduleNames[0].Add(FName(TEXT("Wheel_1")));
@@ -77,8 +77,8 @@ void AGAIControllerCommonCar::BeginPlay()
 	moduleNames[3].Add(FName(TEXT("Engine")));
 	moduleNames[4].Add(FName(TEXT("Electrician")));
 	yDistance = FMath::FRandRange(minYDistance, maxYDistance);
-	hitSound = commonCarData->hitSound;
-	missSound = commonCarData->missSound;
+	hitSound = commonCarData->HitSound;
+	missSound = commonCarData->MissSound;
 
 	SetPlayerRef();
 	StartShootDelay();

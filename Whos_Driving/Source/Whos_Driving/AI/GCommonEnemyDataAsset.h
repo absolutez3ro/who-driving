@@ -15,37 +15,37 @@ class WHOS_DRIVING_API UGCommonEnemyDataAsset : public UDataAsset
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float minAcceleration;
+	float MinAcceleration;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float maxAcceleration;
+	float MaxAcceleration;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float accelerationModifier;
+	float AccelerationModifier;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float minYDistanceCM;
+	float MinYDistanceCM;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float maxYDistanceCM;
+	float MaxYDistanceCM;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float fireRate;
+	float FireRate;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float hitChance;
+	float HitChance;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float minDamage;
+	float MinDamage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float maxDamage;
+	float MaxDamage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float wheelWeight;
+	float WheelWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float doorWeight;
+	float DoorWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float baseHealthWeight;
+	float BaseHealthWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float steeringWeight;
+	float SteeringWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float engineWeight;
+	float EngineWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
-	float electronicsWeight;
+	float ElectronicsWeight;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-	TObjectPtr<USoundBase> hitSound;
+	TObjectPtr<USoundBase> HitSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-	TObjectPtr<USoundBase> missSound;
+	TObjectPtr<USoundBase> MissSound;
 };

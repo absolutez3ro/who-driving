@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GWhosDrivingGameMode.h"
+#include "Whos_DrivingGameMode.h"
 #include "GVehicleGameMode.generated.h"
 
 class AGPlayerCar;
 
 UCLASS()
-class WHOS_DRIVING_API AGVehicleGameMode : public AGWhosDrivingGameMode
+class WHOS_DRIVING_API AGVehicleGameMode : public AWhos_DrivingGameMode
 {
 	GENERATED_BODY()
 

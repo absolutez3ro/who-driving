@@ -161,7 +161,7 @@ void UGGIWhosDriving::OnFindSessionsComplete(bool bWasSuccessful)
 		}
 
 
-		onSessionsFound.Broadcast(sessionsNames);
+		OnSessionsFound.Broadcast(sessionsNames);
 	}
 	else
 	{
@@ -236,7 +236,7 @@ void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCom
 	}
 	else
 	{
-		onJoiningFailed.Broadcast();
+		OnJoiningFailed.Broadcast();
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT joined!"));
 	}
 }

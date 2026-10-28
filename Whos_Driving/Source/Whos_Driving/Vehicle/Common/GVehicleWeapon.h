@@ -6,7 +6,7 @@
 #include "GWeaponDefinition.h"
 #include "GVehicleWeapon.generated.h"
 
-class AGWhosDrivingCharacter;
+class AWhos_DrivingCharacter;
 class UStaticMeshComponent;
 
 // Uses the existing shooter weapon's first/third-person meshes; gameplay is server-authoritative.
@@ -116,7 +116,7 @@ private:
 	void ConfigureMeshes();
 	void AttachMeshes();
 	void FinishReload();
-	AGWhosDrivingCharacter* GetCharacter() const;
+	AWhos_DrivingCharacter* GetCharacter() const;
 	FTimerHandle reloadTimer;
 	float lastShotTime = -100.0f;
 	float nextShotTime = -100.0f;
