@@ -23,7 +23,7 @@ void AGBaseEnemy::BeginPlay()
 	if (targetMesh)
 	{
 		// For ACharacter, use GetMesh(). For AActor, use FindComponentByClass<USkeletalMeshComponent>()
-		USkeletalMeshComponent* meshComponent = FindComponentByClass<USkeletalMeshComponent>();
+		USkeletalMeshComponent* meshComponent = GetMesh();
 
 		if (!meshComponent)
 		{
