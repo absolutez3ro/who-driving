@@ -7,7 +7,6 @@
 
 void UGVehicleDoorModule::OnDestroyed()
 {
-	OnDoorBreak.Broadcast(moduleId);
 }
 
 void UGVehicleDoorModule::ApplyRepair()
@@ -17,26 +16,11 @@ void UGVehicleDoorModule::ApplyRepair()
 		return;
 	}
 
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-
-	USkeletalMeshComponent* doorMesh = nullptr;
-	TArray<USceneComponent*> children;
-	car->GetMesh()->GetChildrenComponents(true, children);
-
-	for (USceneComponent* child : children)
-	{
-		if (child->GetFName() == moduleId)
-		{
-			doorMesh = Cast<USkeletalMeshComponent>(child);
-			break;
-		}
-	}
-
-	if (doorMesh)
-	{
-		doorMesh->SetVisibility(true, true);
-	}
-
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
+}
+
+void UGVehicleDoorModule::OnStateChanged(EGModuleState oldState, EGModuleState newState)
+{
+	OnDoorChangeState.Broadcast(moduleId, newState);
 }

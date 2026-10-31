@@ -6,7 +6,7 @@
 #include "GVehicleModule.h"
 #include "GVehicleWheelModule.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWheelBreak, int32, wheelIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWheelChangeState, int32, wheelIndex, EGModuleState, newState);
 
 /**
  * 
@@ -20,8 +20,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheel")
 	int32 wheelIndex = 0;
 	void ApplyRepair() override;
-	FOnWheelBreak OnWheelBreak;
+	FOnWheelChangeState OnWheelChangeState;
 
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState);
 };

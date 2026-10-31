@@ -52,7 +52,19 @@ void AGPlayerCar::SubscribeOnDelegates()
 	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
 	for (auto& door : doors)
 	{
-		door->OnDoorBreak.AddDynamic(this, &AGPlayerCar::BreakDoor);
+		door->OnDoorChangeState.AddDynamic(this, &AGPlayerCar::HandleDoorState);
+	}
+}
+
+void AGPlayerCar::HandleDoorState(FName moduleId, EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakDoor(moduleId);
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairDoor(moduleId);
 	}
 }
 
@@ -74,6 +86,27 @@ void AGPlayerCar::BreakDoor(FName moduleId)
 	if (doorMesh)
 	{
 		doorMesh->SetVisibility(false, true);
+	}
+}
+
+void AGPlayerCar::RepairDoor(FName moduleId)
+{	
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(true, true);
 	}
 }
 

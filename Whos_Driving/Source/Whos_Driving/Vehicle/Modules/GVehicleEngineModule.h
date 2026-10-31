@@ -6,7 +6,7 @@
 #include "GVehicleModule.h"
 #include "GVehicleEngineModule.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEngineBreak);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEngineChangeState, EGModuleState, newState);
 
 /**
  * 
@@ -19,8 +19,9 @@ public:
 	void ApplyRepair() override;
 
 	UPROPERTY(BlueprintAssignable)
-	FOnEngineBreak OnEngineBreak;
+	FOnEngineChangeState OnEngineChangeState;
 
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState) override;
 };

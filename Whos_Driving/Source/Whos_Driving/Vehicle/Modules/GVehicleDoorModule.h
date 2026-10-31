@@ -6,7 +6,7 @@
 #include "GVehicleModule.h"
 #include "GVehicleDoorModule.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDoorBreak, FName, moduleId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDoorChangeState, FName, moduleId, EGModuleState, newState);
 
 /**
  * 
@@ -20,7 +20,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	int32 doorId = INDEX_NONE;
 	void ApplyRepair() override;
-	FOnDoorBreak OnDoorBreak;
+	FOnDoorChangeState OnDoorChangeState;
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState) override;
 };

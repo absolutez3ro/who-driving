@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
 #include "GVehicleWheelModule.h"
+#include "GVehicleModule.h"
 #include "GPlayerCar.generated.h"
 
 class UInputMappingContext;
@@ -147,9 +148,11 @@ protected:
 
 	UFUNCTION()
 	void HandleToRepair(FName moduleId);
+	void BreakDoor(FName moduleId);
+	void RepairDoor(FName moduleId);
 
 	UFUNCTION()
-	void BreakDoor(FName moduleI);
+	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
