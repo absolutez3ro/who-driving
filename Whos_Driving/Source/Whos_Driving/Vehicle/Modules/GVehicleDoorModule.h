@@ -6,6 +6,8 @@
 #include "GVehicleModule.h"
 #include "GVehicleDoorModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDoorBreak, FName, moduleId);
+
 /**
  * 
  */
@@ -17,8 +19,8 @@ class WHOS_DRIVING_API UGVehicleDoorModule : public UGVehicleModule
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	int32 doorId = INDEX_NONE;
-
 	void ApplyRepair() override;
+	FOnDoorBreak OnDoorBreak;
 protected:
 	void OnDestroyed() override;
 };

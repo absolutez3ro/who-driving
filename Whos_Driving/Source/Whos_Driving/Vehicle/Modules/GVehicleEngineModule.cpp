@@ -7,10 +7,7 @@
 
 void UGVehicleEngineModule::OnDestroyed()
 {
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-
-	movement->BreakEngine();
+	OnEngineBreak.Broadcast();
 }
 
 void UGVehicleEngineModule::ApplyRepair()

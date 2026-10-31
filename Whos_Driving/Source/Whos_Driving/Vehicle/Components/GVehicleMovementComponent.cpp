@@ -3,6 +3,11 @@
 
 #include "GVehicleMovementComponent.h"
 #include "GCarDataAsset.h"
+#include "GPlayerCar.h"
+#include "GVehicleEngineModule.h"
+#include "GVehicleSteeringWheelModule.h"
+#include "GVehicleWheelModule.h"
+#include "GVehicleModuleComponent.h"
 #include "Net/UnrealNetwork.h"
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
@@ -176,6 +181,21 @@ void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
 		ThrottleInput = SteeringInput = BrakeInput = HandbrakeInput = 0.0f;
 		ReplicatedState.ThrottleInput = ReplicatedState.SteeringInput = 0.0f;
 		ReplicatedState.BrakeInput = ReplicatedState.HandbrakeInput = 0.0f;
+	}
+}
+
+void UGVehicleMovementComponent::SubscribeOnDelegates()
+{
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOwner());
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	UGVehicleEngineModule* engine = Cast<UGVehicleEngineModule>(moduleComponent->FindModule("Engine"));
+	engine->OnEngineBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakEngine);
+	UGVehicleSteeringWheelModule* steeringWheel = Cast<UGVehicleSteeringWheelModule>(moduleComponent->FindModule("Steering_Wheel"));
+	steeringWheel->OnSteeringWheelBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakSteeringWheel);
+	auto wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
+	for (auto& wheel : wheels)
+	{
+		wheel->OnWheelBreak.AddDynamic(this, &UGVehicleMovementComponent::BreakWheel);
 	}
 }
 
