@@ -22,6 +22,7 @@ UGVehicleCombatComponent::UGVehicleCombatComponent()
 {
 	SetIsReplicatedByDefault(true);
 	PrimaryComponentTick.bCanEverTick = true;
+	bWantsInitializeComponent = true;
 }
 
 void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -99,6 +100,21 @@ float UGVehicleCombatComponent::GetServerTime() const
 	return state ? state->GetServerWorldTimeSeconds() : (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f);
 }
 
+void UGVehicleCombatComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+	if (!GetCharacter())
+	{
+		return;
+	}
+	// Captured during spawn, before anyone can seat the character. The game mode seats a freshly spawned
+	// character before the world begins play, so a BeginPlay capture would store the seated pose and
+	// RefreshPresentation would then apply the seat camera offset twice.
+	initialCameraLocation = GetCharacter()->GetCameraRoot()->GetRelativeLocation();
+	initialFirstPersonLocation = GetCharacter()->GetFirstPersonMesh()->GetRelativeLocation();
+	initialCameraFov = GetCharacter()->GetFirstPersonCameraComponent()->FieldOfView;
+}
+
 void UGVehicleCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -106,9 +122,6 @@ void UGVehicleCombatComponent::BeginPlay()
 	{
 		return;
 	}
-	initialCameraLocation = GetCharacter()->GetCameraRoot()->GetRelativeLocation();
-	initialFirstPersonLocation = GetCharacter()->GetFirstPersonMesh()->GetRelativeLocation();
-	initialCameraFov = GetCharacter()->GetFirstPersonCameraComponent()->FieldOfView;
 	GetCharacter()->GetFirstPersonMesh()->HideBoneByName(TEXT("head"), EPhysBodyOp::PBO_None);
 	if (IsAuthority())
 	{

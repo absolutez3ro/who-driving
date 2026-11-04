@@ -31,14 +31,23 @@ namespace
 	// Drive requests below this keep the standstill hold active.
 	constexpr float holdDriveDemandThreshold = 0.05f;
 
-	// Steering input below this counts as hands off for the yaw damping assist.
+	// Steering input below this counts as hands off for the yaw assists.
 	constexpr float steeringDeadZone = 0.05f;
 
-	// The traction limit never removes more drive torque than this, so power slides stay possible.
-	constexpr float minimumTractionScale = 0.25f;
+	// Below this speed the body slip angle is meaningless noise, metres per second.
+	constexpr float slipAngleMinimumSpeed = 1.0f;
 
 	// Rate at which a visual wheel follows its simulated suspension position.
 	constexpr float visualFollowSpeed = 30.0f;
+
+	// Ground speed at which the air attitude fully follows the flight path, metres per second.
+	constexpr float trajectoryAlignmentFullSpeed = 10.0f;
+
+	// Steepest nose-up or nose-down attitude the flight path may ask for, radians.
+	constexpr float trajectoryMaxPitch = 0.6f;
+
+	// Share of the creep velocity the standstill hold removes per step.
+	constexpr float standstillVelocityGain = 0.5f;
 }
 
 UGArcadeVehicleComponent::UGArcadeVehicleComponent()
@@ -64,6 +73,7 @@ void UGArcadeVehicleComponent::BeginPlay()
 	}
 
 	drivetrain.Reset();
+	driftController.Reset();
 	InitializeWheels();
 	ApplyChassisTuning();
 }
@@ -92,11 +102,14 @@ void UGArcadeVehicleComponent::TickComponent(float deltaTime, ELevelTick tickTyp
 
 	RefreshWheelParameters(frame);
 	UpdateSuspension(frame);
+	UpdateDrift(frame);
 	UpdateSteering(frame);
 	UpdateDrivetrain(frame);
 	UpdateTires(frame);
 	ApplyAerodynamics(frame);
+	ApplyExtraGravity(frame);
 	ApplyStabilization(frame);
+	ApplyAssistForces(frame);
 	UpdateWheelVisuals(stepTime);
 	DrawDebug(frame);
 }
@@ -136,7 +149,9 @@ void UGArcadeVehicleComponent::ResetVehicle()
 	chassis->SetPhysicsAngularVelocityInRadians(FVector::ZeroVector);
 
 	drivetrain.Reset();
+	driftController.Reset();
 	currentSteerAngle = 0.0f;
+	airborneTime = 0.0f;
 	for (FGArcadeWheelState& state : wheelStates)
 	{
 		state.angularVelocity = 0.0f;
@@ -256,13 +271,18 @@ void UGArcadeVehicleComponent::ResolveWheelVisual(int32 wheelIndex)
 		return;
 	}
 
+	// Wheel meshes of the vehicle are modelled in chassis space, so the bounds centre is the hub and the
+	// larger of the length and height extents is the radius. Reading them keeps the physics on the mesh
+	// when the car model is swapped.
 	FGArcadeWheelRuntime& runtime = wheelRuntimes[wheelIndex];
+	const FBoxSphereBounds visualBounds = visual->CalcBounds(visual->GetRelativeTransform());
+	const float visualRadius = FMath::Max(visualBounds.BoxExtent.X, visualBounds.BoxExtent.Z);
 	runtime.visualComponent = visual;
 	runtime.visualRestTransform = visual->GetRelativeTransform();
+	runtime.visualRadius = visualRadius * GArcadeVehicleUnits::metersPerCentimeter;
 	if (runtime.hubLocation.IsNearlyZero())
 	{
-		// Wheel meshes of the vehicle are modelled in chassis space, so the bounds centre is the hub.
-		runtime.hubLocation = visual->CalcBounds(visual->GetRelativeTransform()).Origin;
+		runtime.hubLocation = visualBounds.Origin;
 	}
 }
 
@@ -328,9 +348,10 @@ void UGArcadeVehicleComponent::RefreshWheelParameters(const FGArcadeChassisFrame
 	{
 		frontAxlePosition /= frontWheelCount;
 		rearAxlePosition /= rearWheelCount;
-		const float wheelbase = FMath::Max(frontAxlePosition - rearAxlePosition, UE_KINDA_SMALL_NUMBER);
+		const float axleDistance = FMath::Max(frontAxlePosition - rearAxlePosition, UE_KINDA_SMALL_NUMBER);
 		const float centerOfMassPosition = frame.transform.InverseTransformPosition(frame.centerOfMass).X;
-		frontWeightShare = FMath::Clamp((centerOfMassPosition - rearAxlePosition) / wheelbase, 0.05f, 0.95f);
+		frontWeightShare = FMath::Clamp((centerOfMassPosition - rearAxlePosition) / axleDistance, 0.05f, 0.95f);
+		wheelbase = axleDistance * GArcadeVehicleUnits::metersPerCentimeter;
 		frontTorqueShare = tuningData.Transmission.FrontTorqueShare;
 		frontBrakeShare = tuningData.Brakes.FrontBias;
 	}
@@ -397,7 +418,7 @@ void UGArcadeVehicleComponent::TraceWheel(int32 wheelIndex, const FGArcadeChassi
 
 	const float travel = suspension.Travel * GArcadeVehicleUnits::centimetersPerMeter;
 	const float staticCompression = travel * suspension.StaticSagRatio;
-	const float radius = tuningData.Wheels.Radius * GArcadeVehicleUnits::centimetersPerMeter;
+	const float radius = GetWheelRadius(wheelIndex) * GArcadeVehicleUnits::centimetersPerMeter;
 	const FVector hubRestLocation = frame.transform.TransformPosition(runtime.hubLocation);
 	const FVector hubTopLocation = hubRestLocation + frame.up * (travel - staticCompression);
 
@@ -476,7 +497,9 @@ void UGArcadeVehicleComponent::ComputeSuspensionForce(int32 wheelIndex, const FG
 
 	const float springForce = runtime.springStiffness * springCompression;
 	const float bumpStopForce = runtime.springStiffness * suspension.BumpStopStiffnessMultiplier * bumpStopCompression;
-	const float damperForce = runtime.damperCoefficient * compressionSpeed;
+	const bool bIsExtending = compressionSpeed < 0.0f;
+	const float damperScale = bIsExtending ? suspension.ReboundDampingMultiplier : 1.0f;
+	const float damperForce = runtime.damperCoefficient * damperScale * compressionSpeed;
 
 	// The suspension can only push the chassis away from the ground, never pull it down.
 	state.suspensionForce = FMath::Max(springForce + bumpStopForce + damperForce, 0.0f);
@@ -531,25 +554,32 @@ void UGArcadeVehicleComponent::ApplySuspensionForce(int32 wheelIndex, const FGAr
 	chassis->AddForceAtLocation(suspensionForce, state.contactPoint);
 }
 
+void UGArcadeVehicleComponent::UpdateDrift(const FGArcadeChassisFrame& frame)
+{
+	const float lateralSpeed = FVector::DotProduct(frame.velocity, frame.right);
+	const bool bIsMoving = frame.velocity.Size() > slipAngleMinimumSpeed;
+	bodySlipAngle = bIsMoving ? FMath::RadiansToDegrees(FMath::Atan2(lateralSpeed, FMath::Abs(frame.forwardSpeed))) : 0.0f;
+	const float travelAngle = bIsMoving ? FMath::RadiansToDegrees(FMath::Atan2(lateralSpeed, frame.forwardSpeed)) : 0.0f;
+
+	FGArcadeDriftInput input;
+	input.throttle = vehicleInput.throttle;
+	input.brake = vehicleInput.brake;
+	input.steering = vehicleInput.steering;
+	input.bHandbrake = vehicleInput.bHandbrake;
+	input.forwardSpeed = frame.forwardSpeed;
+	input.bodySlipAngle = bodySlipAngle;
+	input.travelAngle = travelAngle;
+	input.yawRate = FVector::DotProduct(frame.angularVelocity, frame.up);
+	input.planarSpeed = FVector::VectorPlaneProject(frame.velocity, frame.up).Size();
+	input.bIsGrounded = frame.groundedWheelCount > 0;
+	driftController.Update(input, GetTuningData().Drift, frame.deltaTime);
+}
+
 void UGArcadeVehicleComponent::UpdateSteering(const FGArcadeChassisFrame& frame)
 {
-	const UGArcadeVehicleTuning& tuningData = GetTuningData();
-	const FGArcadeSteeringSettings& steering = tuningData.Steering;
-	const FGArcadeAssistSettings& assists = tuningData.Assists;
-
+	const FGArcadeSteeringSettings& steering = GetTuningData().Steering;
 	const float maxAngle = ComputeMaxSteerAngle(FMath::Abs(frame.forwardSpeed));
-	float targetAngle = vehicleInput.steering * maxAngle;
-
-	const bool bCanCounterSteer = assists.bEnableCounterSteerAssist && frame.groundedWheelCount > 0
-		&& frame.forwardSpeed > counterSteerMinimumSpeed;
-	if (bCanCounterSteer)
-	{
-		// Steering towards the direction of travel catches a slide before it turns into a spin.
-		const float lateralSpeed = FVector::DotProduct(frame.velocity, frame.right);
-		const float bodySlipAngle = FMath::RadiansToDegrees(FMath::Atan2(lateralSpeed, frame.forwardSpeed));
-		targetAngle += bodySlipAngle * assists.CounterSteerStrength;
-	}
-	targetAngle = FMath::Clamp(targetAngle, -maxAngle, maxAngle);
+	const float targetAngle = FMath::Clamp(vehicleInput.steering * maxAngle + ComputeCounterSteerAngle(frame), -maxAngle, maxAngle);
 
 	const bool bIsCrossingCentre = targetAngle * currentSteerAngle < 0.0f;
 	const bool bIsReturning = bIsCrossingCentre || FMath::Abs(targetAngle) < FMath::Abs(currentSteerAngle);
@@ -560,6 +590,22 @@ void UGArcadeVehicleComponent::UpdateSteering(const FGArcadeChassisFrame& frame)
 	{
 		wheelStates[wheelIndex].steerAngle = IsRearWheel(wheelIndex) ? 0.0f : currentSteerAngle;
 	}
+}
+
+float UGArcadeVehicleComponent::ComputeCounterSteerAngle(const FGArcadeChassisFrame& frame) const
+{
+	const FGArcadeAssistSettings& assists = GetTuningData().Assists;
+	const bool bCanCounterSteer = assists.bEnableCounterSteerAssist && frame.groundedWheelCount > 0
+		&& frame.forwardSpeed > counterSteerMinimumSpeed && !driftController.IsDrifting();
+	if (!bCanCounterSteer)
+	{
+		return 0.0f;
+	}
+
+	// Steering towards the direction of travel catches a slide before it turns into a spin. Inside the
+	// activation angle the slip is ordinary cornering, and steering against it would only widen the turn.
+	const float excessSlipAngle = FMath::Max(FMath::Abs(bodySlipAngle) - assists.CounterSteerActivationAngle, 0.0f);
+	return FMath::Sign(bodySlipAngle) * excessSlipAngle * assists.CounterSteerStrength;
 }
 
 float UGArcadeVehicleComponent::ComputeMaxSteerAngle(float speed) const
@@ -586,10 +632,14 @@ void UGArcadeVehicleComponent::UpdateDrivetrain(const FGArcadeChassisFrame& fram
 	input.forwardSpeed = frame.forwardSpeed;
 	input.torqueMultiplier = engineTorqueMultiplier;
 	input.bHasGroundContact = frame.groundedWheelCount > 0;
+	float drivenWheelRadius = 0.0f;
 	for (int32 wheelIndex = 0; wheelIndex < wheelStates.Num(); ++wheelIndex)
 	{
-		input.drivenWheelAngularVelocity += wheelRuntimes[wheelIndex].driveTorqueShare * wheelStates[wheelIndex].angularVelocity;
+		const float torqueShare = wheelRuntimes[wheelIndex].driveTorqueShare;
+		input.drivenWheelAngularVelocity += torqueShare * wheelStates[wheelIndex].angularVelocity;
+		drivenWheelRadius += torqueShare * GetWheelRadius(wheelIndex);
 	}
+	input.roadWheelAngularVelocity = frame.forwardSpeed / FMath::Max(drivenWheelRadius, UE_KINDA_SMALL_NUMBER);
 
 	drivetrain.Update(input, tuningData.Engine, tuningData.Transmission, frame.deltaTime);
 }
@@ -623,13 +673,20 @@ float UGArcadeVehicleComponent::ComputeTractionScale() const
 	{
 		return 1.0f;
 	}
-	return FMath::Clamp(assists.TractionLimitSlip / averageSlip, minimumTractionScale, 1.0f);
+	return FMath::Clamp(assists.TractionLimitSlip / averageSlip, assists.TractionLimitMinimumScale, 1.0f);
 }
 
 void UGArcadeVehicleComponent::UpdateTires(const FGArcadeChassisFrame& frame)
 {
 	const float tractionScale = ComputeTractionScale();
 	const bool bShouldHold = ShouldHoldStandstill(frame);
+	const FVector holdForce = bShouldHold ? ApplyStandstillHold(frame) : FVector::ZeroVector;
+	float groundedLoad = 0.0f;
+	for (const FGArcadeWheelState& state : wheelStates)
+	{
+		groundedLoad += state.bHasContact ? state.normalLoad : 0.0f;
+	}
+
 	for (int32 wheelIndex = 0; wheelIndex < wheelStates.Num(); ++wheelIndex)
 	{
 		if (!wheelStates[wheelIndex].bHasContact)
@@ -638,7 +695,8 @@ void UGArcadeVehicleComponent::UpdateTires(const FGArcadeChassisFrame& frame)
 		}
 		else if (bShouldHold)
 		{
-			ApplyStandstillHold(wheelIndex, frame);
+			const float loadShare = wheelStates[wheelIndex].normalLoad / FMath::Max(groundedLoad, UE_KINDA_SMALL_NUMBER);
+			HoldWheel(wheelIndex, frame, holdForce * loadShare);
 		}
 		else
 		{
@@ -664,7 +722,7 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	const FGArcadeTireSettings& tires = tuningData.Tires;
 	FGArcadeWheelState& state = wheelStates[wheelIndex];
 	FGArcadeWheelRuntime& runtime = wheelRuntimes[wheelIndex];
-	const float radius = tuningData.Wheels.Radius;
+	const float radius = GetWheelRadius(wheelIndex);
 
 	const FVector wheelForward = frame.forward.RotateAngleAxis(state.steerAngle, frame.up);
 	runtime.lateralDirection = FVector::CrossProduct(state.contactNormal, wheelForward).GetSafeNormal();
@@ -672,46 +730,48 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	const float longitudinalSpeed = FVector::DotProduct(runtime.contactVelocity, runtime.longitudinalDirection);
 	const float lateralSpeed = FVector::DotProduct(runtime.contactVelocity, runtime.lateralDirection);
 
+	// The handbrake and a slide loosen the rear axle sideways, which is what lets the tail swing out.
 	const float grip = tires.FrictionCoefficient * state.surfaceFriction * runtime.gripMultiplier;
-	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && IsRearWheel(wheelIndex);
-	const float lateralGrip = grip * (bIsHandbrakeWheel ? tuningData.Brakes.HandbrakeLateralGripMultiplier : 1.0f);
+	const bool bIsRear = IsRearWheel(wheelIndex);
+	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && bIsRear;
+	const float handbrakeGripScale = bIsHandbrakeWheel ? tuningData.Brakes.HandbrakeLateralGripMultiplier : 1.0f;
+	const float slideGripScale = bIsRear ? driftController.GetRearGripScale() : 1.0f;
+	const float lateralGrip = grip * FMath::Min(handbrakeGripScale, slideGripScale);
 	const float frictionLimit = grip * state.normalLoad;
 
 	FGArcadeWheelSpinInput spinInput;
 	spinInput.angularVelocity = state.angularVelocity;
-	spinInput.inertia = GetWheelInertia();
+	spinInput.inertia = GetWheelInertia(wheelIndex);
 	spinInput.radius = radius;
 	spinInput.driveTorque = ComputeDriveTorque(wheelIndex, tractionScale);
 	spinInput.brakeTorque = ComputeBrakeTorque(wheelIndex);
 	spinInput.longitudinalSpeed = longitudinalSpeed;
-	spinInput.tireStiffness = FGArcadeTireModel::ComputeSecantStiffness(tires.LongitudinalCurve, runtime.previousSlipRatio, frictionLimit);
 	spinInput.referenceSpeed = FMath::Max(FMath::Abs(longitudinalSpeed), tires.SlipReferenceSpeed);
 	spinInput.deltaTime = frame.deltaTime;
-	state.angularVelocity = FGArcadeTireModel::IntegrateWheelSpin(spinInput);
 
-	state.slipRatio = FGArcadeTireModel::ComputeSlipRatio(state.angularVelocity * radius, longitudinalSpeed, tires.SlipReferenceSpeed);
 	state.slipAngle = FGArcadeTireModel::ComputeSlipAngle(lateralSpeed, longitudinalSpeed, tires.SlipAngleReferenceSpeed);
-	float longitudinalForce = FGArcadeTireModel::EvaluateCurve(tires.LongitudinalCurve, state.slipRatio) * frictionLimit;
 	float lateralForce = -FGArcadeTireModel::EvaluateCurve(tires.LateralCurve, state.slipAngle) * lateralGrip * state.normalLoad;
 
 	// Within one step a friction force must not reverse the motion it resists; slow cars would jitter otherwise.
 	const float stoppingForcePerSpeed = runtime.cornerMass / frame.deltaTime;
 	const float lateralStoppingForce = FMath::Abs(lateralSpeed) * stoppingForcePerSpeed;
 	lateralForce = FMath::Clamp(lateralForce, -lateralStoppingForce, lateralStoppingForce);
-	if (FMath::IsNearlyZero(state.angularVelocity))
-	{
-		const float longitudinalStoppingForce = FMath::Abs(longitudinalSpeed) * stoppingForcePerSpeed;
-		longitudinalForce = FMath::Clamp(longitudinalForce, -longitudinalStoppingForce, longitudinalStoppingForce);
-	}
 
-	const FVector2D requestedForce(longitudinalForce, lateralForce);
-	const FVector2D tireForce = FGArcadeTireModel::LimitToFrictionCircle(requestedForce, frictionLimit, tires.LateralSuppression);
-	const bool bIsSaturated = !tireForce.Equals(requestedForce, 1.0f);
+	FGArcadeTireContactInput contactInput;
+	contactInput.spin = spinInput;
+	contactInput.frictionLimit = frictionLimit;
+	contactInput.lateralForce = lateralForce;
+	contactInput.lateralSuppression = tires.LateralSuppression;
+	contactInput.maxBrakingForce = FMath::Abs(longitudinalSpeed) * stoppingForcePerSpeed;
+	const FGArcadeTireContactResult contact = FGArcadeTireModel::SolveContact(contactInput, tires.LongitudinalCurve);
+	state.angularVelocity = contact.angularVelocity;
+	state.slipRatio = FGArcadeTireModel::ComputeSlipRatio(state.angularVelocity * radius, longitudinalSpeed, tires.SlipReferenceSpeed);
+	const FVector2D tireForce = contact.force;
 	const bool bIsPastLongitudinalPeak = FMath::Abs(state.slipRatio) > tires.LongitudinalCurve.PeakSlip;
 	const bool bIsPastLateralPeak = FMath::Abs(state.slipAngle) > tires.LateralCurve.PeakSlip;
 	state.longitudinalForce = tireForce.X;
 	state.lateralForce = tireForce.Y;
-	state.bIsSliding = bIsSaturated || bIsPastLongitudinalPeak || bIsPastLateralPeak;
+	state.bIsSliding = contact.bIsSaturated || bIsPastLongitudinalPeak || bIsPastLateralPeak;
 	runtime.previousSlipRatio = state.slipRatio;
 
 	const FVector worldForce = runtime.longitudinalDirection * tireForce.X + runtime.lateralDirection * tireForce.Y;
@@ -725,8 +785,8 @@ void UGArcadeVehicleComponent::UpdateAirborneWheel(int32 wheelIndex, const FGArc
 
 	FGArcadeWheelSpinInput spinInput;
 	spinInput.angularVelocity = state.angularVelocity;
-	spinInput.inertia = GetWheelInertia();
-	spinInput.radius = wheels.Radius;
+	spinInput.inertia = GetWheelInertia(wheelIndex);
+	spinInput.radius = GetWheelRadius(wheelIndex);
 	spinInput.driveTorque = ComputeDriveTorque(wheelIndex, tractionScale);
 	spinInput.brakeTorque = ComputeBrakeTorque(wheelIndex);
 	spinInput.deltaTime = frame.deltaTime;
@@ -741,23 +801,46 @@ void UGArcadeVehicleComponent::UpdateAirborneWheel(int32 wheelIndex, const FGArc
 	wheelRuntimes[wheelIndex].previousSlipRatio = 0.0f;
 }
 
-void UGArcadeVehicleComponent::ApplyStandstillHold(int32 wheelIndex, const FGArcadeChassisFrame& frame)
+FVector UGArcadeVehicleComponent::ApplyStandstillHold(const FGArcadeChassisFrame& frame)
+{
+	const FGArcadeTireSettings& tires = GetTuningData().Tires;
+	FVector groundNormal = FVector::ZeroVector;
+	float frictionLimit = 0.0f;
+	for (int32 wheelIndex = 0; wheelIndex < wheelStates.Num(); ++wheelIndex)
+	{
+		const FGArcadeWheelState& state = wheelStates[wheelIndex];
+		if (state.bHasContact)
+		{
+			groundNormal += state.contactNormal;
+			frictionLimit += tires.FrictionCoefficient * state.surfaceFriction * wheelRuntimes[wheelIndex].gripMultiplier * state.normalLoad;
+		}
+	}
+	groundNormal = groundNormal.IsNearlyZero() ? frame.up : groundNormal.GetSafeNormal();
+
+	// Static friction for the whole car: cancel the slope's pull and part of the creep every step. Acting on the
+	// centre of mass instead of the contact patches keeps it from rocking the body, and removing only part of
+	// the velocity per step keeps it stable at any frame rate.
+	const float mass = chassis->GetMass();
+	const FVector tangentVelocity = FVector::VectorPlaneProject(frame.velocity, groundNormal);
+	const FVector tangentGravity = FVector::VectorPlaneProject(frame.gravity, groundNormal);
+	const FVector requestedForce = -mass * (tangentVelocity * (standstillVelocityGain / frame.deltaTime) + tangentGravity);
+	const FVector holdForce = requestedForce.GetClampedToMaxSize(frictionLimit);
+	chassis->AddForce(holdForce * GArcadeVehicleUnits::centimetersPerMeter);
+
+	const float yawRate = FVector::DotProduct(frame.angularVelocity, frame.up);
+	chassis->AddTorqueInRadians(-frame.up * (yawRate * standstillVelocityGain / frame.deltaTime), NAME_None, true);
+	return holdForce;
+}
+
+void UGArcadeVehicleComponent::HoldWheel(int32 wheelIndex, const FGArcadeChassisFrame& frame, const FVector& wheelHoldForce)
 {
 	FGArcadeWheelState& state = wheelStates[wheelIndex];
 	FGArcadeWheelRuntime& runtime = wheelRuntimes[wheelIndex];
-
-	// Static friction: cancel the sliding velocity and the slope's pull on this corner's share of the mass.
-	const FVector tangentVelocity = FVector::VectorPlaneProject(runtime.contactVelocity, state.contactNormal);
-	const FVector tangentGravity = FVector::VectorPlaneProject(frame.gravity, state.contactNormal);
-	const float frictionLimit = GetTuningData().Tires.FrictionCoefficient * state.surfaceFriction * runtime.gripMultiplier * state.normalLoad;
-	const FVector holdForce = (-runtime.cornerMass * (tangentVelocity / frame.deltaTime + tangentGravity)).GetClampedToMaxSize(frictionLimit);
-	chassis->AddForceAtLocation(holdForce * GArcadeVehicleUnits::centimetersPerMeter, ComputeForceApplicationPoint(wheelIndex, frame));
-
 	state.angularVelocity = 0.0f;
 	state.slipRatio = 0.0f;
 	state.slipAngle = 0.0f;
-	state.longitudinalForce = FVector::DotProduct(holdForce, frame.forward);
-	state.lateralForce = FVector::DotProduct(holdForce, frame.right);
+	state.longitudinalForce = FVector::DotProduct(wheelHoldForce, frame.forward);
+	state.lateralForce = FVector::DotProduct(wheelHoldForce, frame.right);
 	state.bIsSliding = false;
 	runtime.longitudinalDirection = frame.forward;
 	runtime.lateralDirection = frame.right;
@@ -771,8 +854,10 @@ float UGArcadeVehicleComponent::ComputeDriveTorque(int32 wheelIndex, float tract
 
 float UGArcadeVehicleComponent::ComputeBrakeTorque(int32 wheelIndex) const
 {
-	const FGArcadeBrakeSettings& brakes = GetTuningData().Brakes;
-	const float serviceBrakeTorque = drivetrain.GetBrakeDemand() * brakes.TotalBrakeTorque * wheelRuntimes[wheelIndex].brakeTorqueShare;
+	const UGArcadeVehicleTuning& tuningData = GetTuningData();
+	const FGArcadeBrakeSettings& brakes = tuningData.Brakes;
+	const float driftBrakeScale = FMath::Lerp(1.0f, tuningData.Drift.BrakeScale, driftController.GetDriftBlend());
+	const float serviceBrakeTorque = drivetrain.GetBrakeDemand() * brakes.TotalBrakeTorque * wheelRuntimes[wheelIndex].brakeTorqueShare * driftBrakeScale;
 	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && IsRearWheel(wheelIndex);
 	const float handbrakeTorque = bIsHandbrakeWheel ? brakes.HandbrakeTorque : 0.0f;
 	return serviceBrakeTorque + handbrakeTorque;
@@ -807,38 +892,146 @@ void UGArcadeVehicleComponent::ApplyAerodynamics(const FGArcadeChassisFrame& fra
 
 void UGArcadeVehicleComponent::ApplyStabilization(const FGArcadeChassisFrame& frame)
 {
-	const UGArcadeVehicleTuning& tuningData = GetTuningData();
-	FVector angularAcceleration = FVector::ZeroVector;
-	if (frame.groundedWheelCount == 0)
-	{
-		const FGArcadeAirSettings& air = tuningData.Air;
-		if (!air.bEnableAirControl)
-		{
-			return;
-		}
-		// The cross product's length is the sine of the tilt, so the correction fades out near level.
-		const FVector levelingAxis = FVector::CrossProduct(frame.up, FVector::UpVector);
-		angularAcceleration = levelingAxis * air.LevelingStrength - frame.angularVelocity * air.AngularDamping;
-	}
-	else
-	{
-		const FGArcadeAssistSettings& assists = tuningData.Assists;
-		const bool bHasSteeringInput = FMath::Abs(vehicleInput.steering) > steeringDeadZone;
-		if (assists.bEnableYawDamping && !bHasSteeringInput)
-		{
-			const float yawRate = FVector::DotProduct(frame.angularVelocity, frame.up);
-			angularAcceleration -= frame.up * (yawRate * assists.YawDampingStrength);
-		}
-		if (assists.bEnableRollStabilization)
-		{
-			const float rollRate = FVector::DotProduct(frame.angularVelocity, frame.forward);
-			angularAcceleration -= frame.forward * (rollRate * assists.RollDampingStrength);
-		}
-	}
-
+	const bool bIsAirborne = frame.groundedWheelCount == 0;
+	const FVector angularAcceleration = bIsAirborne ? ComputeAirControl(frame) : ComputeGroundYawAssists(frame);
 	if (!angularAcceleration.IsNearlyZero())
 	{
 		chassis->AddTorqueInRadians(angularAcceleration, NAME_None, true);
+	}
+}
+
+FVector UGArcadeVehicleComponent::ComputeAirControl(const FGArcadeChassisFrame& frame) const
+{
+	const FGArcadeAirSettings& air = GetTuningData().Air;
+	if (!air.bEnableAirControl)
+	{
+		return FVector::ZeroVector;
+	}
+	// The cross product's length is the sine of the tilt, so the correction fades out near the target attitude.
+	const FVector levelingAxis = FVector::CrossProduct(frame.up, ComputeAirTargetUp(frame));
+	return levelingAxis * air.LevelingStrength - frame.angularVelocity * air.AngularDamping;
+}
+
+FVector UGArcadeVehicleComponent::ComputeAirTargetUp(const FGArcadeChassisFrame& frame) const
+{
+	const UGArcadeVehicleTuning& tuningData = GetTuningData();
+	const FGArcadeAirSettings& air = tuningData.Air;
+	const FVector gravityDirection = frame.gravity.GetSafeNormal();
+	const FVector worldUp = gravityDirection.IsNearlyZero() ? FVector::UpVector : -gravityDirection;
+
+	// Pitch with the flight path: the nose rises off a ramp and dips on the way down. Only pitch along the
+	// car's own forward axis is used, faded out when flying sideways or slowly, so a near-vertical fall
+	// cannot pick an arbitrary direction and roll the car.
+	const FVector forwardOnGround = FVector::VectorPlaneProject(frame.forward, worldUp).GetSafeNormal();
+	const FVector velocityOnGround = FVector::VectorPlaneProject(frame.velocity, worldUp);
+	const float groundSpeed = velocityOnGround.Size();
+	const float forwardAlignment = groundSpeed > UE_KINDA_SMALL_NUMBER ? FVector::DotProduct(velocityOnGround / groundSpeed, forwardOnGround) : 0.0f;
+	const float speedWeight = FMath::Clamp(groundSpeed / trajectoryAlignmentFullSpeed, 0.0f, 1.0f);
+	const float climbAngle = FMath::Atan2(FVector::DotProduct(frame.velocity, worldUp), FMath::Max(groundSpeed, UE_KINDA_SMALL_NUMBER));
+	const float targetPitch = FMath::Clamp(climbAngle * air.TrajectoryAlignment * forwardAlignment * speedWeight,
+										   -trajectoryMaxPitch, trajectoryMaxPitch);
+	FVector targetUp = (worldUp * FMath::Cos(targetPitch) - forwardOnGround * FMath::Sin(targetPitch)).GetSafeNormal();
+
+	// The closer the ground below, the more the attitude turns to its surface, so the car lands on all wheels.
+	const float probeLength = air.LandingProbeDistance * GArcadeVehicleUnits::centimetersPerMeter;
+	FHitResult hit;
+	const FVector probeEnd = frame.centerOfMass - worldUp * probeLength;
+	const bool bHasGroundBelow = probeLength > 0.0f
+		&& GetWorld()->LineTraceSingleByChannel(hit, frame.centerOfMass, probeEnd, tuningData.Suspension.TraceChannel, BuildSuspensionQueryParams());
+	if (bHasGroundBelow)
+	{
+		const float landingWeight = 1.0f - hit.Time;
+		targetUp = FMath::Lerp(targetUp, FVector(hit.ImpactNormal), landingWeight).GetSafeNormal();
+	}
+	return targetUp.IsNearlyZero() ? worldUp : targetUp;
+}
+
+void UGArcadeVehicleComponent::ApplyExtraGravity(const FGArcadeChassisFrame& frame)
+{
+	airborneTime = frame.groundedWheelCount == 0 ? airborneTime + frame.deltaTime : 0.0f;
+	const FGArcadeAirSettings& air = GetTuningData().Air;
+	const float extraGravityScale = air.GravityScale - 1.0f;
+	if (airborneTime <= 0.0f || extraGravityScale <= UE_KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	// Ramping in keeps bumps and short hops on real gravity; a proper jump gets the full weight.
+	const float rampAlpha = air.GravityRampTime > 0.0f ? FMath::Clamp(airborneTime / air.GravityRampTime, 0.0f, 1.0f) : 1.0f;
+	chassis->AddForce(frame.gravity * (extraGravityScale * rampAlpha * GArcadeVehicleUnits::centimetersPerMeter), NAME_None, true);
+}
+
+FVector UGArcadeVehicleComponent::ComputeGroundYawAssists(const FGArcadeChassisFrame& frame) const
+{
+	const FGArcadeAssistSettings& assists = GetTuningData().Assists;
+	const float yawRate = FVector::DotProduct(frame.angularVelocity, frame.up);
+	const float speed = FMath::Abs(frame.forwardSpeed);
+	const float corneringMinimumSpeed = assists.CorneringAssistMinimumSpeed / GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
+	const bool bHasSteeringInput = HasSteeringInput();
+
+	// While drifting, the drift controller owns the yaw; the grip assists fade out with the drift blend.
+	float yawAcceleration = driftController.GetYawAcceleration();
+	const float gripScale = 1.0f - driftController.GetDriftBlend();
+
+	const bool bCanAssistTurn = assists.bEnableTurnAssist && bHasSteeringInput && speed > corneringMinimumSpeed
+		&& wheelbase > UE_KINDA_SMALL_NUMBER;
+	if (bCanAssistTurn)
+	{
+		// At speed, the full-lock geometry asks for far more yaw than the lateral acceleration limit allows, so a
+		// geometric target would saturate at a fraction of the input and steering would feel like a switch. The
+		// target is proportional to the steering share instead; full steering reaches the lower of both limits.
+		const float maxSteerAngle = ComputeMaxSteerAngle(speed);
+		const float steeringShare = maxSteerAngle > UE_KINDA_SMALL_NUMBER ? FMath::Clamp(currentSteerAngle / maxSteerAngle, -1.0f, 1.0f) : 0.0f;
+		const float fullLockYawRate = speed * FMath::Tan(FMath::DegreesToRadians(maxSteerAngle)) / wheelbase;
+		const float lateralLimitYawRate = assists.TurnAssistLateralAcceleration / speed;
+		const float travelDirection = FMath::Sign(frame.forwardSpeed);
+		const float targetYawRate = travelDirection * steeringShare * FMath::Min(fullLockYawRate, lateralLimitYawRate);
+		yawAcceleration += (targetYawRate - yawRate) * assists.TurnAssistStrength * gripScale;
+	}
+	if (assists.bEnableYawDamping && !bHasSteeringInput && !driftController.IsDrifting())
+	{
+		yawAcceleration -= yawRate * assists.YawDampingStrength;
+	}
+
+	FVector angularAcceleration = frame.up * yawAcceleration;
+	if (assists.bEnableRollStabilization)
+	{
+		const float rollRate = FVector::DotProduct(frame.angularVelocity, frame.forward);
+		angularAcceleration -= frame.forward * (rollRate * assists.RollDampingStrength);
+	}
+	return angularAcceleration;
+}
+
+void UGArcadeVehicleComponent::ApplyAssistForces(const FGArcadeChassisFrame& frame)
+{
+	if (frame.groundedWheelCount == 0)
+	{
+		return;
+	}
+
+	const FGArcadeAssistSettings& assists = GetTuningData().Assists;
+	const float speed = FMath::Abs(frame.forwardSpeed);
+	const float corneringMinimumSpeed = assists.CorneringAssistMinimumSpeed / GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
+	FVector acceleration = FVector::ZeroVector;
+
+	if (assists.bEnableGripAssist && speed > corneringMinimumSpeed)
+	{
+		// Removing part of the sideways velocity every second makes the car follow its nose instead of washing wide.
+		const float lateralSpeed = FVector::DotProduct(frame.velocity, frame.right);
+		const float groundedFraction = static_cast<float>(frame.groundedWheelCount) / static_cast<float>(wheelStates.Num());
+		const float gripScale = (1.0f - driftController.GetDriftBlend()) * groundedFraction;
+		const float lateralAcceleration = -lateralSpeed * assists.GripAssistRate * gripScale;
+		acceleration += frame.right * FMath::Clamp(lateralAcceleration, -assists.GripAssistMaxAcceleration, assists.GripAssistMaxAcceleration);
+	}
+
+	// The drift channels act along and across the actual path, not the chassis axes.
+	const FVector travelDirection = FVector::VectorPlaneProject(frame.velocity, frame.up).GetSafeNormal();
+	const FVector rightOfTravel = FVector::CrossProduct(frame.up, travelDirection);
+	acceleration += travelDirection * driftController.GetSpeedHoldAcceleration();
+	acceleration += rightOfTravel * driftController.GetPathAcceleration();
+
+	if (!acceleration.IsNearlyZero())
+	{
+		chassis->AddForce(acceleration * GArcadeVehicleUnits::centimetersPerMeter, NAME_None, true);
 	}
 }
 
@@ -910,8 +1103,18 @@ bool UGArcadeVehicleComponent::IsRearWheel(int32 wheelIndex) const
 	return wheelSetups.IsValidIndex(wheelIndex) && wheelSetups[wheelIndex].axle == EGArcadeAxle::Rear;
 }
 
-float UGArcadeVehicleComponent::GetWheelInertia() const
+bool UGArcadeVehicleComponent::HasSteeringInput() const
 {
-	const FGArcadeWheelSettings& wheels = GetTuningData().Wheels;
-	return 0.5f * wheels.Mass * FMath::Square(wheels.Radius);
+	return FMath::Abs(vehicleInput.steering) > steeringDeadZone;
+}
+
+float UGArcadeVehicleComponent::GetWheelRadius(int32 wheelIndex) const
+{
+	const bool bHasVisualRadius = wheelRuntimes.IsValidIndex(wheelIndex) && wheelRuntimes[wheelIndex].visualRadius > UE_KINDA_SMALL_NUMBER;
+	return bHasVisualRadius ? wheelRuntimes[wheelIndex].visualRadius : GetTuningData().Wheels.Radius;
+}
+
+float UGArcadeVehicleComponent::GetWheelInertia(int32 wheelIndex) const
+{
+	return 0.5f * GetTuningData().Wheels.Mass * FMath::Square(GetWheelRadius(wheelIndex));
 }

@@ -1,4 +1,5 @@
 #include "GArcadeVehicleInputComponent.h"
+#include "GArcadeCameraSwitcherComponent.h"
 #include "GArcadeVehicleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -20,6 +21,7 @@ void UGArcadeVehicleInputComponent::BeginPlay()
 	Super::BeginPlay();
 
 	vehicle = GetOwner()->FindComponentByClass<UGArcadeVehicleComponent>();
+	cameraSwitcher = GetOwner()->FindComponentByClass<UGArcadeCameraSwitcherComponent>();
 	APawn* pawn = Cast<APawn>(GetOwner());
 	if (!pawn)
 	{
@@ -121,6 +123,10 @@ void UGArcadeVehicleInputComponent::BindActions(UEnhancedInputComponent& enhance
 	{
 		enhancedInput.BindAction(resetAction.Get(), ETriggerEvent::Started, this, &UGArcadeVehicleInputComponent::HandleReset);
 	}
+	if (cameraAction)
+	{
+		enhancedInput.BindAction(cameraAction.Get(), ETriggerEvent::Started, this, &UGArcadeVehicleInputComponent::HandleCameraCycle);
+	}
 }
 
 void UGArcadeVehicleInputComponent::ClearVehicleInput()
@@ -204,5 +210,13 @@ void UGArcadeVehicleInputComponent::HandleReset(const FInputActionValue& value)
 	if (vehicle)
 	{
 		vehicle->ResetVehicle();
+	}
+}
+
+void UGArcadeVehicleInputComponent::HandleCameraCycle(const FInputActionValue& value)
+{
+	if (cameraSwitcher)
+	{
+		cameraSwitcher->CycleView();
 	}
 }

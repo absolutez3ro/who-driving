@@ -149,6 +149,9 @@ struct FGArcadeWheelRuntime
 	// Wheel centre at static ride height, chassis space, centimetres.
 	FVector hubLocation = FVector::ZeroVector;
 
+	// Metres, read from the visual wheel mesh; zero falls back to the tuning radius.
+	float visualRadius = 0.0f;
+
 	// Sprung mass carried by this wheel, kilograms.
 	float cornerMass = 0.0f;
 

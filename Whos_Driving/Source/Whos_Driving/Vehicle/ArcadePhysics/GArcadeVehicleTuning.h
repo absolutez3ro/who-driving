@@ -44,4 +44,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists")
 	FGArcadeAssistSettings Assists;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
+	FGArcadeDriftSettings Drift;
 };

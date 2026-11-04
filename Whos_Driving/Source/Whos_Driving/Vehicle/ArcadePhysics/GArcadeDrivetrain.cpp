@@ -14,7 +14,7 @@ void FGArcadeDrivetrain::Reset()
 	currentGear = 1;
 	pendingGear = 1;
 	shiftTimeRemaining = 0.0f;
-	directionRequestTime = 0.0f;
+	reverseRequestTime = 0.0f;
 	engineRpm = 0.0f;
 	driveDemand = 0.0f;
 	brakeDemand = 0.0f;
@@ -68,19 +68,17 @@ void FGArcadeDrivetrain::UpdateDirection(const FGArcadeDrivetrainInput& input,
 	const bool bWantsReverse = !bIsReversing && bIsBrakePressed && !bIsThrottlePressed;
 	const bool bWantsForward = bIsReversing && bIsThrottlePressed && !bIsBrakePressed;
 
-	if (bIsNearlyStopped && (bWantsReverse || bWantsForward))
+	// Throttle always means "go": leaving reverse must not wait, or the car sits still after a spin.
+	if (bIsNearlyStopped && bWantsForward)
 	{
-		directionRequestTime += deltaTime;
-	}
-	else
-	{
-		directionRequestTime = 0.0f;
+		SelectGearImmediately(1);
 	}
 
-	if (directionRequestTime >= transmission.ReverseEngageDelay && directionRequestTime > 0.0f)
+	reverseRequestTime = bIsNearlyStopped && bWantsReverse ? reverseRequestTime + deltaTime : 0.0f;
+	if (bWantsReverse && reverseRequestTime > 0.0f && reverseRequestTime >= transmission.ReverseEngageDelay)
 	{
-		SelectGearImmediately(bWantsReverse ? -1 : 1);
-		directionRequestTime = 0.0f;
+		SelectGearImmediately(-1);
+		reverseRequestTime = 0.0f;
 	}
 
 	// In reverse the brake pedal drives and the throttle pedal brakes.
@@ -115,24 +113,44 @@ void FGArcadeDrivetrain::UpdateAutomaticShifting(const FGArcadeDrivetrainInput& 
 		return;
 	}
 
-	const int32 gearCount = transmission.ForwardGearRatios.Num();
-	const bool bCanUpshift = currentGear < gearCount && input.bHasGroundContact && driveDemand > pedalPressThreshold;
-	if (bCanUpshift && engineRpm >= transmission.UpshiftRpm)
+	// Drop straight to the gear that suits the road speed, for example after a spin or a hard stop.
+	const int32 roadSpeedGear = FindGearForRoadSpeed(input, transmission);
+	if (roadSpeedGear < currentGear)
 	{
-		BeginShift(currentGear + 1, transmission);
+		BeginShift(roadSpeedGear, transmission);
 		return;
 	}
-	if (currentGear > 1 && engineRpm <= transmission.DownshiftRpm)
+
+	// Spinning wheels alone push the engine rpm up, so the road speed has to agree before an upshift.
+	const int32 gearCount = transmission.ForwardGearRatios.Num();
+	const bool bCanUpshift = currentGear < gearCount && input.bHasGroundContact && driveDemand > pedalPressThreshold;
+	const bool bIsRoadFastEnough = ComputeRoadRpm(input, transmission, currentGear) >= transmission.UpshiftRpm * transmission.UpshiftRoadSpeedRatio;
+	if (bCanUpshift && bIsRoadFastEnough && engineRpm >= transmission.UpshiftRpm)
 	{
-		// Skip a downshift that would land straight on the upshift point and start gear hunting.
-		const float currentRatio = FMath::Max(FMath::Abs(GetGearRatio(transmission, currentGear)), UE_KINDA_SMALL_NUMBER);
-		const float lowerRatio = FMath::Abs(GetGearRatio(transmission, currentGear - 1));
-		const float rpmAfterShift = engineRpm * lowerRatio / currentRatio;
-		if (rpmAfterShift < transmission.UpshiftRpm)
-		{
-			BeginShift(currentGear - 1, transmission);
-		}
+		BeginShift(currentGear + 1, transmission);
 	}
+}
+
+int32 FGArcadeDrivetrain::FindGearForRoadSpeed(const FGArcadeDrivetrainInput& input, const FGArcadeTransmissionSettings& transmission) const
+{
+	// Step down while the current gear lugs below the downshift point and the lower one would not over-rev.
+	int32 gear = currentGear;
+	while (gear > 1)
+	{
+		const bool bIsLugging = ComputeRoadRpm(input, transmission, gear) <= transmission.DownshiftRpm;
+		const bool bLowerGearFits = ComputeRoadRpm(input, transmission, gear - 1) < transmission.UpshiftRpm;
+		if (!bIsLugging || !bLowerGearFits)
+		{
+			break;
+		}
+		--gear;
+	}
+	return gear;
+}
+
+float FGArcadeDrivetrain::ComputeRoadRpm(const FGArcadeDrivetrainInput& input, const FGArcadeTransmissionSettings& transmission, int32 gear)
+{
+	return FMath::Abs(input.roadWheelAngularVelocity * GetGearRatio(transmission, gear)) * GArcadeVehicleUnits::rpmPerRadianPerSecond;
 }
 
 void FGArcadeDrivetrain::UpdateWheelTorque(const FGArcadeDrivetrainInput& input, const FGArcadeEngineSettings& engine,

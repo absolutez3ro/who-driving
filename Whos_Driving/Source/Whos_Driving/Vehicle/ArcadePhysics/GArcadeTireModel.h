@@ -35,6 +35,25 @@ struct FGArcadeWheelSpinInput
 	float deltaTime = 0.0f;
 };
 
+// Ground contact inputs. Forces are in newtons; the spin input uses SI units.
+struct FGArcadeTireContactInput
+{
+	FGArcadeWheelSpinInput spin;
+	float frictionLimit = 0.0f;
+	float lateralForce = 0.0f;
+	float lateralSuppression = 0.0f;
+	float maxBrakingForce = MAX_flt;
+};
+
+struct FGArcadeTireContactResult
+{
+	float angularVelocity = 0.0f;
+	FVector2D force = FVector2D::ZeroVector;
+	// Signed torque actually removed by the brake, including a partially applied static brake.
+	float signedBrakeTorque = 0.0f;
+	bool bIsSaturated = false;
+};
+
 // Stateless tire and wheel maths shared by the vehicle component and the automation tests.
 class WHOS_DRIVING_API FGArcadeTireModel
 {
@@ -57,4 +76,8 @@ public:
 	// Returns the new angular velocity. The tire force is treated implicitly through its stiffness,
 	// so the step stays stable at low frame rates where an explicit update would oscillate.
 	static float IntegrateWheelSpin(const FGArcadeWheelSpinInput& input);
+
+	// Solves wheel rotation against the final combined tire force. The body and wheel receive
+	// the same longitudinal reaction, including grip saturation and the stopping-force limit.
+	static FGArcadeTireContactResult SolveContact(const FGArcadeTireContactInput& input, const FGArcadeTireCurve& curve);
 };

@@ -14,6 +14,9 @@ struct FGArcadeDrivetrainInput
 	// Radians per second, torque-share weighted average of the driven wheels.
 	float drivenWheelAngularVelocity = 0.0f;
 
+	// Radians per second the driven wheels would turn at the current road speed; spinning wheels do not raise it.
+	float roadWheelAngularVelocity = 0.0f;
+
 	// Metres per second along the chassis forward axis.
 	float forwardSpeed = 0.0f;
 
@@ -80,15 +83,18 @@ private:
 								 float deltaTime);
 	void UpdateWheelTorque(const FGArcadeDrivetrainInput& input, const FGArcadeEngineSettings& engine,
 						   const FGArcadeTransmissionSettings& transmission);
+	int32 FindGearForRoadSpeed(const FGArcadeDrivetrainInput& input, const FGArcadeTransmissionSettings& transmission) const;
 	void BeginShift(int32 gear, const FGArcadeTransmissionSettings& transmission);
 	void SelectGearImmediately(int32 gear);
+
+	static float ComputeRoadRpm(const FGArcadeDrivetrainInput& input, const FGArcadeTransmissionSettings& transmission, int32 gear);
 
 	int32 currentGear = 1;
 	int32 pendingGear = 1;
 	float shiftTimeRemaining = 0.0f;
 
-	// Seconds the driver has been asking to change direction at low speed.
-	float directionRequestTime = 0.0f;
+	// Seconds the driver has been asking for reverse at low speed.
+	float reverseRequestTime = 0.0f;
 
 	float engineRpm = 0.0f;
 	float driveDemand = 0.0f;

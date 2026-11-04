@@ -8,6 +8,7 @@ class AController;
 class APawn;
 class APlayerController;
 class UEnhancedInputComponent;
+class UGArcadeCameraSwitcherComponent;
 class UGArcadeVehicleComponent;
 class UInputAction;
 class UInputMappingContext;
@@ -49,6 +50,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> resetAction;
 
+	// Cycles the views of the owner's camera switcher, if it has one.
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> cameraAction;
+
 private:
 	UFUNCTION()
 	void HandleControllerChanged(APawn* pawn, AController* oldController, AController* newController);
@@ -67,12 +72,16 @@ private:
 	void HandleHandbrakePressed(const FInputActionValue& value);
 	void HandleHandbrakeReleased(const FInputActionValue& value);
 	void HandleReset(const FInputActionValue& value);
+	void HandleCameraCycle(const FInputActionValue& value);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UEnhancedInputComponent> actionInputComponent;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UGArcadeVehicleComponent> vehicle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGArcadeCameraSwitcherComponent> cameraSwitcher;
 
 	TWeakObjectPtr<APlayerController> boundController;
 };

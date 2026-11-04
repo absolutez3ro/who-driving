@@ -64,6 +64,11 @@ struct FGArcadeSuspensionSettings
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Suspension", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float DampingRatio = 0.6f;
 
+	// Damping while the spring extends, relative to compression. Real dampers are stiffer on rebound,
+	// which keeps a heavy car from bouncing back up after a landing.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Suspension", meta = (ClampMin = "0.0"))
+	float ReboundDampingMultiplier = 1.6f;
+
 	// Anti-roll bar rate as a fraction of the spring rate, applied between the wheels of one axle.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Suspension", meta = (ClampMin = "0.0"))
 	float AntiRollStiffnessRatio = 0.4f;
@@ -82,8 +87,9 @@ struct FGArcadeWheelSettings
 {
 	GENERATED_BODY()
 
+	// Only used by wheels without a visual component; otherwise the radius is read from the wheel mesh.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels", meta = (ClampMin = "0.05", Units = "m"))
-	float Radius = 0.436f;
+	float Radius = 0.38f;
 
 	// Wheel inertia is derived as a solid disc: 0.5 * Mass * Radius^2.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheels", meta = (ClampMin = "0.5", Units = "kg"))
@@ -187,12 +193,12 @@ struct FGArcadeEngineSettings
 
 	// Newton metres.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Engine", meta = (ClampMin = "0.0"))
-	float PeakTorque = 450.0f;
+	float PeakTorque = 600.0f;
 
 	// Quadratic Bezier over idle..redline in fractions of PeakTorque. The middle value is a control point,
-	// so the curve stays below it.
+	// so the curve stays below it. A high start value gives the strong launch of an arcade car.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Engine", meta = (ClampMin = "0.0"))
-	float TorqueCurveStart = 0.6f;
+	float TorqueCurveStart = 0.8f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Engine", meta = (ClampMin = "0.0"))
 	float TorqueCurveMiddle = 1.35f;
@@ -245,8 +251,13 @@ struct FGArcadeTransmissionSettings
 	float ReverseEngageSpeed = 1.0f;
 
 	// Brake has to be held this long at low speed before reverse engages, so braking to a stop holds the car.
+	// Throttle switches back to a forward gear at once.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transmission", meta = (ClampMin = "0.0", Units = "s"))
 	float ReverseEngageDelay = 0.35f;
+
+	// Upshifts wait until the road speed, not only spinning wheels, reaches this share of UpshiftRpm.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transmission", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float UpshiftRoadSpeedRatio = 0.9f;
 };
 
 USTRUCT(BlueprintType)
@@ -331,12 +342,29 @@ struct FGArcadeAirSettings
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air")
 	bool bEnableAirControl = true;
 
-	// Angular acceleration per radian of tilt away from world up, 1/s^2.
+	// Angular acceleration per radian of tilt away from the target attitude, 1/s^2.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0.0", EditCondition = "bEnableAirControl"))
 	float LevelingStrength = 1.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0.0", EditCondition = "bEnableAirControl"))
 	float AngularDamping = 0.8f;
+
+	// How far the target attitude follows the flight path: 0 stays level, 1 points the nose along the arc.
+	// Dipping the nose on the way down is what makes a heavy car read as heavy.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableAirControl"))
+	float TrajectoryAlignment = 0.35f;
+
+	// Near the ground the target attitude turns to the surface below, so the car lands on all four wheels.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0.0", Units = "m", EditCondition = "bEnableAirControl"))
+	float LandingProbeDistance = 6.0f;
+
+	// Gravity multiplier without wheel contact. Real gravity makes a car this size float over jumps.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "1.0"))
+	float GravityScale = 1.8f;
+
+	// Time over which the extra gravity builds up after the wheels leave the ground; short hops stay real.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0.0", Units = "s"))
+	float GravityRampTime = 0.15f;
 };
 
 USTRUCT(BlueprintType)
@@ -344,13 +372,46 @@ struct FGArcadeAssistSettings
 {
 	GENERATED_BODY()
 
-	// Adds steering towards the direction of travel while sliding.
+	// Adds steering towards the direction of travel while sliding outside a drift.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists")
 	bool bEnableCounterSteerAssist = true;
 
-	// Degrees of steering per degree of body slip angle.
+	// Degrees of steering per degree of body slip angle past the activation angle.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableCounterSteerAssist"))
 	float CounterSteerStrength = 0.15f;
+
+	// A normal corner has a few degrees of body slip; counter steering below this would only widen the turn.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", Units = "deg", EditCondition = "bEnableCounterSteerAssist"))
+	float CounterSteerActivationAngle = 8.0f;
+
+	// Drives the yaw rate towards a target proportional to the steering input. Full steering asks for the
+	// lower of the full-lock yaw rate and the arcade lateral acceleration limit, so control stays linear at speed.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists")
+	bool bEnableTurnAssist = true;
+
+	// Lateral acceleration the turn assist allows, m/s^2. Real tires give about 10; arcade cars turn harder.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "1.0", EditCondition = "bEnableTurnAssist"))
+	float TurnAssistLateralAcceleration = 24.0f;
+
+	// How fast the yaw rate error is closed, 1/s.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", EditCondition = "bEnableTurnAssist"))
+	float TurnAssistStrength = 4.0f;
+
+	// Pulls the sideways velocity towards zero so the car follows its nose instead of washing wide.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists")
+	bool bEnableGripAssist = true;
+
+	// Share of the sideways velocity removed per second.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", EditCondition = "bEnableGripAssist"))
+	float GripAssistRate = 2.5f;
+
+	// Upper bound of the grip assist, m/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", EditCondition = "bEnableGripAssist"))
+	float GripAssistMaxAcceleration = 10.0f;
+
+	// Both cornering assists stay off below this speed.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", Units = "km/h"))
+	float CorneringAssistMinimumSpeed = 15.0f;
 
 	// Damps yaw rotation while there is no steering input.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists")
@@ -371,5 +432,137 @@ struct FGArcadeAssistSettings
 	bool bEnableTractionLimit = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.01", EditCondition = "bEnableTractionLimit"))
-	float TractionLimitSlip = 0.35f;
+	float TractionLimitSlip = 0.6f;
+
+	// The traction limit never removes more than this share of the drive torque.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assists", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableTractionLimit"))
+	float TractionLimitMinimumScale = 0.6f;
+};
+
+// Arcade drift: a brake tap or the handbrake at speed swings the tail out, steering then holds the drift angle.
+USTRUCT(BlueprintType)
+struct FGArcadeDriftSettings
+{
+	GENERATED_BODY()
+
+	// Lift off, steer and tap the brake to start a drift.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
+	bool bEnableBrakeDrift = true;
+
+	// Steer and pull the handbrake to swing the car round towards the steering side. Releasing it while the
+	// slide is shallower than HandbrakeTurnHandoverAngle carries on as a drift.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
+	bool bEnableHandbrakeDrift = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "km/h"))
+	float BrakeDriftMinimumSpeed = 50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "km/h"))
+	float HandbrakeDriftMinimumSpeed = 25.0f;
+
+	// Steering input needed to start a drift; its sign picks the drift direction.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float EntrySteering = 0.3f;
+
+	// A brake drift only starts while the throttle is below this.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float EntryThrottleLimit = 0.4f;
+
+	// Body slip angle held with neutral steering.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "80.0", Units = "deg"))
+	float BaseAngle = 28.0f;
+
+	// Body slip angle held with full steering into the drift. Full counter steer asks for zero and ends the drift.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "80.0", Units = "deg"))
+	float MaxAngle = 45.0f;
+
+	// Yaw acceleration per radian of drift angle error, 1/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float AngleStiffness = 25.0f;
+
+	// Yaw acceleration per radian per second of drift angle change, 1/s.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float AngleDamping = 7.0f;
+
+	// Upper bound of the drift yaw acceleration, rad/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float MaxYawAcceleration = 12.0f;
+
+	// Sideways acceleration that bends the path through the corner with neutral steering, m/s^2. This is what
+	// lets a drift take a corner tighter than grip alone; the yaw control then keeps the nose ahead of the path.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float PathAcceleration = 12.0f;
+
+	// Path acceleration with full steering into the drift, m/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float PathAccelerationIntoDrift = 22.0f;
+
+	// Path acceleration with full counter steer, m/s^2; the drift opens up and runs wide.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float PathAccelerationCounterSteer = 2.0f;
+
+	// How strongly the yaw rate follows the turning rate of the path, 1/s. Without it the nose lags the corner.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float YawRateMatchStrength = 3.0f;
+
+	// Yaw rate of a handbrake turn at full steering.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "deg/s"))
+	float HandbrakeTurnYawRate = 220.0f;
+
+	// How fast the handbrake turn reaches its yaw rate, 1/s.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float HandbrakeTurnResponse = 6.0f;
+
+	// Upper bound of the handbrake turn yaw acceleration, rad/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float HandbrakeTurnMaxYawAcceleration = 14.0f;
+
+	// Rear lateral grip during a handbrake turn.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float HandbrakeTurnRearGripMultiplier = 0.25f;
+
+	// The turn stops rotating once the car has swung this far from its direction of travel, which leaves it
+	// facing back the way it came for a J-turn.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "180.0", Units = "deg"))
+	float HandbrakeTurnStopAngle = 170.0f;
+
+	// Releasing the handbrake below this slide angle continues as a drift; above it the car simply grips again.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "90.0", Units = "deg"))
+	float HandbrakeTurnHandoverAngle = 60.0f;
+
+	// Rear lateral grip while drifting.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RearGripMultiplier = 0.45f;
+
+	// Service brake strength while drifting, so the brake tap does not kill the speed.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float BrakeScale = 0.15f;
+
+	// Acceleration along the velocity per m/s of speed lost since the drift started, 1/s.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float SpeedHoldGain = 1.5f;
+
+	// Upper bound of the speed hold, m/s^2.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0"))
+	float SpeedHoldMaxAcceleration = 6.0f;
+
+	// The drift ends once the car straightens below this angle.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "deg"))
+	float ExitAngle = 7.0f;
+
+	// The drift ends below this share of its minimum entry speed.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ExitSpeedRatio = 0.6f;
+
+	// Shortest drift, so the tail has time to swing out before the exit angle is checked.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "s"))
+	float MinimumDuration = 0.4f;
+
+	// Time to blend grip and braking changes in and out.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.01", Units = "s"))
+	float BlendTime = 0.15f;
+
+	// The drift ends after this long without wheel contact.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "s"))
+	float MaxAirTime = 0.6f;
 };

@@ -129,6 +129,7 @@ public:
 	TSubclassOf<UAnimInstance> walkingFirstPersonAnimClass;
 
 protected:
+	void InitializeComponent() override;
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Combat")

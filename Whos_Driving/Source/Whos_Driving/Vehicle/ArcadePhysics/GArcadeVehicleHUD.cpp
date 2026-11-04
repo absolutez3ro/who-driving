@@ -27,6 +27,11 @@ void AGArcadeVehicleHUD::DrawVehicleSummary(const UGArcadeVehicleComponent& vehi
 	DrawTextLine(FString::Printf(TEXT("Speed %4.0f km/h   Gear %s   %5.0f rpm%s"),
 								 vehicle.GetForwardSpeedKmh(), *gearText, vehicle.GetEngineRpm(), *airText),
 				 FLinearColor::White, cursorY);
+
+	const FString slideText = vehicle.IsHandbrakeTurning() ? FString(TEXT("HANDBRAKE TURN")) : FString(TEXT("DRIFT"));
+	const FString driftText = vehicle.IsDrifting() ? slideText : FString(TEXT("grip"));
+	const FLinearColor driftColor = vehicle.IsDrifting() ? FLinearColor(1.0f, 0.55f, 0.1f) : FLinearColor::White;
+	DrawTextLine(FString::Printf(TEXT("Body slip %5.1f deg   %s"), vehicle.GetBodySlipAngle(), *driftText), driftColor, cursorY);
 	DrawTextLine(TEXT("vp.Debug 1 draws traces and forces"), FLinearColor::Gray, cursorY);
 }
 

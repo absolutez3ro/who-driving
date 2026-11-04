@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GArcadeDriftController.h"
 #include "GArcadeDrivetrain.h"
 #include "GArcadeVehicleTypes.h"
 #include "GArcadeVehicleComponent.generated.h"
@@ -88,6 +89,26 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Arcade|Telemetry")
 	bool IsInAir() const;
 
+	// True in a drift and in a handbrake turn.
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Arcade|Telemetry")
+	bool IsDrifting() const
+	{
+		return driftController.IsDrifting();
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Arcade|Telemetry")
+	bool IsHandbrakeTurning() const
+	{
+		return driftController.GetMode() == EGArcadeSlideMode::HandbrakeTurn;
+	}
+
+	// Degrees between heading and velocity, positive when the car slides to its right.
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Arcade|Telemetry")
+	float GetBodySlipAngle() const
+	{
+		return bodySlipAngle;
+	}
+
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Arcade|Telemetry")
 	TArray<FGArcadeWheelState> GetWheelStates() const
 	{
@@ -149,8 +170,11 @@ private:
 	void ApplyAntiRollBars();
 	void ApplySuspensionForce(int32 wheelIndex, const FGArcadeChassisFrame& frame);
 
+	void UpdateDrift(const FGArcadeChassisFrame& frame);
+
 	void UpdateSteering(const FGArcadeChassisFrame& frame);
 	float ComputeMaxSteerAngle(float speed) const;
+	float ComputeCounterSteerAngle(const FGArcadeChassisFrame& frame) const;
 
 	void UpdateDrivetrain(const FGArcadeChassisFrame& frame);
 	float ComputeTractionScale() const;
@@ -159,27 +183,45 @@ private:
 	bool ShouldHoldStandstill(const FGArcadeChassisFrame& frame) const;
 	void UpdateGroundedWheel(int32 wheelIndex, const FGArcadeChassisFrame& frame, float tractionScale);
 	void UpdateAirborneWheel(int32 wheelIndex, const FGArcadeChassisFrame& frame, float tractionScale);
-	void ApplyStandstillHold(int32 wheelIndex, const FGArcadeChassisFrame& frame);
+	FVector ApplyStandstillHold(const FGArcadeChassisFrame& frame);
+	void HoldWheel(int32 wheelIndex, const FGArcadeChassisFrame& frame, const FVector& wheelHoldForce);
 	float ComputeDriveTorque(int32 wheelIndex, float tractionScale) const;
 	float ComputeBrakeTorque(int32 wheelIndex) const;
 	FVector ComputeForceApplicationPoint(int32 wheelIndex, const FGArcadeChassisFrame& frame) const;
 
 	void ApplyAerodynamics(const FGArcadeChassisFrame& frame);
 	void ApplyStabilization(const FGArcadeChassisFrame& frame);
+	FVector ComputeAirControl(const FGArcadeChassisFrame& frame) const;
+	FVector ComputeAirTargetUp(const FGArcadeChassisFrame& frame) const;
+	void ApplyExtraGravity(const FGArcadeChassisFrame& frame);
+	FVector ComputeGroundYawAssists(const FGArcadeChassisFrame& frame) const;
+	void ApplyAssistForces(const FGArcadeChassisFrame& frame);
 	void UpdateWheelVisuals(float deltaTime);
 	void DrawDebug(const FGArcadeChassisFrame& frame) const;
 
 	bool IsRearWheel(int32 wheelIndex) const;
-	float GetWheelInertia() const;
+	bool HasSteeringInput() const;
+	float GetWheelRadius(int32 wheelIndex) const;
+	float GetWheelInertia(int32 wheelIndex) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> chassis;
 
 	TArray<FGArcadeWheelRuntime> wheelRuntimes;
 	FGArcadeDrivetrain drivetrain;
+	FGArcadeDriftController driftController;
 
 	// Degrees, shared by the steered wheels.
 	float currentSteerAngle = 0.0f;
+
+	// Degrees, see GetBodySlipAngle.
+	float bodySlipAngle = 0.0f;
+
+	// Metres between the front and rear axle.
+	float wheelbase = 0.0f;
+
+	// Seconds without any wheel contact.
+	float airborneTime = 0.0f;
 	float engineTorqueMultiplier = 1.0f;
 	float speedKmh = 0.0f;
 	float forwardSpeedKmh = 0.0f;
