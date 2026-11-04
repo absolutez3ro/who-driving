@@ -1,19 +1,14 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "GBaseEnemy.h"
+#include "AI/GNewCommoncar.h"
 #include "GEnemyBaseDataAsset.h"
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values
-AGBaseEnemy::AGBaseEnemy()
-{
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
 
-}
 
 // Called when the game starts or when spawned
-void AGBaseEnemy::BeginPlay()
+void AGNewCommoncar::BeginPlay()
 {
 	Super::BeginPlay();
 	maxHp = baseData->MaxHp;
@@ -22,8 +17,12 @@ void AGBaseEnemy::BeginPlay()
 	USkeletalMesh* targetMesh = baseData->Mesh;
 	if (targetMesh)
 	{
-		// For ACharacter, use GetMesh(). For AActor, use FindComponentByClass<USkeletalMeshComponent>()
-		USkeletalMeshComponent* meshComponent = GetMesh();
+		// The car body is the root; the seated crew are skeletal meshes too, so don't just take the first one found
+		USkeletalMeshComponent* meshComponent = Cast<USkeletalMeshComponent>(GetRootComponent());
+		if (!meshComponent)
+		{
+			meshComponent = FindComponentByClass<USkeletalMeshComponent>();
+		}
 
 		if (!meshComponent)
 		{
@@ -41,13 +40,37 @@ void AGBaseEnemy::BeginPlay()
 }
 
 // Called every frame
-void AGBaseEnemy::Tick(float deltaTime)
+void AGNewCommoncar::Tick(float deltaTime)
 {
 	Super::Tick(deltaTime);
 
 }
 
-void AGBaseEnemy::HandleDeath()
+void AGNewCommoncar::PlayShotSound_Implementation()
+{
+	if (hitSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, hitSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
+}
+
+void AGNewCommoncar::PlayMissSound_Implementation()
+{
+	if (missSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, missSound, GetActorLocation());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO SOUND"));
+	}
+}
+
+void AGNewCommoncar::HandleDeath()
 {
 	if (!HasAuthority())
 	{
@@ -56,7 +79,8 @@ void AGBaseEnemy::HandleDeath()
 	Destroy(true, false);
 }
 
-float AGBaseEnemy::TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser)
+// Applies incoming damage on the server
+float AGNewCommoncar::TakeDamage(float damageAmount, FDamageEvent const& damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
 	if (!HasAuthority())
 	{

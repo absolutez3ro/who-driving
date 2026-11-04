@@ -1,85 +1,77 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "GAIControllerCommonCar.h"
-#include "GBaseEnemyCar.h"
+#include "GNewCommoncar.h"
 #include "GCommonEnemyDataAsset.h"
 #include "GPlayerCar.h"
 #include "Engine/DamageEvents.h"
 #include "Kismet/GameplayStatics.h"
-
-void AGAIControllerCommonCar::ApplyAcceleration(float distance, FVector playerForward)
-{
-	APawn* selfActor = GetPawn();
-	if (!selfActor)
-	{
-		return;
-	}
-	UPrimitiveComponent* rootPrimitive = Cast<UPrimitiveComponent>(selfActor->GetRootComponent());
-	if (rootPrimitive && rootPrimitive->IsSimulatingPhysics())
-	{
-		FVector currentVelocity = rootPrimitive->GetPhysicsLinearVelocity();
-		const bool bReverseMovement = FVector::DotProduct(currentVelocity, playerForward) <= 0;
-		//UE_LOG(LogTemp, Warning, TEXT("bReverseMovement is: %d"), bReverseMovement);
-		if (distance < 0 && bReverseMovement)
-		{
-			//UE_LOG(LogTemp, Error, TEXT("velocity set to 0"));
-			currentVelocity = FVector(0, 0, currentVelocity.Z);
-			rootPrimitive->SetPhysicsLinearVelocity(currentVelocity);
-		}
-		else
-		{
-			// GetMass() returns the mass in kg (calculated by the engine or overridden)
-			const float mass = rootPrimitive->GetMass();
-			const FVector forceToApply = mass * acceleration;
-			rootPrimitive->AddForce(forceToApply);
-			currentVelocity.Z = 0;
-			if (currentVelocity.Length() > 50)
-			{
-				const FRotator newRotation = FRotationMatrix::MakeFromX(currentVelocity).Rotator();
-				selfActor->SetActorRotation(newRotation, ETeleportType::TeleportPhysics);
-			}
-		}
-		//UE_LOG(LogTemp, Warning, TEXT("velocity is: %f %f %f"), currentVelocity.X, currentVelocity.Y, currentVelocity.Z);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("rootPrimitive(%d) or IsSimulatingPhysics (if not root primitive it is this) false!"), rootPrimitive);
-	}
-}
-
+#include "Components/SplineComponent.h"
+#include "ChaosVehicleMovementComponent.h"
+#include "AI/AGSplineActor.h"
 void AGAIControllerCommonCar::BeginPlay()
 {
 	Super::BeginPlay();
-	// It is more memory efficient to copy them, surprisingly.
-	minAcceleration = commonCarData->MinAcceleration;
-	maxAcceleration = commonCarData->MaxAcceleration;
-	baseAcceleration = commonCarData->AccelerationModifier;
-	minYDistance = commonCarData->MinYDistanceCM;
-	maxYDistance = commonCarData->MaxYDistanceCM;
-	fireRate = commonCarData->FireRate;
-	hitChance = commonCarData->HitChance;
-	minDamage = commonCarData->MinDamage;
-	maxDamage = commonCarData->MaxDamage;
-	weights.Add(commonCarData->WheelWeight);
-	weights.Add(commonCarData->DoorWeight);
-	weights.Add(commonCarData->BaseHealthWeight);
-	weights.Add(commonCarData->SteeringWeight);
-	weights.Add(commonCarData->EngineWeight);
-	weights.Add(commonCarData->ElectronicsWeight);
-	// Must match the module ids created in AGPlayerCar; door ids are also the BP_GPlayerCar component names.
-	moduleNames[0].Add(FName(TEXT("Wheel_0")));
-	moduleNames[0].Add(FName(TEXT("Wheel_1")));
-	moduleNames[0].Add(FName(TEXT("Wheel_2")));
-	moduleNames[0].Add(FName(TEXT("Wheel_3")));
-	moduleNames[1].Add(FName(TEXT("partDoor0")));
-	moduleNames[1].Add(FName(TEXT("partDoor1")));
-	moduleNames[2].Add(FName(TEXT("Steering_Wheel")));
-	moduleNames[3].Add(FName(TEXT("Engine")));
-	moduleNames[4].Add(FName(TEXT("Electrician")));
-	yDistance = FMath::FRandRange(minYDistance, maxYDistance);
-	hitSound = commonCarData->HitSound;
-	missSound = commonCarData->MissSound;
 
+	UE_LOG(LogTemp, Log, TEXT("YES ROAD SPLINE ON MAP"));
+	splineOwnerRef = Cast<AAGSplineActor>(UGameplayStatics::GetActorOfClass(GetWorld(), AAGSplineActor::StaticClass()));
+	if (splineOwnerRef)
+	{
+		splineComponent = splineOwnerRef->FindComponentByClass<USplineComponent>();
+		if (!splineComponent) {
+			UE_LOG(LogTemp, Error, TEXT("NO SPLINE FOUND IN ROAD SPLINE"));
+		}
+		else {
+			UE_LOG(LogTemp, Log, TEXT("SPLINE FOUND IN ROAD SPLINE"));
+		}
+	}else
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO ROAD SPLINE ON MAP"));
+	}
+	// It is more memory efficient to copy them, surprisingly.
+	if (commonCarData)
+		{
+		//movement
+		lookAheadDistance = commonCarData->lookAheadDistance;
+		lookAheadTime = commonCarData->lookAheadTime;
+		maxSpeed = commonCarData->maxSpeed;
+		maxSteerAngle = commonCarData->maxSteerAngle;
+		steerInterpSpeed = commonCarData->steerInterpSpeed;
+		cornerSlowdown = commonCarData->cornerSlowdown;
+		throttleGain = commonCarData->throttleGain;
+		brakeGain = commonCarData->brakeGain;
+		laneOffset = commonCarData->laneOffset;
+		stopDistance = commonCarData->stopDistance;
+		roadWidth = commonCarData->roadWidth;
+		catchUpModificator = commonCarData->catchUpModificator;
+		//combat
+		fireRate = commonCarData->FireRate;
+		hitChance = commonCarData->HitChance;
+		minDamage = commonCarData->MinDamage;
+		maxDamage = commonCarData->MaxDamage;
+		weights.Add(commonCarData->WheelWeight);
+		weights.Add(commonCarData->DoorWeight);
+		weights.Add(commonCarData->BaseHealthWeight);
+		weights.Add(commonCarData->SteeringWeight);
+		weights.Add(commonCarData->EngineWeight);
+		weights.Add(commonCarData->ElectronicsWeight);
+		// Must match the module ids created in AGPlayerCar; door ids are also the BP_GPlayerCar component names.
+		moduleNames[0].Add(FName(TEXT("Wheel_0")));
+		moduleNames[0].Add(FName(TEXT("Wheel_1")));
+		moduleNames[0].Add(FName(TEXT("Wheel_2")));
+		moduleNames[0].Add(FName(TEXT("Wheel_3")));
+		moduleNames[1].Add(FName(TEXT("partDoor0")));
+		moduleNames[1].Add(FName(TEXT("partDoor1")));
+		moduleNames[2].Add(FName(TEXT("Steering_Wheel")));
+		moduleNames[3].Add(FName(TEXT("Engine")));
+		moduleNames[4].Add(FName(TEXT("Electrician")));
+		hitSound = commonCarData->HitSound;
+		missSound = commonCarData->MissSound;
+	}
+	else 
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO COMMON CAR DATA ASSET PROVIDED"));
+	}
 	SetPlayerRef();
 	StartShootDelay();
 }
@@ -101,42 +93,10 @@ void AGAIControllerCommonCar::SetPlayerRef()
 	}
 }
 
-void AGAIControllerCommonCar::Chase(float deltaSeconds)
-{
-	if (!playerCarRef)
-	{
-		SetPlayerRef();
-	}
-	APawn* selfActor = GetPawn();
-	// get coordinates to scale speed
-	const FVector playerPosition = playerCarRef->GetActorLocation();
-	const FVector selfPosition = selfActor->GetActorLocation();
-	const FVector playerForward = playerCarRef->GetActorForwardVector();
-	const FVector toPlayerVector = playerPosition - selfPosition;
-	const float distance = FVector::DotProduct(toPlayerVector, playerForward);
-	CalculateAcceleration(toPlayerVector, playerForward, deltaSeconds);
-	ApplyAcceleration(distance, playerForward);
-}
-
-void AGAIControllerCommonCar::CalculateAcceleration(FVector toPlayerVector, FVector playerForward, float deltaSeconds)
-{
-	FVector playerLeft = FVector3d(-playerForward.Y, playerForward.X, playerForward.Z);
-	const float distance = FVector::DotProduct(toPlayerVector, playerForward);
-	float accelerationModifier = baseAcceleration * pow(abs(distance), 3);
-	playerLeft.Normalize();
-	playerLeft *= yDistance;
-	acceleration = playerLeft + toPlayerVector;
-	acceleration.Normalize();
-	accelerationModifier = FMath::Clamp(accelerationModifier, minAcceleration, maxAcceleration);
-	acceleration *= accelerationModifier;
-	//UE_LOG(LogTemp, Warning, TEXT("acceleration is: %f %f %f"), acceleration.X, acceleration.Y, acceleration.Z);
-	//UE_LOG(LogTemp, Warning, TEXT("accelerationModifier is: %f"), accelerationModifier);
-	//UE_LOG(LogTemp, Warning, TEXT("distance is: %f"), distance);
-}
-
 void AGAIControllerCommonCar::Tick(float deltaSeconds)
 {
-	Chase(deltaSeconds);
+	DriveAlongSpline(deltaSeconds);
+	//Chase(deltaSeconds);
 }
 
 void AGAIControllerCommonCar::StartShootDelay()
@@ -150,8 +110,9 @@ void AGAIControllerCommonCar::StartShootDelay()
 void AGAIControllerCommonCar::Shoot_Implementation()
 {
 	UE_LOG(LogTemp, Log, TEXT("trying to shoot"));
-
-	if (FMath::RandRange(0.0f, 1.0f) <= hitChance)
+	FVector toPlayer = playerCarRef->GetActorLocation() - GetPawn()->GetActorLocation();
+	float distance = toPlayer.Length();
+	if (FMath::RandRange(0.0f, 1.0f) <= hitChance && distance<=hitRange)
 	{
 		TArray<FName> shootableModuleNames[6];
 		TArray<int32> shootableGroupIndices;
@@ -209,7 +170,7 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 				playerCarRef->DamageModule(targetedModule, damage);
 				UE_LOG(LogTemp, Log, TEXT("hit part %s damage: %f"), *targetedModule.ToString(), damage);
 			}
-			AGBaseEnemyCar* enemyCar = Cast<AGBaseEnemyCar>(GetPawn());
+			AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn());
 			enemyCar->PlayShotSound_Implementation();
 		}
 		else
@@ -220,8 +181,127 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 	else
 	{
 		UE_LOG(LogTemp, Log, TEXT("missed"));
-		AGBaseEnemyCar* enemyCar = Cast<AGBaseEnemyCar>(GetPawn());
+		AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn());
 		enemyCar->PlayMissSound_Implementation();
 	}
 	StartShootDelay();
+}
+
+void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
+{
+	AWheeledVehiclePawn* Vehicle = Cast<AWheeledVehiclePawn>(GetPawn());
+	if (!Vehicle || !splineComponent)
+	{
+		UE_LOG(LogTemp, Log, TEXT("NO VEHICLE OR SPLINE"));
+		return;
+	}
+
+	UChaosVehicleMovementComponent* Movement = Vehicle->GetVehicleMovementComponent();
+
+	if (!Movement)
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO Movement component"));
+		return;
+	}
+	UChaosVehicleMovementComponent* playerMovement = playerCarRef->GetVehicleMovementComponent();
+
+	if (!playerMovement)
+	{
+		UE_LOG(LogTemp, Error, TEXT("NO player Movement component"));
+		return;
+	}
+	const FVector vehicleLoc = Vehicle->GetActorLocation();
+	const float   SplineLength = splineComponent->GetSplineLength();
+	const bool    bLoop = splineComponent->IsClosedLoop();
+	const float   Speed = Movement->GetForwardSpeed(); // cm/s, negative when reversing
+
+	//0. are we off the road?
+	FVector ClosestPoint = splineComponent->FindLocationClosestToWorldLocation(vehicleLoc, ESplineCoordinateSpace::World);
+	float DistanceToSpline = FVector::Dist(vehicleLoc, ClosestPoint);
+	bool offTheRoad = DistanceToSpline > roadWidth;
+
+	// 1. Where are we on the spline?
+	float inputKey = splineComponent->FindInputKeyClosestToWorldLocation(vehicleLoc);
+	const float currentDist = splineComponent->GetDistanceAlongSplineAtSplineInputKey(inputKey);
+
+	bool endOfPath = !bLoop && currentDist >= SplineLength - stopDistance;
+	const FVector playerLoc = playerCarRef->GetActorLocation();
+	// Where player on the spline?
+	inputKey = splineComponent->FindInputKeyClosestToWorldLocation(playerLoc);
+	const float playerDist = splineComponent->GetDistanceAlongSplineAtSplineInputKey(inputKey);
+	const float playerSpeed = playerMovement->GetForwardSpeed();
+	bool aheadOfStoppedPlayer = (currentDist - playerDist > 0.0f) && (playerMovement->GetForwardSpeed() <=0);
+	// 2. End of an open path: or ahead of a stopped player - stop
+	if (endOfPath)// || aheadOfStoppedPlayer)
+	{
+		Movement->SetThrottleInput(0.f);
+		Movement->SetSteeringInput(0.f);
+		Movement->SetBrakeInput(1.f);
+		Movement->SetHandbrakeInput(Speed < 50.f); // hold it once nearly stopped
+		return;
+	}
+	Movement->SetHandbrakeInput(false);
+
+	
+	FVector selfForward = Vehicle->GetActorForwardVector();
+	selfForward = FVector::VectorPlaneProject(selfForward, FVector::UpVector).GetSafeNormal();
+	FVector desiredDirection;
+	float TargetDist = currentDist + lookAheadDistance + FMath::Max(Speed, 0.f) * lookAheadTime;
+	if (offTheRoad) {
+		FVector returnTo = splineComponent->GetLocationAtDistanceAlongSpline(TargetDist, ESplineCoordinateSpace::World);
+		FVector toSpline = returnTo - vehicleLoc;
+		desiredDirection = FVector::VectorPlaneProject(toSpline, FVector::UpVector).GetSafeNormal();
+		toSpline = toSpline.GetSafeNormal();
+	}
+	else
+	{
+		// 3. Pick a target point ahead of us (further ahead at higher speed)
+		TargetDist = bLoop ? FMath::Fmod(TargetDist, SplineLength)
+			: FMath::Min(TargetDist, SplineLength);
+		FVector splineForward = splineComponent->GetDirectionAtDistanceAlongSpline(TargetDist, ESplineCoordinateSpace::World);
+		desiredDirection = FVector::VectorPlaneProject(splineForward, FVector::UpVector).GetSafeNormal();
+
+	}
+	
+	const float Dot = FMath::Clamp(FVector::DotProduct(selfForward, desiredDirection),	-1.f,1.f);
+	const float CrossZ = FVector::CrossProduct(selfForward, desiredDirection).Z;
+	const float AngleDeg = FMath::RadiansToDegrees(FMath::Atan2(CrossZ, Dot));
+	
+	const float DesiredSteer = FMath::Clamp(AngleDeg/ maxSteerAngle, -1.0f, 1.0f);
+
+	currentSteer = FMath::FInterpTo(currentSteer, DesiredSteer, DeltaSeconds, steerInterpSpeed);
+	UE_LOG(LogTemp, Log, TEXT("GetSteeringInput %f"), Movement->GetSteeringInput());
+	Movement->SetSteeringInput(DesiredSteer);
+	//if chosing a speed to match
+	float targetSpeed = 0;
+	if (playerSpeed <= 0) {
+		targetSpeed = maxSpeed;
+	}else
+	{
+		targetSpeed = FMath::Min(playerSpeed, maxSpeed);
+	}
+	// 5. speed control
+	targetSpeed = maxSpeed;
+	// calculating catch up multiplier
+	float catchUp = 0;
+	if ((playerDist - currentDist) <= 1.f) {
+		catchUp = 1.0f;
+	}
+	else
+	{
+		catchUp = catchUpModificator * (playerDist - currentDist);
+	}
+	const float DesiredSpeed = targetSpeed * (1.f - cornerSlowdown * FMath::Abs(currentSteer));// *catchUp;
+	const float SpeedError = DesiredSpeed - Speed;
+
+	if (SpeedError >= 0.f)
+	{
+		Movement->SetThrottleInput(FMath::Clamp(maxSpeed * throttleGain, 0.f, 1.f));
+		Movement->SetBrakeInput(0.f);
+	}
+	else
+	{
+		Movement->SetThrottleInput(0.f);
+		Movement->SetBrakeInput(FMath::Clamp(-SpeedError * brakeGain, 0.f, 1.f));
+	}
 }
