@@ -39,7 +39,7 @@ private:
 	void DriveAlongSpline(float DeltaSeconds);
 	void StartShootDelay();
 	void SetPlayerRef();
-
+	bool TraceShot();
 
 	float fireRate = 1;
 	float hitChance = 1;
@@ -73,4 +73,6 @@ private:
 	float currentSteer = 0.f;
 	float roadWidth = 5.0f;
 	float catchUpModificator = 0.1f;
+	float playerSpeedThershhold = 10.0f;
+	bool followPlayer = false;
 };

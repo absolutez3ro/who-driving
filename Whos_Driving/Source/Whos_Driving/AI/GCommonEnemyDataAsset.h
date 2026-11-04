@@ -40,6 +40,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float catchUpModificator = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	bool followPlayer = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float playerSpeedThershhold = 10.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float hitRange = 500000.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")

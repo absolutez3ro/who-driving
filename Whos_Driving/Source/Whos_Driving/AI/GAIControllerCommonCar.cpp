@@ -9,6 +9,7 @@
 #include "Components/SplineComponent.h"
 #include "ChaosVehicleMovementComponent.h"
 #include "AI/AGSplineActor.h"
+#include "CollisionQueryParams.h"
 void AGAIControllerCommonCar::BeginPlay()
 {
 	Super::BeginPlay();
@@ -32,6 +33,7 @@ void AGAIControllerCommonCar::BeginPlay()
 	if (commonCarData)
 		{
 		//movement
+		followPlayer = commonCarData->followPlayer;
 		lookAheadDistance = commonCarData->lookAheadDistance;
 		lookAheadTime = commonCarData->lookAheadTime;
 		maxSpeed = commonCarData->maxSpeed;
@@ -44,6 +46,7 @@ void AGAIControllerCommonCar::BeginPlay()
 		stopDistance = commonCarData->stopDistance;
 		roadWidth = commonCarData->roadWidth;
 		catchUpModificator = commonCarData->catchUpModificator;
+		playerSpeedThershhold = commonCarData->playerSpeedThershhold;
 		//combat
 		fireRate = commonCarData->FireRate;
 		hitChance = commonCarData->HitChance;
@@ -99,6 +102,24 @@ void AGAIControllerCommonCar::Tick(float deltaSeconds)
 	//Chase(deltaSeconds);
 }
 
+bool AGAIControllerCommonCar::TraceShot()
+{
+	AWheeledVehiclePawn* Vehicle = Cast<AWheeledVehiclePawn>(GetPawn());
+	const FVector vehicleLoc = Vehicle->GetActorLocation()+ FVector(0.f, 0.f, 100.f);
+	const FVector playerLoc = playerCarRef->GetActorLocation()+ FVector(0.f, 0.f, 100.f);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(PawnLOS), /*bTraceComplex*/ false);
+	Params.AddIgnoredActor(Vehicle);
+	Params.AddIgnoredActor(playerCarRef);
+	FHitResult OutHit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, vehicleLoc, playerLoc, ECC_Visibility, Params);
+	if (bHit) 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+			FString::Printf(TEXT("Blocked by %s"), *GetNameSafe(OutHit.GetActor())));
+	}
+	return bHit;
+}
+
 void AGAIControllerCommonCar::StartShootDelay()
 {
 	// Define your range, e.g., between 0.5s and 1.5s
@@ -112,6 +133,15 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 	UE_LOG(LogTemp, Log, TEXT("trying to shoot"));
 	FVector toPlayer = playerCarRef->GetActorLocation() - GetPawn()->GetActorLocation();
 	float distance = toPlayer.Length();
+	bool inSight = !TraceShot();
+	if (inSight)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("player in sight"));
+	}else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("player NOT in sight"));
+		return;
+	}
 	if (FMath::RandRange(0.0f, 1.0f) <= hitChance && distance<=hitRange)
 	{
 		TArray<FName> shootableModuleNames[6];
@@ -230,14 +260,15 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 	inputKey = splineComponent->FindInputKeyClosestToWorldLocation(playerLoc);
 	const float playerDist = splineComponent->GetDistanceAlongSplineAtSplineInputKey(inputKey);
 	const float playerSpeed = playerMovement->GetForwardSpeed();
-	bool aheadOfStoppedPlayer = (currentDist - playerDist > 0.0f) && (playerMovement->GetForwardSpeed() <=0);
+	bool aheadOfStoppedPlayer = (currentDist - playerDist > 0.0f) && (playerMovement->GetForwardSpeed() <= playerSpeedThershhold);
 	// 2. End of an open path: or ahead of a stopped player - stop
-	if (endOfPath || aheadOfStoppedPlayer)
+	if (endOfPath || (aheadOfStoppedPlayer && followPlayer))
 	{
 		Movement->SetThrottleInput(0.f);
 		Movement->SetSteeringInput(0.f);
 		Movement->SetBrakeInput(1.f);
 		Movement->SetHandbrakeInput(Speed < 50.f); // hold it once nearly stopped
+		UE_LOG(LogTemp, Error, TEXT("CAR STOPPED"));
 		return;
 	}
 	Movement->SetHandbrakeInput(false);
@@ -274,16 +305,18 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 	Movement->SetSteeringInput(DesiredSteer);
 	//if chosing a speed to match
 	float targetSpeed = 0;
-	if (playerSpeed <= 0) {
+	if (playerSpeed <= 0 || !followPlayer) {
 		targetSpeed = maxSpeed;
 	}else
 	{
 		targetSpeed = FMath::Min(playerSpeed, maxSpeed);
+		targetSpeed = FMath::Max(playerSpeed, 0.0f);
+
 	}
 	// 5. speed control
 	// calculating catch up multiplier
 	float catchUp = 0;
-	if ((playerDist - currentDist) <= 1.f) {
+	if ((playerDist - currentDist) <= 1.f || !followPlayer) {
 		catchUp = 1.0f;
 	}
 	else
@@ -294,6 +327,7 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 	const float SpeedError = DesiredSpeed - Speed;
 	//UE_LOG(LogTemp, Error, TEXT("catchUp %f"), catchUp);
 	//UE_LOG(LogTemp, Error, TEXT("SpeedError %f"), SpeedError);
+	//UE_LOG(LogTemp, Error, TEXT("playerMovement->GetForwardSpeed() %f"), playerMovement->GetForwardSpeed());
 	if (SpeedError >= 0.f)
 	{
 		Movement->SetThrottleInput(FMath::Clamp(SpeedError * throttleGain, 0.f, 1.f));
