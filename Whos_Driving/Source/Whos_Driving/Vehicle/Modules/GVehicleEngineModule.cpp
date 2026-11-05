@@ -7,10 +7,6 @@
 
 void UGVehicleEngineModule::OnDestroyed()
 {
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-
-	movement->BreakEngine();
 }
 
 void UGVehicleEngineModule::ApplyRepair()
@@ -22,8 +18,9 @@ void UGVehicleEngineModule::ApplyRepair()
 
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
+}
 
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-	movement->RepairEngine();
+void UGVehicleEngineModule::OnStateChanged(EGModuleState oldState, EGModuleState newState)
+{
+	OnEngineChangeState.Broadcast(newState);
 }

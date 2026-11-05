@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
 #include "GVehicleWheelModule.h"
+#include "GVehicleModule.h"
 #include "GPlayerCar.generated.h"
 
 class UInputMappingContext;
@@ -65,6 +66,7 @@ class WHOS_DRIVING_API AGPlayerCar : public AWheeledVehiclePawn
 	
 public:
 	AGPlayerCar(const FObjectInitializer& objectInitializer);
+	void SubscribeOnDelegates();
 	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
@@ -92,6 +94,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
+	
+	UGVehicleModuleComponent* GetModuleComponent() const;
 
 
 public:
@@ -144,7 +148,11 @@ protected:
 
 	UFUNCTION()
 	void HandleToRepair(FName moduleId);
+	void BreakDoor(FName moduleId);
+	void RepairDoor(FName moduleId);
 
+	UFUNCTION()
+	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")

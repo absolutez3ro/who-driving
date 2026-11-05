@@ -47,6 +47,69 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	RecalculateCarHealth();
 }
 
+void AGPlayerCar::SubscribeOnDelegates()
+{
+	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		door->OnDoorChangeState.AddDynamic(this, &AGPlayerCar::HandleDoorState);
+	}
+}
+
+void AGPlayerCar::HandleDoorState(FName moduleId, EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakDoor(moduleId);
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairDoor(moduleId);
+	}
+}
+
+void AGPlayerCar::BreakDoor(FName moduleId)
+{
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(false, true);
+	}
+}
+
+void AGPlayerCar::RepairDoor(FName moduleId)
+{	
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(true, true);
+	}
+}
+
 void AGPlayerCar::InitSeats()
 {
 	seatingComponent = CreateDefaultSubobject<UGVehicleSeatingComponent>(TEXT("Vehicle Seating"));
@@ -317,8 +380,11 @@ void AGPlayerCar::BeginPlay()
 	Super::BeginPlay();
 
 	moduleComponent->RebuildModuleRegistry(this);
-
 	LoadCarData();
+
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	movementComponent->SubscribeOnDelegates();
+	SubscribeOnDelegates();
 
 	if (HasAuthority())
 	{
@@ -408,6 +474,11 @@ TSubclassOf<AWhos_DrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
 UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 {
 	return seatingComponent;
+}
+
+UGVehicleModuleComponent* AGPlayerCar::GetModuleComponent() const
+{
+	return moduleComponent;
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)

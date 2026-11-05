@@ -6,6 +6,8 @@
 #include "GVehicleModule.h"
 #include "GVehicleWheelModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWheelChangeState, int32, wheelIndex, EGModuleState, newState);
+
 /**
  * 
  */
@@ -17,8 +19,10 @@ class WHOS_DRIVING_API UGVehicleWheelModule : public UGVehicleModule
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheel")
 	int32 wheelIndex = 0;
-
 	void ApplyRepair() override;
+	FOnWheelChangeState OnWheelChangeState;
+
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState);
 };

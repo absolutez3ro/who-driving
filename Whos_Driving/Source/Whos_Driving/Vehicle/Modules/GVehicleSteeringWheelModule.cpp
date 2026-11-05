@@ -7,18 +7,20 @@
 
 void UGVehicleSteeringWheelModule::OnDestroyed()
 {
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
-
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-	movement->BreakSteeringWheel();
 }
 
 void UGVehicleSteeringWheelModule::ApplyRepair()
 {
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetOuter());
+	if (!CanRepair())
+	{
+		return;
+	}
 
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
-	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(car->GetMovementComponent());
-	movement->RepairSteeringWheel();
+}
+
+void UGVehicleSteeringWheelModule::OnStateChanged(EGModuleState oldState, EGModuleState newState)
+{
+	OnSteeringWheelChangeState.Broadcast(newState);
 }
