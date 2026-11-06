@@ -4,7 +4,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetSerialization.h"
 #include "GVehicleRadioComponent.h"
-#include "GWeaponDefinition.h"
 #include "GVehicleModule.h"
 
 #include "GPlayerController.generated.h"
@@ -13,7 +12,21 @@ struct FInputActionValue;
 class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
+class UGWeaponAmmoWidget;
 class UInputMappingContext;
+
+UENUM()
+enum class EGCombatAction : uint8
+{
+	WindowLeft,
+	WindowRight,
+	FireStart,
+	FireStop,
+	AimStart,
+	AimStop,
+	Reload,
+	ChangeFireMode
+};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
@@ -40,9 +53,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Seats")
 	void RequestVehicleExit();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
-	void RequestPrimaryWeapon();
-	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
-	void RequestSecondaryWeapon();
+	void RequestWeapon(int32 weaponIndex);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
 	void RequestWindowLeft();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
@@ -82,6 +93,7 @@ protected:
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
+	void RefreshWeaponAmmoWidget();
 
 	UFUNCTION()
 	void OnRep_VehicleContext();
@@ -92,7 +104,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleExit();
 	UFUNCTION(Server, Reliable)
-	void ServerCombatAction(uint8 action, FVector_NetQuantizeNormal direction);
+	void ServerSelectWeapon(int32 weaponIndex);
+	UFUNCTION(Server, Reliable)
+	void ServerCombatAction(EGCombatAction action, FVector_NetQuantizeNormal direction);
 	UFUNCTION(Server, Unreliable)
 	void ServerCombatView(FVector_NetQuantizeNormal direction);
 
@@ -133,11 +147,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> exitVehicleAction;
 
+	// Each action selects the weapon with the same index in UGVehicleCombatComponent::loadout.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> primaryWeaponAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> secondaryWeaponAction;
+	TArray<TObjectPtr<UInputAction>> weaponSelectActions;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> windowLeftAction;
@@ -162,6 +174,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> nextTrackAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UGWeaponAmmoWidget> weaponAmmoWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGWeaponAmmoWidget> weaponAmmoWidget;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;

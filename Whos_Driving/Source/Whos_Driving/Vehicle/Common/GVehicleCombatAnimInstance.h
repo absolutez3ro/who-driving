@@ -37,11 +37,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	float handIkAlpha = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
+	float leftHandIkAlpha = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	FVector rightHandLocation;
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	FRotator rightHandRotation;
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	FVector leftHandLocation;
+	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
+	FRotator leftHandRotation;
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	FVector rightElbowLocation;
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")

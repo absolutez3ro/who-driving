@@ -58,6 +58,9 @@ public:
 		return firstPersonCameraComponent;
 	}
 
+	/** Returns the mesh a weapon should hang on: a visible mesh retargeted from the animated one if it has the socket */
+	USkeletalMeshComponent* GetWeaponAttachMesh(bool bFirstPerson, FName socket) const;
+
 protected:
 	/** Set up input action bindings */
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;

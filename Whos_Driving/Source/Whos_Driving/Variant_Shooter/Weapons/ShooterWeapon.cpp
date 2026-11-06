@@ -84,6 +84,10 @@ void AShooterWeapon::OnOwnerDestroyed(AActor* DestroyedActor)
 	Destroy();
 }
 
+void AShooterWeapon::OnRep_CurrentBullets()
+{
+}
+
 void AShooterWeapon::ActivateWeapon(const FName& OwnerTag)
 {
 	// save the owner tag for perception noise detection
