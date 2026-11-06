@@ -27,31 +27,42 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	poseTime = 0.0f;
 	const float now = combat->GetServerTime();
 	float handReadiness = 1.0f;
+	float leftHandReadiness = 1.0f;
 	if (definition && weapon->IsReloading())
 	{
 		// Anchor the adapted reload near the vehicle camera. The source FPS arms
 		// have a different origin; releasing IK puts their weapon below the lens.
-		handReadiness = FMath::Max(0.95f, FMath::Clamp((now - weapon->GetReloadEndTime() + 0.2f) / 0.2f, 0.0f, 1.0f));
+		const float blendTime = FMath::Max(0.01f, definition->HandIkBlendTime);
+		const float reloadEndBlend = FMath::Clamp((now - weapon->GetReloadEndTime() + blendTime) / blendTime, 0.0f, 1.0f);
+		handReadiness = FMath::Max(definition->ReloadHandIkAlpha, reloadEndBlend);
+		leftHandReadiness = FMath::Max(definition->ReloadLeftHandIkAlpha, reloadEndBlend);
 	}
 	else if (definition)
 	{
-		handReadiness =
-			FMath::Clamp((now - combat->GetEquipStartTime() - definition->EquipTime + 0.2f) / 0.2f, 0.0f, 1.0f);
+		const float blendTime = FMath::Max(0.01f, definition->HandIkBlendTime);
+		handReadiness = FMath::Clamp((now - combat->GetEquipStartTime() - definition->EquipTime + blendTime) / blendTime,
+									 0.0f, 1.0f);
+		leftHandReadiness = handReadiness;
 	}
 	handIkAlpha = definition ? seatAlpha * handReadiness : 0.0f;
+	leftHandIkAlpha = definition ? seatAlpha * leftHandReadiness : 0.0f;
 	if (definition)
 	{
 		const FTransform meshTransform = GetSkelMeshComponent()->GetComponentTransform();
-		const FTransform aimTransform(combat->GetAimDirection().Rotation(),
+		// The roll matters: hand targets must turn with the vehicle when it tilts or flips.
+		const FTransform aimTransform(combat->GetAimRotation(),
 									  character->GetFirstPersonCameraComponent()->GetComponentLocation());
 		// Donor guns point along mesh +Y. Solve the hand orientation from the grip
 		// socket instead of retaining the retargeted hand's unrelated local axes.
 		const FQuat gripRotation =
 			GetSkelMeshComponent()->GetSocketTransform(definition->GripSocket, RTS_ParentBoneSpace).GetRotation() *
 			definition->GripOffset.GetRotation();
-		const FQuat weaponWorldRotation = aimTransform.GetRotation() * FRotator(0.0f, -90.0f, 0.0f).Quaternion();
+		const FQuat weaponWorldRotation = aimTransform.GetRotation() * definition->MeshForwardRotation.Quaternion();
 		rightHandRotation =
 			(meshTransform.GetRotation().Inverse() * weaponWorldRotation * gripRotation.Inverse()).Rotator();
+		leftHandRotation =
+			(meshTransform.GetRotation().Inverse() * aimTransform.GetRotation() * definition->LeftHandRotation.Quaternion())
+				.Rotator();
 		auto target = [&](const FVector& localOffset)
 		{
 			const FVector viewmodelOffset = GetSkelMeshComponent() == character->GetFirstPersonMesh()
@@ -64,8 +75,8 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 		leftHandLocation = target(
 			definition->LeftHandOffset +
 			(combat->IsAiming() ? definition->AimHandOffset - definition->RightHandOffset : FVector::ZeroVector));
-		rightElbowLocation = target(FVector(-5.0f, 42.0f, -35.0f));
-		leftElbowLocation = target(FVector(-5.0f, -42.0f, -35.0f));
+		rightElbowLocation = target(definition->RightElbowOffset);
+		leftElbowLocation = target(definition->LeftElbowOffset);
 	}
 	if (definition && weapon->IsReloading())
 	{
@@ -89,7 +100,9 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	spineOffset = FVector::ZeroVector;
 	spineRotation = FRotator::ZeroRotator;
 	weaponRotation = FRotator::ZeroRotator;
-	if (AGPlayerCar* vehicle = combat->GetVehicle())
+	// The whole first-person mesh already follows the camera, so only the world mesh leans and turns its spine.
+	AGPlayerCar* vehicle = GetSkelMeshComponent() != character->GetFirstPersonMesh() ? combat->GetVehicle() : nullptr;
+	if (vehicle)
 	{
 		if (UGVehicleSeatComponent* seat = vehicle->GetSeatingComponent()->GetSeatComponent(combat->GetSeatIndex()))
 		{
@@ -110,7 +123,7 @@ void UGVehicleCombatAnimInstance::NativeUpdateAnimation(float deltaSeconds)
 	if (definition && definition->RecoilRotationCurve)
 	{
 		const float elapsed = now - combat->GetCosmeticShotTime();
-		if (elapsed >= 0.0f && elapsed < 0.5f)
+		if (elapsed >= 0.0f && elapsed < definition->RecoilRotationDuration)
 		{
 			const FVector recoil = definition->RecoilRotationCurve->GetVectorValue(elapsed) * definition->Recoil;
 			weaponRotation = FRotator(recoil.Y, recoil.Z, recoil.X);

@@ -47,9 +47,9 @@ protected:
 	int32 MagazineSize = 10;
 
 	/** Number of bullets in the current magazine */
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentBullets)
 	int32 CurrentBullets = 0;
-	
+
 	/** Animation montage to play when firing this weapon */
 	UPROPERTY(EditAnywhere, Category="Animation")
 	UAnimMontage* FiringMontage;
@@ -129,6 +129,10 @@ protected:
 	/** Called when the weapon's owner is destroyed */
 	UFUNCTION()
 	void OnOwnerDestroyed(AActor* DestroyedActor);
+
+	/** Called on clients when the replicated bullet count changes */
+	UFUNCTION()
+	virtual void OnRep_CurrentBullets();
 
 public:
 

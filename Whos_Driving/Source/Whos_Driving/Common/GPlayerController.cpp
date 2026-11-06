@@ -3,6 +3,8 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleCombatComponent.h"
+#include "GWeaponAmmoWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Whos_DrivingCharacter.h"
@@ -100,13 +102,12 @@ void AGPlayerController::SetupInputComponent()
 	{
 		enhancedInput->BindAction(exitVehicleAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestVehicleExit);
 	}
-	if (primaryWeaponAction)
+	for (int32 weaponIndex = 0; weaponIndex < weaponSelectActions.Num(); ++weaponIndex)
 	{
-		enhancedInput->BindAction(primaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestPrimaryWeapon);
-	}
-	if (secondaryWeaponAction)
-	{
-		enhancedInput->BindAction(secondaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestSecondaryWeapon);
+		if (weaponSelectActions[weaponIndex])
+		{
+			enhancedInput->BindAction(weaponSelectActions[weaponIndex].Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWeapon, weaponIndex);
+		}
 	}
 	if (windowLeftAction)
 	{
@@ -254,6 +255,21 @@ void AGPlayerController::RefreshVehicleView()
 		{
 			SetViewTarget(target);
 		}
+		RefreshWeaponAmmoWidget();
+	}
+}
+
+void AGPlayerController::RefreshWeaponAmmoWidget()
+{
+	if (!weaponAmmoWidget && weaponAmmoWidgetClass)
+	{
+		weaponAmmoWidget = CreateWidget<UGWeaponAmmoWidget>(this, weaponAmmoWidgetClass);
+		weaponAmmoWidget->AddToViewport();
+	}
+	if (weaponAmmoWidget)
+	{
+		AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+		weaponAmmoWidget->SetCombatComponent(IsValid(character) ? character->GetCombatComponent() : nullptr);
 	}
 }
 
@@ -422,32 +438,32 @@ UGVehicleCombatComponent* AGPlayerController::GetOwnedCombat() const
 	return character->GetCombatComponent();
 }
 
-void AGPlayerController::RequestPrimaryWeapon()
+void AGPlayerController::RequestWeapon(int32 weaponIndex)
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(0, FVector::ForwardVector);
-	}
-}
-void AGPlayerController::RequestSecondaryWeapon()
-{
-	if (IsLocalController())
-	{
-		ServerCombatAction(1, FVector::ForwardVector);
+		ServerSelectWeapon(weaponIndex);
 	}
 }
 void AGPlayerController::RequestWindowLeft()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(2, FVector::ForwardVector);
+		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+		{
+			// Q/E are camera-relative, so the server needs the current view direction.
+			ServerCombatAction(EGCombatAction::WindowLeft, combat->GetAimDirection());
+		}
 	}
 }
 void AGPlayerController::RequestWindowRight()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(3, FVector::ForwardVector);
+		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+		{
+			ServerCombatAction(EGCombatAction::WindowRight, combat->GetAimDirection());
+		}
 	}
 }
 void AGPlayerController::RequestFireStart()
@@ -458,7 +474,7 @@ void AGPlayerController::RequestFireStart()
 		{
 			// Use the same current camera direction as continuous aim updates.
 			// PlayerCameraManager can still contain the preceding frame during input.
-			ServerCombatAction(4, combat->GetAimDirection());
+			ServerCombatAction(EGCombatAction::FireStart, combat->GetAimDirection());
 		}
 	}
 }
@@ -466,83 +482,77 @@ void AGPlayerController::RequestFireStop()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(5, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::FireStop, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestAimStart()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(6, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::AimStart, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestAimStop()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(7, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::AimStop, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestReload()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(8, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::Reload, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestFireMode()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(9, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::ChangeFireMode, FVector::ForwardVector);
 	}
 }
 
-void AGPlayerController::ServerCombatAction_Implementation(uint8 action, FVector_NetQuantizeNormal direction)
+void AGPlayerController::ServerSelectWeapon_Implementation(int32 weaponIndex)
+{
+	if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+	{
+		combat->SelectWeapon(weaponIndex);
+	}
+}
+
+void AGPlayerController::ServerCombatAction_Implementation(EGCombatAction action, FVector_NetQuantizeNormal direction)
 {
 	UGVehicleCombatComponent* combat = GetOwnedCombat();
 	if (!combat)
 	{
 		return;
 	}
-	const int32 seat = combat->GetSeatIndex();
-	const bool bLeftSeat = seat == 0 || seat == 2;
 	switch (action)
 	{
-	case 0:
-		combat->SelectWeapon(EGWeaponSlot::Primary);
+	case EGCombatAction::WindowLeft:
+		combat->RequestWindowSide(true, direction);
 		break;
-	case 1:
-		combat->SelectWeapon(EGWeaponSlot::Secondary);
+	case EGCombatAction::WindowRight:
+		combat->RequestWindowSide(false, direction);
 		break;
-	case 2:
-		if (seat != INDEX_NONE)
-		{
-			combat->RequestWindow(bLeftSeat);
-		}
-		break;
-	case 3:
-		if (seat != INDEX_NONE)
-		{
-			combat->RequestWindow(!bLeftSeat);
-		}
-		break;
-	case 4:
+	case EGCombatAction::FireStart:
 		combat->SetTrigger(true, direction);
 		break;
-	case 5:
+	case EGCombatAction::FireStop:
 		combat->SetTrigger(false, direction);
 		break;
-	case 6:
+	case EGCombatAction::AimStart:
 		combat->SetAiming(true);
 		break;
-	case 7:
+	case EGCombatAction::AimStop:
 		combat->SetAiming(false);
 		break;
-	case 8:
+	case EGCombatAction::Reload:
 		combat->RequestReload();
 		break;
-	case 9:
+	case EGCombatAction::ChangeFireMode:
 		combat->ChangeFireMode();
 		break;
 	default:

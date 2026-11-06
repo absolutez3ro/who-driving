@@ -5,6 +5,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "AssetToolsModule.h"
@@ -101,6 +102,68 @@ void Bind(UEdGraph* graph, UAnimGraphNode_Base* node, FName pinName, FName varia
 	variable->NodePosY = node->NodePosY + node->Pins.Num() * 30;
 	variable->AllocateDefaultPins();
 	Connect(graph, Output(variable), node->FindPin(pinName));
+}
+// Replaces a hand's rotation right after its IK node, once. The rotation is driven by the given variables.
+bool AlignHand(UAnimBlueprint* blueprint, FName bone, FName alphaVariable, FName rotationVariable)
+{
+	if (!blueprint || !blueprint->GetPathName().StartsWith(TEXT("/Game/M8Shooter/")))
+	{
+		return false;
+	}
+	TArray<UEdGraph*> graphs;
+	blueprint->GetAllGraphs(graphs);
+	for (UEdGraph* graph : graphs)
+	{
+		for (UEdGraphNode* node : graph->Nodes)
+		{
+			if (const UAnimGraphNode_ModifyBone* existing = Cast<UAnimGraphNode_ModifyBone>(node))
+			{
+				if (existing->Node.BoneToModify.BoneName == bone && existing->Node.RotationMode == BMM_Replace)
+				{
+					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(blueprint);
+					FKismetEditorUtilities::CompileBlueprint(blueprint);
+					return true;
+				}
+			}
+		}
+		for (UEdGraphNode* node : graph->Nodes)
+		{
+			UAnimGraphNode_TwoBoneIK* ik = Cast<UAnimGraphNode_TwoBoneIK>(node);
+			if (!ik || ik->Node.IKBone.BoneName != bone)
+			{
+				continue;
+			}
+			blueprint->Modify();
+			UEdGraphPin* alpha = ik->FindPin(TEXT("Alpha"));
+			if (alpha && !alpha->LinkedTo.IsEmpty())
+			{
+				UEdGraphNode* previousAlpha = alpha->LinkedTo[0]->GetOwningNode();
+				alpha->BreakAllPinLinks();
+				graph->RemoveNode(previousAlpha);
+			}
+			Bind(graph, ik, TEXT("Alpha"), alphaVariable);
+			UEdGraphPin* previous = Output(ik);
+			const TArray<UEdGraphPin*> destinations = previous->LinkedTo;
+			previous->BreakAllPinLinks();
+			UAnimGraphNode_ModifyBone* rotation = AddNode<UAnimGraphNode_ModifyBone>(graph, ik->NodePosX + 200, 400);
+			rotation->Node.BoneToModify.BoneName = bone;
+			rotation->Node.TranslationMode = BMM_Ignore;
+			rotation->Node.RotationMode = BMM_Replace;
+			rotation->Node.RotationSpace = BCS_ComponentSpace;
+			rotation->ReconstructNode();
+			Connect(graph, previous, rotation->FindPin(TEXT("ComponentPose")));
+			Bind(graph, rotation, TEXT("Alpha"), alphaVariable);
+			Bind(graph, rotation, TEXT("Rotation"), rotationVariable);
+			for (UEdGraphPin* destination : destinations)
+			{
+				Connect(graph, Output(rotation), destination);
+			}
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(blueprint);
+			FKismetEditorUtilities::CompileBlueprint(blueprint);
+			return blueprint->Status != BS_Error;
+		}
+	}
+	return false;
 }
 } // namespace
 
@@ -267,59 +330,36 @@ bool UGCombatEditorLibrary::AddMeshSocket(USkeletalMesh* mesh, FName socketName,
 	return true;
 }
 
-bool UGCombatEditorLibrary::AlignCombatHand(UAnimBlueprint* blueprint)
+bool UGCombatEditorLibrary::AddSkeletonSocket(USkeleton* skeleton, FName socketName, FName boneName, FTransform offset)
 {
-	if (!blueprint || !blueprint->GetPathName().StartsWith(TEXT("/Game/M8Shooter/")))
+	if (!skeleton || skeleton->GetReferenceSkeleton().FindBoneIndex(boneName) == INDEX_NONE)
 	{
 		return false;
 	}
-	TArray<UEdGraph*> graphs;
-	blueprint->GetAllGraphs(graphs);
-	for (UEdGraph* graph : graphs)
+	skeleton->Modify();
+	USkeletalMeshSocket* socket = skeleton->FindSocket(socketName);
+	if (!socket)
 	{
-		for (UEdGraphNode* node : graph->Nodes)
-		{
-			if (const UAnimGraphNode_ModifyBone* existing = Cast<UAnimGraphNode_ModifyBone>(node))
-			{
-				if (existing->Node.BoneToModify.BoneName == TEXT("hand_r") &&
-					existing->Node.RotationMode == BMM_Replace)
-				{
-					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(blueprint);
-					FKismetEditorUtilities::CompileBlueprint(blueprint);
-					return true;
-				}
-			}
-		}
-		for (UEdGraphNode* node : graph->Nodes)
-		{
-			UAnimGraphNode_TwoBoneIK* ik = Cast<UAnimGraphNode_TwoBoneIK>(node);
-			if (!ik || ik->Node.IKBone.BoneName != TEXT("hand_r"))
-			{
-				continue;
-			}
-			blueprint->Modify();
-			UEdGraphPin* previous = Output(ik);
-			const TArray<UEdGraphPin*> destinations = previous->LinkedTo;
-			previous->BreakAllPinLinks();
-			UAnimGraphNode_ModifyBone* rotation = AddNode<UAnimGraphNode_ModifyBone>(graph, ik->NodePosX + 200, 400);
-			rotation->Node.BoneToModify.BoneName = TEXT("hand_r");
-			rotation->Node.TranslationMode = BMM_Ignore;
-			rotation->Node.RotationMode = BMM_Replace;
-			rotation->Node.RotationSpace = BCS_ComponentSpace;
-			rotation->ReconstructNode();
-			Connect(graph, previous, rotation->FindPin(TEXT("ComponentPose")));
-			Bind(graph, rotation, TEXT("Alpha"), TEXT("handIkAlpha"));
-			Bind(graph, rotation, TEXT("Rotation"), TEXT("rightHandRotation"));
-			for (UEdGraphPin* destination : destinations)
-			{
-				Connect(graph, Output(rotation), destination);
-			}
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(blueprint);
-			FKismetEditorUtilities::CompileBlueprint(blueprint);
-			return blueprint->Status != BS_Error;
-		}
+		socket = NewObject<USkeletalMeshSocket>(skeleton);
+		socket->SocketName = socketName;
+		skeleton->Sockets.Add(socket);
 	}
-	return false;
+	socket->BoneName = boneName;
+	socket->RelativeLocation = offset.GetLocation();
+	socket->RelativeRotation = offset.Rotator();
+	socket->RelativeScale = offset.GetScale3D();
+	skeleton->MarkPackageDirty();
+	return true;
+}
+
+bool UGCombatEditorLibrary::AlignCombatHand(UAnimBlueprint* blueprint)
+{
+	return AlignHand(blueprint, TEXT("hand_r"), TEXT("handIkAlpha"), TEXT("rightHandRotation"));
+}
+
+bool UGCombatEditorLibrary::AlignCombatLeftHand(UAnimBlueprint* blueprint)
+{
+	return AlignHand(blueprint, TEXT("hand_l"), TEXT("leftHandIkAlpha"), TEXT("leftHandRotation"));
 }
 
 bool UGCombatEditorLibrary::SetCombatArmStretch(UAnimBlueprint* blueprint, double maximumScale)

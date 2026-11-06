@@ -72,6 +72,22 @@ float AWhos_DrivingCharacter::TakeDamage(float damageAmount, const FDamageEvent&
 	return combatComponent->ApplyDamage(damageAmount, eventInstigator);
 }
 
+USkeletalMeshComponent* AWhos_DrivingCharacter::GetWeaponAttachMesh(bool bFirstPerson, FName socket) const
+{
+	USkeletalMeshComponent* animatedMesh = bFirstPerson ? firstPersonMesh : GetMesh();
+	TArray<USceneComponent*> children;
+	animatedMesh->GetChildrenComponents(false, children);
+	for (USceneComponent* child : children)
+	{
+		USkeletalMeshComponent* visibleMesh = Cast<USkeletalMeshComponent>(child);
+		if (visibleMesh && visibleMesh != firstPersonMesh && visibleMesh->DoesSocketExist(socket))
+		{
+			return visibleMesh;
+		}
+	}
+	return animatedMesh;
+}
+
 void AWhos_DrivingCharacter::SetupPlayerInputComponent(UInputComponent* playerInputComponent)
 {	
 	// Set up action bindings

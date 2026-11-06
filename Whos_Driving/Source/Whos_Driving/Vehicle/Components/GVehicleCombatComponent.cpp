@@ -22,13 +22,14 @@ UGVehicleCombatComponent::UGVehicleCombatComponent()
 {
 	SetIsReplicatedByDefault(true);
 	PrimaryComponentTick.bCanEverTick = true;
+	bWantsInitializeComponent = true;
 }
 
 void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UGVehicleCombatComponent, weapons);
-	DOREPLIFETIME(UGVehicleCombatComponent, selectedSlot);
+	DOREPLIFETIME(UGVehicleCombatComponent, selectedWeaponIndex);
 	DOREPLIFETIME(UGVehicleCombatComponent, windowState);
 	DOREPLIFETIME(UGVehicleCombatComponent, aimDirection);
 	DOREPLIFETIME(UGVehicleCombatComponent, bAiming);
@@ -99,6 +100,21 @@ float UGVehicleCombatComponent::GetServerTime() const
 	return state ? state->GetServerWorldTimeSeconds() : (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f);
 }
 
+void UGVehicleCombatComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+	if (!GetCharacter())
+	{
+		return;
+	}
+	// Captured during spawn, before anyone can seat the character. The game mode seats a freshly spawned
+	// character before the world begins play, so a BeginPlay capture would store the seated pose and
+	// RefreshPresentation would then apply the seat camera offset twice.
+	initialCameraLocation = GetCharacter()->GetCameraRoot()->GetRelativeLocation();
+	initialFirstPersonLocation = GetCharacter()->GetFirstPersonMesh()->GetRelativeLocation();
+	initialCameraFov = GetCharacter()->GetFirstPersonCameraComponent()->FieldOfView;
+}
+
 void UGVehicleCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -106,9 +122,6 @@ void UGVehicleCombatComponent::BeginPlay()
 	{
 		return;
 	}
-	initialCameraLocation = GetCharacter()->GetCameraRoot()->GetRelativeLocation();
-	initialFirstPersonLocation = GetCharacter()->GetFirstPersonMesh()->GetRelativeLocation();
-	initialCameraFov = GetCharacter()->GetFirstPersonCameraComponent()->FieldOfView;
 	GetCharacter()->GetFirstPersonMesh()->HideBoneByName(TEXT("head"), EPhysBodyOp::PBO_None);
 	if (IsAuthority())
 	{
@@ -119,7 +132,7 @@ void UGVehicleCombatComponent::BeginPlay()
 
 void UGVehicleCombatComponent::SpawnLoadout()
 {
-	for (UGWeaponDefinition* definition : {primaryDefinition.Get(), secondaryDefinition.Get()})
+	for (UGWeaponDefinition* definition : loadout)
 	{
 		if (!definition)
 		{
@@ -137,7 +150,26 @@ void UGVehicleCombatComponent::SpawnLoadout()
 		UGameplayStatics::FinishSpawningActor(weapon, GetOwner()->GetActorTransform());
 		weapons.Add(weapon);
 	}
+	selectedWeaponIndex = FMath::Max(0, FindDriverCabinWeaponIndex());
 	OnRep_Loadout();
+}
+
+int32 UGVehicleCombatComponent::FindDriverCabinWeaponIndex() const
+{
+	const AGVehicleWeapon* currentWeapon = GetCurrentWeapon();
+	if (currentWeapon && currentWeapon->GetDefinition()->bUsableByDriverInCabin)
+	{
+		return selectedWeaponIndex;
+	}
+	for (int32 weaponIndex = 0; weaponIndex < weapons.Num(); ++weaponIndex)
+	{
+		const AGVehicleWeapon* weapon = GetWeapon(weaponIndex);
+		if (weapon && weapon->GetDefinition()->bUsableByDriverInCabin)
+		{
+			return weaponIndex;
+		}
+	}
+	return selectedWeaponIndex;
 }
 
 void UGVehicleCombatComponent::EndPlay(const EEndPlayReason::Type endPlayReason)
@@ -159,21 +191,23 @@ void UGVehicleCombatComponent::EndPlay(const EEndPlayReason::Type endPlayReason)
 	Super::EndPlay(endPlayReason);
 }
 
-AGVehicleWeapon* UGVehicleCombatComponent::GetWeapon(EGWeaponSlot slot) const
+AGVehicleWeapon* UGVehicleCombatComponent::GetWeapon(int32 weaponIndex) const
 {
-	for (AGVehicleWeapon* weapon : weapons)
-	{
-		if (IsValid(weapon) && weapon->GetDefinition() && weapon->GetDefinition()->Slot == slot)
-		{
-			return weapon;
-		}
-	}
-	return nullptr;
+	AGVehicleWeapon* weapon = weapons.IsValidIndex(weaponIndex) ? weapons[weaponIndex].Get() : nullptr;
+	return IsValid(weapon) && weapon->GetDefinition() ? weapon : nullptr;
 }
 
 AGVehicleWeapon* UGVehicleCombatComponent::GetCurrentWeapon() const
 {
-	return GetWeapon(selectedSlot);
+	return GetWeapon(selectedWeaponIndex);
+}
+
+void UGVehicleCombatComponent::NotifyWeaponStateChanged(const AGVehicleWeapon* weapon)
+{
+	if (weapon == GetCurrentWeapon())
+	{
+		OnWeaponAmmoChanged.Broadcast();
+	}
 }
 
 float UGVehicleCombatComponent::GetWindowAlpha() const
@@ -195,7 +229,8 @@ bool UGVehicleCombatComponent::RequestWindow(bool bOutside)
 	{
 		return false;
 	}
-	CancelActions(false);
+	// Leaning only interrupts firing; a reload in progress continues through the transition.
+	StopFiring();
 	lastWindowRequest = GetServerTime();
 	windowState.startAlpha = GetWindowAlpha();
 	windowState.startTime = GetServerTime();
@@ -203,29 +238,45 @@ bool UGVehicleCombatComponent::RequestWindow(bool bOutside)
 	windowState.duration = GetVehicle()->GetSeatingComponent()->GetSeatComponent(GetSeatIndex())->windowDuration;
 	if (!bOutside && GetSeatIndex() == 0)
 	{
-		SelectWeapon(EGWeaponSlot::Secondary);
+		SelectWeapon(FindDriverCabinWeaponIndex());
 	}
 	RefreshDriverLock();
 	GetOwner()->ForceNetUpdate();
 	return true;
 }
 
-bool UGVehicleCombatComponent::SelectWeapon(EGWeaponSlot slot)
+bool UGVehicleCombatComponent::RequestWindowSide(bool bLeftSide, const FVector& viewDirection)
 {
-	if (!IsAuthority() || health <= 0.0f || !GetWeapon(slot))
+	AGPlayerCar* vehicle = GetVehicle();
+	const int32 seatIndex = GetSeatIndex();
+	if (!vehicle || seatIndex == INDEX_NONE || viewDirection.ContainsNaN())
 	{
 		return false;
 	}
-	if (GetSeatIndex() == 0 && !windowState.bOutside && slot == EGWeaponSlot::Primary)
+	// Sides are taken from the camera: looking towards the rear of the car swaps them.
+	const bool bLeftSeat = seatIndex == 0 || seatIndex == 2;
+	const bool bLookingBackward = FVector::DotProduct(viewDirection, vehicle->GetActorForwardVector()) < 0.0f;
+	const bool bWindowOnLeft = bLeftSeat != bLookingBackward;
+	return RequestWindow(bLeftSide == bWindowOnLeft);
+}
+
+bool UGVehicleCombatComponent::SelectWeapon(int32 weaponIndex)
+{
+	const AGVehicleWeapon* weapon = GetWeapon(weaponIndex);
+	if (!IsAuthority() || health <= 0.0f || !weapon)
 	{
 		return false;
 	}
-	if (slot == selectedSlot)
+	if (GetSeatIndex() == 0 && !windowState.bOutside && !weapon->GetDefinition()->bUsableByDriverInCabin)
+	{
+		return false;
+	}
+	if (weaponIndex == selectedWeaponIndex)
 	{
 		return true;
 	}
 	CancelActions(false);
-	selectedSlot = slot;
+	selectedWeaponIndex = weaponIndex;
 	equipStartTime = GetServerTime();
 	OnRep_Loadout();
 	GetOwner()->ForceNetUpdate();
@@ -236,12 +287,11 @@ void UGVehicleCombatComponent::OnRep_Loadout()
 {
 	if (IsAuthority())
 	{
-		for (AGVehicleWeapon* weapon : weapons)
+		for (int32 weaponIndex = 0; weaponIndex < weapons.Num(); ++weaponIndex)
 		{
-			if (weapon && weapon->GetDefinition())
+			if (AGVehicleWeapon* weapon = GetWeapon(weaponIndex))
 			{
-				weapon->SetEquipped(weapon->GetDefinition()->Slot == selectedSlot && GetSeatIndex() != INDEX_NONE &&
-									health > 0.0f);
+				weapon->SetEquipped(weaponIndex == selectedWeaponIndex && GetSeatIndex() != INDEX_NONE && health > 0.0f);
 			}
 		}
 	}
@@ -249,6 +299,7 @@ void UGVehicleCombatComponent::OnRep_Loadout()
 	{
 		weapon->PlayEquip();
 	}
+	OnWeaponAmmoChanged.Broadcast();
 }
 
 void UGVehicleCombatComponent::OnRep_Window()
@@ -267,10 +318,7 @@ void UGVehicleCombatComponent::CancelActions(bool bResetWindow)
 	{
 		return;
 	}
-	bTriggerHeld = false;
-	burstRemaining = 0;
-	bAiming = false;
-	GetWorld()->GetTimerManager().ClearTimer(fireTimer);
+	StopFiring();
 	for (AGVehicleWeapon* weapon : weapons)
 	{
 		if (weapon)
@@ -287,6 +335,15 @@ void UGVehicleCombatComponent::CancelActions(bool bResetWindow)
 	GetOwner()->ForceNetUpdate();
 }
 
+void UGVehicleCombatComponent::StopFiring()
+{
+	bTriggerHeld = false;
+	burstRemaining = 0;
+	bAiming = false;
+	GetWorld()->GetTimerManager().ClearTimer(fireTimer);
+	GetOwner()->ForceNetUpdate();
+}
+
 void UGVehicleCombatComponent::SeatChanged()
 {
 	if (IsAuthority())
@@ -294,7 +351,7 @@ void UGVehicleCombatComponent::SeatChanged()
 		CancelActions(true);
 		if (GetSeatIndex() == 0)
 		{
-			selectedSlot = EGWeaponSlot::Secondary;
+			selectedWeaponIndex = FindDriverCabinWeaponIndex();
 		}
 		OnRep_Loadout();
 	}
@@ -333,6 +390,14 @@ FVector UGVehicleCombatComponent::GetAimDirection() const
 {
 	return IsLocallyOwned() && GetCharacter() ? GetCharacter()->GetFirstPersonCameraComponent()->GetForwardVector()
 											  : FVector(aimDirection);
+}
+
+FRotator UGVehicleCombatComponent::GetAimRotation() const
+{
+	// The replicated direction carries no roll. The camera never rolls relative to the character,
+	// and the seated character shares the vehicle's up vector, so the view frame stays tied to the car.
+	const FVector up = GetCharacter() ? GetCharacter()->GetActorUpVector() : FVector::UpVector;
+	return FRotationMatrix::MakeFromXZ(GetAimDirection(), up).Rotator();
 }
 
 bool UGVehicleCombatComponent::SetTrigger(bool bPressed, const FVector& direction)
@@ -400,12 +465,13 @@ void UGVehicleCombatComponent::TryFire()
 	// Own vehicle and friendly occupants deliberately remain in the query.
 	const FVector origin = GetCharacter()->GetFirstPersonCameraComponent()->GetComponentLocation();
 	const FVector direction = FMath::VRandCone(
-		FVector(aimDirection), FMath::DegreesToRadians(definition->SpreadDegrees * (bAiming ? 0.25f : 1.0f)));
+		FVector(aimDirection),
+		FMath::DegreesToRadians(definition->SpreadDegrees * (bAiming ? definition->AimSpreadMultiplier : 1.0f)));
 	FHitResult viewHit;
 	const FVector end = origin + direction * FMath::Clamp(definition->Range, 1.0f, 100000.0f);
 	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(viewHit, origin, end, ECC_GameTraceChannel3, query);
 	const FVector target = bViewHit ? viewHit.ImpactPoint : end;
-	const FVector muzzle = weapon->GetThirdPersonMesh()->GetSocketLocation(TEXT("MuzzleSocket"));
+	const FVector muzzle = weapon->GetShotOrigin();
 	FHitResult muzzleHit;
 	const bool bMuzzleHit = GetWorld()->LineTraceSingleByChannel(muzzleHit, muzzle, target + direction * 2.0f,
 																 ECC_GameTraceChannel3, query);
@@ -419,7 +485,7 @@ void UGVehicleCombatComponent::TryFire()
 	{
 		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, definition->Damage),
 										   (target - muzzle).GetSafeNormal(), hit, GetPlayerController(), weapon,
-										   UDamageType::StaticClass());
+										   definition->DamageType);
 	}
 	++confirmedShots;
 	weapon->MulticastShot(bHit ? hit.ImpactPoint : target, bHit);
@@ -448,12 +514,14 @@ bool UGVehicleCombatComponent::SetAiming(bool bNewAiming)
 
 bool UGVehicleCombatComponent::RequestReload()
 {
-	if (!IsAuthority() || !IsPlayerValid() || !GetCurrentWeapon())
+	AGVehicleWeapon* weapon = GetCurrentWeapon();
+	// A repeated press must not restart the reload that is already running.
+	if (!IsAuthority() || !IsPlayerValid() || !weapon || weapon->IsReloading())
 	{
 		return false;
 	}
-	CancelActions(false);
-	return GetCurrentWeapon()->BeginReload();
+	StopFiring();
+	return weapon->BeginReload();
 }
 
 bool UGVehicleCombatComponent::ChangeFireMode()
@@ -462,7 +530,8 @@ bool UGVehicleCombatComponent::ChangeFireMode()
 	{
 		return false;
 	}
-	CancelActions(false);
+	// The weapon refuses to switch modes while reloading, so the reload is kept.
+	StopFiring();
 	return GetCurrentWeapon()->CycleFireMode();
 }
 
@@ -497,19 +566,17 @@ void UGVehicleCombatComponent::RefreshPresentation()
 			offset.Y *= (GetSeatIndex() == 0 || GetSeatIndex() == 2) ? -1.0f : 1.0f;
 		}
 	}
-	character->GetCameraRoot()->SetRelativeLocation(initialCameraLocation + seatedCameraOffset +
-													offset * GetWindowAlpha());
-	// Offset hand targets, not the whole torso: translating Manny towards the lens
-	// puts the shoulders and stock through the first-person camera.
-	character->GetFirstPersonMesh()->SetRelativeLocation(initialFirstPersonLocation);
-	if (!IsLocallyOwned() && GetSeatIndex() != INDEX_NONE)
+	const bool bSeated = GetSeatIndex() != INDEX_NONE;
+	const FVector seatedCameraLocation = initialCameraLocation + seatedCameraOffset;
+	character->GetCameraRoot()->SetRelativeLocation(seatedCameraLocation + offset * GetWindowAlpha());
+	if (!IsLocallyOwned() && bSeated)
 	{
 		const FRotator rotation =
 			character->GetActorTransform().InverseTransformVectorNoScale(FVector(aimDirection)).Rotation();
 		character->GetCameraRoot()->SetRelativeRotation(rotation);
 	}
+	RefreshFirstPersonMesh(seatedCameraLocation);
 	character->GetFirstPersonMesh()->SetVisibility(health > 0.0f);
-	const bool bSeated = GetSeatIndex() != INDEX_NONE;
 	UClass* worldAnimClass = bSeated ? seatedAnimClass.Get() : walkingAnimClass.Get();
 	UClass* firstAnimClass =
 		bSeated ? (seatedFirstPersonAnimClass ? seatedFirstPersonAnimClass.Get() : seatedAnimClass.Get())
@@ -522,6 +589,28 @@ void UGVehicleCombatComponent::RefreshPresentation()
 	{
 		character->GetFirstPersonMesh()->SetAnimInstanceClass(firstAnimClass);
 	}
+}
+
+void UGVehicleCombatComponent::RefreshFirstPersonMesh(const FVector& seatedCameraLocation)
+{
+	AWhos_DrivingCharacter* character = GetCharacter();
+	USkeletalMeshComponent* firstPersonMesh = character->GetFirstPersonMesh();
+	const FTransform restTransform(initialFirstPersonLocation);
+	if (GetSeatIndex() == INDEX_NONE)
+	{
+		firstPersonMesh->SetRelativeTransform(restTransform);
+		return;
+	}
+	// The visible arms only copy bone rotations, so they cannot stretch towards a hand target. While seated, the
+	// whole mesh moves and turns with the camera instead, which keeps the weapon in the same place on the screen.
+	const FTransform parentInCharacter = character->GetMesh()->GetRelativeTransform();
+	const FTransform restInCharacter = restTransform * parentInCharacter;
+	const USceneComponent* cameraRoot = character->GetCameraRoot();
+	const FQuat viewRotation = cameraRoot->GetRelativeRotation().Quaternion();
+	const FVector fromCamera = restInCharacter.GetLocation() + seatedFirstPersonOffset - seatedCameraLocation;
+	const FTransform meshInCharacter(viewRotation * restInCharacter.GetRotation(),
+									 cameraRoot->GetRelativeLocation() + viewRotation.RotateVector(fromCamera));
+	firstPersonMesh->SetRelativeTransform(meshInCharacter.GetRelativeTransform(parentInCharacter));
 }
 
 void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tickType,
@@ -570,11 +659,11 @@ float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigato
 
 void UGVehicleCombatComponent::ApplyShotRecoil(float amount)
 {
-	if (IsLocallyOwned() && GetCharacter())
+	const UGWeaponDefinition* definition = GetCurrentWeapon() ? GetCurrentWeapon()->GetDefinition() : nullptr;
+	if (IsLocallyOwned() && GetCharacter() && definition)
 	{
-		GetCharacter()->DoAim(FMath::FRandRange(-0.2f, 0.2f) * amount, amount);
-		const UGWeaponDefinition* definition = GetCurrentWeapon() ? GetCurrentWeapon()->GetDefinition() : nullptr;
-		if (definition && definition->CameraShake && GetPlayerController()->PlayerCameraManager)
+		GetCharacter()->DoAim(FMath::FRandRange(-definition->RecoilYawRange, definition->RecoilYawRange) * amount, amount);
+		if (definition->CameraShake && GetPlayerController()->PlayerCameraManager)
 		{
 			GetPlayerController()->PlayerCameraManager->StartCameraShake(definition->CameraShake);
 		}
@@ -588,14 +677,15 @@ void UGVehicleCombatComponent::RecordCosmeticShot()
 
 FVector UGVehicleCombatComponent::GetFirstPersonPoseOffset() const
 {
-	if (GetSeatIndex() == INDEX_NONE)
+	const AGVehicleWeapon* weapon = GetCurrentWeapon();
+	if (GetSeatIndex() == INDEX_NONE || !weapon)
 	{
 		return FVector::ZeroVector;
 	}
-	const AGVehicleWeapon* weapon = GetCurrentWeapon();
-	const float reloadLift =
-		weapon && weapon->IsReloading()
-			? 20.0f * FMath::Clamp((weapon->GetReloadEndTime() - GetServerTime()) / 0.2f, 0.0f, 1.0f)
-			: 0.0f;
-	return firstPersonPoseOffset + FVector(0.0f, 0.0f, reloadLift);
+	const UGWeaponDefinition* definition = weapon->GetDefinition();
+	const float liftAlpha = FMath::Clamp((weapon->GetReloadEndTime() - GetServerTime()) /
+											 FMath::Max(0.01f, definition->ReloadHandLiftTime),
+										 0.0f, 1.0f);
+	const float reloadLift = weapon->IsReloading() ? definition->ReloadHandLift * liftAlpha : 0.0f;
+	return definition->ViewmodelOffset + FVector(0.0f, 0.0f, reloadLift);
 }

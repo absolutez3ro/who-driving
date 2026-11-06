@@ -12,6 +12,8 @@ class AGPlayerController;
 class AGVehicleWeapon;
 class UAnimInstance;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
+
 USTRUCT(BlueprintType)
 struct FGVehicleWindowState
 {
@@ -36,7 +38,9 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void TickComponent(float deltaSeconds, ELevelTick tickType, FActorComponentTickFunction* tickFunction) override;
 	bool RequestWindow(bool bOutside);
-	bool SelectWeapon(EGWeaponSlot slot);
+	// Q/E: leans towards the given side of the camera view, so the keys swap when looking backward.
+	bool RequestWindowSide(bool bLeftSide, const FVector& viewDirection);
+	bool SelectWeapon(int32 weaponIndex);
 	bool SetTrigger(bool bPressed, const FVector& direction);
 	bool SetAiming(bool bNewAiming);
 	bool RequestReload();
@@ -47,15 +51,17 @@ public:
 	float ApplyDamage(float amount, AController* instigatorController);
 	void ApplyShotRecoil(float amount);
 	void RecordCosmeticShot();
+	// Weapons report their replicated state here, so listeners only ever deal with the selected weapon.
+	void NotifyWeaponStateChanged(const AGVehicleWeapon* weapon);
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	AGVehicleWeapon* GetWeapon(EGWeaponSlot slot) const;
+	AGVehicleWeapon* GetWeapon(int32 weaponIndex) const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	EGWeaponSlot GetSelectedSlot() const
+	int32 GetSelectedWeaponIndex() const
 	{
-		return selectedSlot;
+		return selectedWeaponIndex;
 	}
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool CanFire() const;
@@ -81,6 +87,9 @@ public:
 	AGPlayerCar* GetVehicle() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	FVector GetAimDirection() const;
+	// View orientation including roll; use it instead of GetAimDirection().Rotation() for anything placed relative to the camera.
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	FRotator GetAimRotation() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetHealth() const
 	{
@@ -106,14 +115,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Animation")
 	FVector GetFirstPersonPoseOffset() const;
 
+	// Fires when the selected weapon's ammunition changes and when another weapon becomes selected.
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FGOnWeaponAmmoChanged OnWeaponAmmoChanged;
+
+	// Weapon order matches AGPlayerController::weaponSelectActions.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Loadout")
-	TObjectPtr<UGWeaponDefinition> primaryDefinition;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Loadout")
-	TObjectPtr<UGWeaponDefinition> secondaryDefinition;
+	TArray<TObjectPtr<UGWeaponDefinition>> loadout;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
 	float maxHealth = 100.0f;
+	// Moves the first-person mesh while seated, in character space with a level camera. The camera sits well in
+	// front of the seated body's shoulders, and this keeps the hand targets within the visible arms' reach.
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Animation")
-	FVector firstPersonPoseOffset = FVector(35.0f, 0.0f, 0.0f);
+	FVector seatedFirstPersonOffset = FVector::ZeroVector;
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Animation")
 	TSubclassOf<UAnimInstance> seatedAnimClass;
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Animation")
@@ -124,12 +138,13 @@ public:
 	TSubclassOf<UAnimInstance> walkingFirstPersonAnimClass;
 
 protected:
+	void InitializeComponent() override;
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Combat")
 	TArray<TObjectPtr<AGVehicleWeapon>> weapons;
 	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Combat")
-	EGWeaponSlot selectedSlot = EGWeaponSlot::Secondary;
+	int32 selectedWeaponIndex = INDEX_NONE;
 	UPROPERTY(ReplicatedUsing = OnRep_Window, BlueprintReadOnly, Category = "Combat")
 	FGVehicleWindowState windowState;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
@@ -156,8 +171,11 @@ private:
 	bool IsAuthority() const;
 	bool IsPlayerValid() const;
 	void SpawnLoadout();
+	int32 FindDriverCabinWeaponIndex() const;
+	void StopFiring();
 	void TryFire();
 	void RefreshPresentation();
+	void RefreshFirstPersonMesh(const FVector& seatedCameraLocation);
 	void RefreshDriverLock();
 	bool bTriggerHeld = false;
 	int32 burstRemaining = 0;
