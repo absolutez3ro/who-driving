@@ -3,21 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
-#include "GBaseEnemy.generated.h"
+#include "Sound/SoundBase.h"
+#include "WheeledVehiclePawn.h"
+#include "GNewCommoncar.generated.h"
 
+/**
+ * 
+ */
 class UGEnemyBaseDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnDeath, float, scrapPrice);
 
 UCLASS()
-class WHOS_DRIVING_API AGBaseEnemy : public ACharacter
+class WHOS_DRIVING_API AGNewCommoncar : public AWheeledVehiclePawn
 {
 	GENERATED_BODY()
-
 public:
 	// Sets default values for this character's properties
-	AGBaseEnemy();
 
 	// Called every frame
 	void Tick(float deltaTime) override;
@@ -27,6 +29,25 @@ public:
 
 	// handles enemy death event
 	void HandleDeath();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void PlayShotSound();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void PlayMissSound();
+
+	// Cosmetic side of a shot (muzzle flash, sound, tracer); damage is applied by the AI controller
+	//UFUNCTION(NetMulticast, Unreliable)
+	//void MulticastShotFired(FVector target, bool bHit);
+
+	//UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+	//void OnShotFired(FVector target, bool bHit);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<USoundBase> hitSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<USoundBase> missSound;
 
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
 	FGOnDeath OnDeath;

@@ -15,15 +15,38 @@ class WHOS_DRIVING_API UGCommonEnemyDataAsset : public UDataAsset
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float MinAcceleration;
+	float lookAheadDistance = 800.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float MaxAcceleration;
+	float lookAheadTime = 0.4f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float AccelerationModifier;
+	float maxSpeed = 1500.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float MinYDistanceCM;
+	float maxSteerAngle = 35.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float MaxYDistanceCM;
+	float steerInterpSpeed = 15.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float cornerSlowdown = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float throttleGain = 0.002f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float brakeGain = 0.002f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float laneOffset = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float stopDistance = 500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float roadWidth = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float catchUpModificator = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	bool followPlayer = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float playerSpeedThershhold = 10.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
+	float hitRange = 500000.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float FireRate;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
