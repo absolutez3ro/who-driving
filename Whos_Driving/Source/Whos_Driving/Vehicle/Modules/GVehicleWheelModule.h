@@ -19,7 +19,6 @@ class WHOS_DRIVING_API UGVehicleWheelModule : public UGVehicleModule
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wheel")
 	int32 wheelIndex = 0;
-	void ApplyRepair() override;
 	FOnWheelChangeState OnWheelChangeState;
 
 protected:

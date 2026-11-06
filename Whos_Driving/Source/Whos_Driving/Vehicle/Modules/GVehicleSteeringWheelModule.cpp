@@ -9,17 +9,6 @@ void UGVehicleSteeringWheelModule::OnDestroyed()
 {
 }
 
-void UGVehicleSteeringWheelModule::ApplyRepair()
-{
-	if (!CanRepair())
-	{
-		return;
-	}
-
-	currentHP = maxHP;
-	SetState(EGModuleState::Full);
-}
-
 void UGVehicleSteeringWheelModule::OnStateChanged(EGModuleState oldState, EGModuleState newState)
 {
 	OnSteeringWheelChangeState.Broadcast(newState);

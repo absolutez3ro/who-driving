@@ -19,7 +19,6 @@ class WHOS_DRIVING_API UGVehicleDoorModule : public UGVehicleModule
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	int32 doorId = INDEX_NONE;
-	void ApplyRepair() override;
 	FOnDoorChangeState OnDoorChangeState;
 protected:
 	void OnDestroyed() override;

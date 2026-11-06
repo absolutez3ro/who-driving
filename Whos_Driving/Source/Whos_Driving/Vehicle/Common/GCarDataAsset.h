@@ -15,10 +15,10 @@ class WHOS_DRIVING_API UGCarDataAsset : public UDataAsset
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Base car health. This is not the total car health!"))
+	UPROPERTY(EditAnywhere, Category = "General Values", meta = (ToolTip = "Base car health. This is not the total car health!"))
 	float BaseCarHealth;
 
-	UPROPERTY(EditAnywhere, Category = "Default Values", meta = (ToolTip = "Maximum engine torque"))
+	UPROPERTY(EditAnywhere, Category = "General Values", meta = (ToolTip = "Maximum engine torque"))
 	float MaxTorque;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
@@ -27,11 +27,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float WheelRepairThreshold;
 
+	UPROPERTY(EditAnywhere, Category = "Modules|Wheels", meta = (ClampMin = "0"))
+	int32 WheelBaseRepairCost;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Wheels", meta = (ClampMin = "1.0"))
+	float WheelDestroyedModuleCostMultiplier;
+
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors")
 	float DoorMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float DoorRepairThreshold;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Doors", meta = (ClampMin = "0"))
+	int32 DoorBaseRepairCost;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Doors", meta = (ClampMin = "1.0"))
+	float DoorDestroyedModuleCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine")
 	float EngineMaxHealth;
@@ -39,17 +51,35 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float EngineRepairThreshold;
 
+	UPROPERTY(EditAnywhere, Category = "Modules|Engine", meta = (ClampMin = "0"))
+	int32 EngineBaseRepairCost;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Engine", meta = (ClampMin = "1.0"))
+	float EngineDestroyedCostMultiplier;
+
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel")
 	float SteeringWheelMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SteeringWheelRepairThreshold;
 
+	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel", meta = (ClampMin = "0"))
+	int32 SteeringWheelBaseRepairCost;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel", meta = (ClampMin = "1.0"))
+	float SteeringWheelDestroyedCostMultiplier;
+
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician")
 	float ElectricianMaxHealth;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ElectricianRepairThreshold;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Electrician", meta = (ClampMin = "0"))
+	int32 ElectricianBaseRepairCost;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Electrician", meta = (ClampMin = "1.0"))
+	float ElectricianDestroyedCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0", ToolTip = "Friction multiplier of broken wheels"))
 	float BrokenWheelFrictionMultiplier;

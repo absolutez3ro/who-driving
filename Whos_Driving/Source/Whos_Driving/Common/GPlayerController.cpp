@@ -65,10 +65,11 @@ void AGPlayerController::Tick(float deltaTime)
 	FName moduleId = NAME_None;
 	float currentHpInPercentage = 0.0f;
 	EGModuleState moduleState = EGModuleState::Full;
-	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState);
+	int32 actualRepairCost = 0;
+	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
 	if (bFoundModule)
 	{
-		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
+		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
 		currentModule = moduleId;
 	}
 	if (bIsLookingOnModule != bFoundModule)
@@ -575,7 +576,7 @@ void AGPlayerController::ClientSetupLobbyInput_Implementation()
 	this->SetInputMode(inputMode);
 }
 
-bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState)
+bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost)
 {
 	outModuleId = NAME_None;
 	outCurrentHPInPercentage = 0.0f;
@@ -641,6 +642,7 @@ bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurren
 	outModuleId = state.moduleId;
 	outCurrentHPInPercentage = state.currentHP / state.maxHP * 100.0f;
 	outModuleState = state.moduleState;
+	outRepairCost = state.actualRepairCost;
 
 	return true;
 }

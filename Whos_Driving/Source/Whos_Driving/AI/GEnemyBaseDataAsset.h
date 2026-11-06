@@ -14,10 +14,15 @@ class WHOS_DRIVING_API UGEnemyBaseDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Base")
 	float MaxHp;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
-	float ScrapPrice;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "base")
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Base")
+	int32 normalEnemyDropMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Base")
+	int32 normalEnemyDropMax;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Base")
 	USkeletalMesh* Mesh;
 };

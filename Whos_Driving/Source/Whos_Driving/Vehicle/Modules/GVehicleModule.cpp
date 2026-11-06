@@ -3,6 +3,7 @@
 
 #include "GVehicleModule.h"
 #include "GameFramework/Actor.h"
+#include "GGameState.h"
 
 void UGVehicleModule::ApplyDamage(float damage)
 {
@@ -25,10 +26,41 @@ void UGVehicleModule::ApplyDamage(float damage)
 	{
 		SetState(EGModuleState::Full);
 	}
+	RecalculateRepairCost();
+}
+
+void UGVehicleModule::RecalculateRepairCost()
+{
+	if (IsDestroyed())
+	{
+		actualRepairCost = FMath::RoundToInt(destroyedModuleCostMultiplier * static_cast<float>(baseRepairCost));
+		return;
+	}
+
+	if (IsFull())
+	{
+		actualRepairCost = 0;
+		return;
+	}
+
+	int32 extraCost = 0;
+	const float healthPercent = (maxHP > 0.0f) ? (currentHP / maxHP * 100.0f) : 0.0f;
+	if (healthPercent < 50.0f)
+	{
+		extraCost = FMath::FloorToInt((50.0f - healthPercent) / 10.0f);
+	}
+	actualRepairCost = baseRepairCost + extraCost;
 }
 
 void UGVehicleModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+	GetWorld()->GetGameState<AGGameState>()->PlusRepairParts(-actualRepairCost);
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
 }
 
 void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
@@ -36,6 +68,7 @@ void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGM
 	maxHP = inMaxHP;
 	currentHP = inCurrentHp;
 	SetState(state);
+	RecalculateRepairCost();
 }
 
 float UGVehicleModule::GetHealthAsPercentage() const
@@ -67,7 +100,9 @@ bool UGVehicleModule::IsDestroyed() const
 
 bool UGVehicleModule::CanRepair() const
 {
-	return (moduleState == EGModuleState::Repair || moduleState == EGModuleState::Destroyed);
+	bool bCorrectState = moduleState == EGModuleState::Repair || moduleState == EGModuleState::Destroyed;
+	bool bEnoughRepairParts = GetWorld()->GetGameState<AGGameState>()->GetRepairParts() >= actualRepairCost;
+	return bCorrectState && bEnoughRepairParts;
 }
 
 bool UGVehicleModule::IsFull() const

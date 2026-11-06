@@ -316,6 +316,7 @@ void AGPlayerCar::PublishModuleStates()
 		state.maxHP = module->maxHP;
 		state.currentHP = module->currentHP;
 		state.moduleState = module->moduleState;
+		state.actualRepairCost = module->actualRepairCost;
 
 		moduleStates.Add(state);
 	}
@@ -412,6 +413,8 @@ void AGPlayerCar::LoadCarData()
 		wheel->maxHP = carData->WheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
 		wheel->repairThreshold = carData->WheelRepairThreshold;
+		wheel->baseRepairCost = carData->WheelBaseRepairCost;
+		wheel->destroyedModuleCostMultiplier = carData->WheelDestroyedModuleCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleDoorModule>> doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
@@ -420,6 +423,8 @@ void AGPlayerCar::LoadCarData()
 		door->maxHP = carData->DoorMaxHealth;
 		door->currentHP = door->maxHP;
 		door->repairThreshold = carData->DoorRepairThreshold;
+		door->baseRepairCost = carData->DoorBaseRepairCost;
+		door->destroyedModuleCostMultiplier = carData->DoorDestroyedModuleCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleSteeringWheelModule>> steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
@@ -428,6 +433,8 @@ void AGPlayerCar::LoadCarData()
 		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
 		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
+		steeringWheel->baseRepairCost = carData->SteeringWheelBaseRepairCost;
+		steeringWheel->destroyedModuleCostMultiplier = carData->SteeringWheelDestroyedCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleEngineModule>> engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
@@ -436,6 +443,8 @@ void AGPlayerCar::LoadCarData()
 		engine->maxHP = carData->EngineMaxHealth;
 		engine->currentHP = engine->maxHP;
 		engine->repairThreshold = carData->EngineRepairThreshold;
+		engine->baseRepairCost = carData->EngineBaseRepairCost;
+		engine->destroyedModuleCostMultiplier = carData->EngineDestroyedCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleElectricianModule>> electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
@@ -444,6 +453,8 @@ void AGPlayerCar::LoadCarData()
 		electrician->maxHP = carData->ElectricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
 		electrician->repairThreshold = carData->ElectricianRepairThreshold;
+		electrician->baseRepairCost = carData->ElectricianBaseRepairCost;
+		electrician->destroyedModuleCostMultiplier = carData->ElectricianDestroyedCostMultiplier;
 	}
 }
 

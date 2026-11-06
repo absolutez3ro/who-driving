@@ -12,7 +12,7 @@
  */
 class UGEnemyBaseDataAsset;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnDeath, float, scrapPrice);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnDeath, int32, scrapPrice);
 
 UCLASS()
 class WHOS_DRIVING_API AGNewCommoncar : public AWheeledVehiclePawn
@@ -59,6 +59,7 @@ protected:
 	void BeginPlay() override;
 
 	float maxHp = 1;
-	float scrapPrice = 0;
+	int32 normalEnemyDropMin = 0;
+	int32 normalEnemyDropMax = 0;
 	float currentHp = 1;
 };

@@ -3,10 +3,11 @@
 #include "Whos_DrivingGameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "GGameState.h"
 
 AWhos_DrivingGameMode::AWhos_DrivingGameMode()
 {
-	// stub
+	GameStateClass = AGGameState::StaticClass();
 }
 
 void AWhos_DrivingGameMode::SpawnCar()

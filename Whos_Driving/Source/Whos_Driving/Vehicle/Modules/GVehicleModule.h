@@ -25,7 +25,7 @@ class WHOS_DRIVING_API UGVehicleModule : public UObject
 	
 public:
 	void ApplyDamage(float damage);
-	virtual void ApplyRepair();
+	void ApplyRepair();
 	bool IsDestroyed() const;
 	bool CanRepair() const;
 	bool IsFull() const;
@@ -47,6 +47,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float repairThreshold = 0.5f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
+	int32 baseRepairCost = 1;
+
+	int32 actualRepairCost;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
+	float destroyedModuleCostMultiplier = 2.0f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Module")
 	EGModuleState moduleState = EGModuleState::Full;
 
@@ -54,5 +62,5 @@ protected:
 	virtual void OnStateChanged(EGModuleState previousState, EGModuleState newState);
 	void SetState(EGModuleState newState);
 	virtual void OnDestroyed();
-	
+	void RecalculateRepairCost();
 };

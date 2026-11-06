@@ -15,7 +15,7 @@ class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UInputMappingContext;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState, int32, actualRepairCost);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
 
 UCLASS()
@@ -64,7 +64,7 @@ public:
 	void RequestNextTrack();
 
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
-	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
+	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost);
 
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
