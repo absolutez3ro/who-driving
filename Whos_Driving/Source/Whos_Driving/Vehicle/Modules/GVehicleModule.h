@@ -50,6 +50,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	int32 baseRepairCost = 1;
 
+	int32 actualRepairCost;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	float destroyedModuleCostMultiplier = 2.0f;
 
@@ -60,5 +62,5 @@ protected:
 	virtual void OnStateChanged(EGModuleState previousState, EGModuleState newState);
 	void SetState(EGModuleState newState);
 	virtual void OnDestroyed();
-	
+	void RecalculateRepairCost();
 };

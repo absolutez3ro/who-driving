@@ -37,6 +37,9 @@ struct FGVehicleModuleState
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
 	EGModuleState moduleState = EGModuleState::Full;
+
+	UPROPERTY(BlueprintReadOnly, Category = "VehicleDamage")
+	int32 actualRepairCost;
 };
 
 USTRUCT(BlueprintType)

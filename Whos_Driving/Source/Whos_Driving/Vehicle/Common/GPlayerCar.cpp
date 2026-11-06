@@ -316,6 +316,7 @@ void AGPlayerCar::PublishModuleStates()
 		state.maxHP = module->maxHP;
 		state.currentHP = module->currentHP;
 		state.moduleState = module->moduleState;
+		state.actualRepairCost = module->actualRepairCost;
 
 		moduleStates.Add(state);
 	}

@@ -6,7 +6,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GGameState.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnResourcesInfoUpdate, int32, repairParts, int32, money);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResourcesInfoUpdate, int32, repairParts);
 /**
  * 
  */
@@ -29,7 +29,4 @@ public:
 protected:
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	int32 repairParts;
-
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	int32 money;
 };

@@ -8,7 +8,6 @@ void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AGGameState, repairParts);
-	DOREPLIFETIME(AGGameState, money);
 }
 
 int32 AGGameState::GetRepairParts() const
@@ -23,7 +22,7 @@ void AGGameState::PlusRepairParts(int32 amount)
 	{
 		repairParts = 0;
 	}
-	OnResourcesInfoUpdate.Broadcast(repairParts, money);
+	OnResourcesInfoUpdate.Broadcast(repairParts);
 }
 
 void AGGameState::HandleEnemyDeath(int32 scrapPrice)
