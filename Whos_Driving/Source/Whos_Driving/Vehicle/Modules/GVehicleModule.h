@@ -47,6 +47,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float repairThreshold = 0.5f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
+	int32 baseRepairCost = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
+	float destroyedModuleCostMultiplier = 2.0f;
+
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Module")
 	EGModuleState moduleState = EGModuleState::Full;
 
