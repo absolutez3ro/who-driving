@@ -3,6 +3,7 @@
 
 #include "GVehicleModule.h"
 #include "GameFramework/Actor.h"
+#include "GGameState.h"
 
 void UGVehicleModule::ApplyDamage(float damage)
 {
@@ -29,6 +30,13 @@ void UGVehicleModule::ApplyDamage(float damage)
 
 void UGVehicleModule::ApplyRepair()
 {
+	if (!CanRepair())
+	{
+		return;
+	}
+	GetWorld()->GetGameState<AGGameState>()->PlusRepairParts(-baseRepairCost);
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
 }
 
 void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
@@ -67,7 +75,9 @@ bool UGVehicleModule::IsDestroyed() const
 
 bool UGVehicleModule::CanRepair() const
 {
-	return (moduleState == EGModuleState::Repair || moduleState == EGModuleState::Destroyed);
+	bool bCorrectState = moduleState == EGModuleState::Repair || moduleState == EGModuleState::Destroyed;
+	bool bEnoughRepairParts = GetWorld()->GetGameState<AGGameState>()->GetRepairParts() >= baseRepairCost;
+	return bCorrectState && bEnoughRepairParts;
 }
 
 bool UGVehicleModule::IsFull() const

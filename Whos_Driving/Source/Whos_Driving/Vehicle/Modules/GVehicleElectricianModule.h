@@ -16,7 +16,6 @@ class WHOS_DRIVING_API UGVehicleElectricianModule : public UGVehicleModule
 {
 	GENERATED_BODY()
 public:
-	void ApplyRepair() override;
 	FOnElectricianChangeState OnElectricianChangeState;
 protected:
 	void OnDestroyed() override;
