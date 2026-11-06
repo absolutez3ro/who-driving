@@ -23,7 +23,7 @@ void AGGameState::PlusRepairParts(int32 amount)
 	{
 		repairParts = 0;
 	}
-	//OnResourcesInfoUpdate.Broadcast(repairParts, money);
+	OnResourcesInfoUpdate.Broadcast(repairParts, money);
 }
 
 void AGGameState::HandleEnemyDeath(int32 scrapPrice)

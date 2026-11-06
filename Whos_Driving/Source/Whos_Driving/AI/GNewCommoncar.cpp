@@ -4,6 +4,8 @@
 #include "AI/GNewCommoncar.h"
 #include "GEnemyBaseDataAsset.h"
 #include "Kismet/GameplayStatics.h"
+#include "Math/UnrealMathUtility.h"
+#include "GGameState.h"
 
 
 
@@ -13,7 +15,8 @@ void AGNewCommoncar::BeginPlay()
 	Super::BeginPlay();
 	maxHp = baseData->MaxHp;
 	currentHp = maxHp;
-	scrapPrice = baseData->ScrapPrice;
+	normalEnemyDropMin = baseData->normalEnemyDropMin;
+	normalEnemyDropMax = baseData->normalEnemyDropMax;
 	USkeletalMesh* targetMesh = baseData->Mesh;
 	if (targetMesh)
 	{
@@ -36,6 +39,12 @@ void AGNewCommoncar::BeginPlay()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to load Skeletal Mesh from Data Asset on %s"), *GetName());
+	}
+
+	if (HasAuthority())
+	{
+		AGGameState* gameState = GetWorld()->GetGameState<AGGameState>();
+		OnDeath.AddDynamic(gameState, &AGGameState::HandleEnemyDeath);
 	}
 }
 
@@ -94,6 +103,7 @@ float AGNewCommoncar::TakeDamage(float damageAmount, FDamageEvent const& damageE
 		UE_LOG(LogTemp, Log, TEXT("hp left: %f / %f"), currentHp, maxHp);
 		if (currentHp <= 0)
 		{
+			int32 scrapPrice = FMath::RandRange(normalEnemyDropMin, normalEnemyDropMax);
 			OnDeath.Broadcast(scrapPrice);
 			HandleDeath();
 		}
