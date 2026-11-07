@@ -19,6 +19,7 @@ void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(AGGameState, remainingTime);
 	DOREPLIFETIME(AGGameState, elapsedTime);
 	DOREPLIFETIME(AGGameState, bTimerRunning);
+	DOREPLIFETIME(AGGameState, bHaveTime);
 }
 
 int32 AGGameState::GetRepairParts() const
@@ -71,6 +72,7 @@ void AGGameState::StartRaceTimer()
 	remainingTime = timeBonusThreshold;
 	elapsedTime = 0.0f;
 	bTimerRunning = true;
+	bHaveTime = true;
 	SetActorTickEnabled(true);
 	ForceNetUpdate();
 	BroadcastTimerUpdate();
@@ -118,12 +120,13 @@ void AGGameState::Tick(float deltaTime)
 	if (remainingTime <= 0.0f)
 	{
 		bTimerRunning = false;
+		bHaveTime = false;
 		SetActorTickEnabled(false);
 		ForceNetUpdate();
 		BroadcastTimerUpdate();
-		OnRaceTimeExpired();
 	}
 }
+
 
 void AGGameState::BroadcastTimerUpdate()
 {

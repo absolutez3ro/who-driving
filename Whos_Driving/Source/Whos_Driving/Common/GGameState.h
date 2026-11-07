@@ -45,6 +45,9 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Race|Timer")
 	bool bTimerRunning = 0.0f;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Race|Timer")
+	bool bHaveTime = true;
+
 	UFUNCTION(BlueprintCallable, Category = "Race|Timer")
 	void StartRaceTimer();
 
@@ -71,9 +74,6 @@ protected:
 	float timeBonusThreshold = 10.0f;
 
 	void Tick(float deltaTime) override;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "Race|Timer")
-	void OnRaceTimeExpired();
 
 	void BroadcastTimerUpdate();
 };

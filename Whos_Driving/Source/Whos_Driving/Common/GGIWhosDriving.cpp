@@ -71,6 +71,7 @@ void UGGIWhosDriving::CalculateMoneyOnFinish()
 
 	moneyFromKills = gameState->GetEnemyKills() * enemiesKillsToMoneyConversionRate;
 	moneyFromRepairParts = gameState->GetRepairParts() * partsToMoneyConversionRate;
+	moneyFromTime = (gameState->bHaveTime) ? ceil(gameState->remainingTime) * timeBonusMultiplier : 0.0f;
 	moneyFromTotal += moneyFromKills + moneyFromRepairParts + moneyFromTime;
 	PlusMoney(moneyFromTotal);
 }
