@@ -3,12 +3,14 @@
 
 #include "Common/GGameState.h"
 #include "Net/UnrealNetwork.h"
+#include "GGIWhosDriving.h"
 
 void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AGGameState, repairParts);
-	DOREPLIFETIME(AGGameState, enemiesKill);
+	DOREPLIFETIME(AGGameState, enemyKills);
+	DOREPLIFETIME(AGGameState, timeBonusThreshold);
 }
 
 int32 AGGameState::GetRepairParts() const
@@ -16,11 +18,24 @@ int32 AGGameState::GetRepairParts() const
 	return repairParts;
 }
 
+int32 AGGameState::GetEnemyKills() const
+{
+	return enemyKills;
+}
+
 
 void AGGameState::HandleEnemyDeath(int32 scrapPrice)
 {
 	PlusRepairParts(scrapPrice);
 	IncrementEnemiesKills();
+}
+
+void AGGameState::Multicast_OnPlayerFinish_Implementation()
+{
+	UGGIWhosDriving* gameInstance = GetGameInstance<UGGIWhosDriving>();
+	gameInstance->CalculateMoneyOnFinish();
+
+	OnPlayerFinish.Broadcast();
 }
 
 void AGGameState::PlusRepairParts(int32 amount)
@@ -35,6 +50,6 @@ void AGGameState::PlusRepairParts(int32 amount)
 
 void AGGameState::IncrementEnemiesKills()
 {
-	enemiesKill++;
+	enemyKills++;
 }
 

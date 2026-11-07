@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "GRaceFinish.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerFinish);
+
 
 class UBoxComponent;
 
@@ -20,9 +20,6 @@ public:
 
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UPROPERTY(BlueprintAssignable)
-	FOnPlayerFinish OnPlayerFinish;
 
 protected:
 	void BeginPlay() override;

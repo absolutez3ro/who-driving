@@ -2,6 +2,7 @@
 
 
 #include "GGIWhosDriving.h"
+#include "GGameState.h"
 
 void UGGIWhosDriving::HostSession(FString sessionName)
 {
@@ -37,8 +38,41 @@ void UGGIWhosDriving::HostSession(FString sessionName)
 
 void UGGIWhosDriving::HandleRaceFinish()
 {
-	PlusMoney(1000);
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Purple, FString::Printf(TEXT("Money: %d"), moneyCount));
+	//CalculateMoneyOnFinish();
+}
+
+int32 UGGIWhosDriving::GetMoneyFromTotal() const
+{
+	return moneyFromTotal;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromKills() const
+{
+	return moneyFromKills;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromRepairParts() const
+{
+	return moneyFromRepairParts;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromTime() const
+{
+	return moneyFromTime;
+}
+
+void UGGIWhosDriving::CalculateMoneyOnFinish()
+{
+	AGGameState* gameState = GetWorld()->GetGameState<AGGameState>();
+	moneyFromKills = 0;
+	moneyFromRepairParts = 0;
+	moneyFromTime = 0;
+	moneyFromTotal = 0;
+
+	moneyFromKills = gameState->GetEnemyKills() * enemiesKillsToMoneyConversionRate;
+	moneyFromRepairParts = gameState->GetRepairParts() * partsToMoneyConversionRate;
+	moneyFromTotal += moneyFromKills + moneyFromRepairParts + moneyFromTime;
+	PlusMoney(moneyFromTotal);
 }
 
 void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSuccessful)

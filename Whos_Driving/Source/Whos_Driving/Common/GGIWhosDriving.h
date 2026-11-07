@@ -45,12 +45,41 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Resources")
 	FOnMoneyChanged OnMoneyChanged;
 
+	UFUNCTION(BlueprintCallable, Category = "Economic")
+	void CalculateMoneyOnFinish();
+
 	UFUNCTION()
 	void HandleRaceFinish();
 
+	int32 GetMoneyFromTotal() const;
+	int32 GetMoneyFromKills() const;
+	int32 GetMoneyFromRepairParts() const;
+	int32 GetMoneyFromTime() const;
+
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
 	int32 moneyCount = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	int32 enemiesKillsToMoneyConversionRate = 200;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	int32 partsToMoneyConversionRate = 100;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	float timeBonusMultiplier = 2.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromKills = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromRepairParts = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromTime = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromTotal = 0;
 
 private:
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);

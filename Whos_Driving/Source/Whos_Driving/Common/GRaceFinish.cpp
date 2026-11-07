@@ -4,9 +4,8 @@
 #include "Common/GRaceFinish.h"
 #include "Components/BoxComponent.h"
 #include "Vehicle/Common/GPlayerCar.h"
-#include "GGIWhosDriving.h"
+#include "GGameState.h"
 
-// Sets default values
 AGRaceFinish::AGRaceFinish()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -21,9 +20,6 @@ AGRaceFinish::AGRaceFinish()
 void AGRaceFinish::BeginPlay()
 {
 	Super::BeginPlay();
-
-	UGGIWhosDriving* gameInstance = GetGameInstance<UGGIWhosDriving>();
-	OnPlayerFinish.AddDynamic(gameInstance, &UGGIWhosDriving::HandleRaceFinish);
 }
 
 
@@ -36,7 +32,9 @@ void AGRaceFinish::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* O
 	}
 
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Purple, TEXT("FINISH"));
-	OnPlayerFinish.Broadcast();
+	
+	AGGameState* gameState = GetWorld()->GetGameState<AGGameState>();
+	gameState->Multicast_OnPlayerFinish();
 }
 
 
