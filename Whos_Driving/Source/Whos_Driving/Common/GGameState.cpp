@@ -4,11 +4,20 @@
 #include "Common/GGameState.h"
 #include "Net/UnrealNetwork.h"
 #include "GGIWhosDriving.h"
+#include "GLevelsDataAsset.h"
+#include "GameFramework/GameStateBase.h"
 
 AGGameState::AGGameState()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+}
+
+void AGGameState::BeginPlay()
+{
+	Super::BeginPlay();
+
+	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
 }
 
 void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

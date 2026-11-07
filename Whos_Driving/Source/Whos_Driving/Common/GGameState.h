@@ -10,6 +10,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResourcesInfoUpdate, int32, repai
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerFinish);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTimerUpdate);
 
+class UGLevelsDataAsset;
 
 UCLASS()
 class WHOS_DRIVING_API AGGameState : public AGameStateBase
@@ -63,7 +64,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnTimerUpdate OnTimerUpdate;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGLevelsDataAsset> levelsData;
+
 protected:
+	void BeginPlay() override;
+
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	int32 repairParts = 0;
 

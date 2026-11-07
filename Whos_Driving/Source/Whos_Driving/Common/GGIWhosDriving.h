@@ -15,6 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnSessionsFound, const TArray<FStr
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
 
+class UGEconomicDataAsset;
 
 UCLASS()
 class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
@@ -22,6 +23,8 @@ class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 	GENERATED_BODY()
 
 public:
+	void Init() override;
+
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void HostSession(FString sessionName);
 
@@ -56,7 +59,12 @@ public:
 	int32 GetMoneyFromRepairParts() const;
 	int32 GetMoneyFromTime() const;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEconomicDataAsset> economicData;
+
 protected:
+	void LoadEconomicData();
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
 	int32 moneyCount = 0;
 

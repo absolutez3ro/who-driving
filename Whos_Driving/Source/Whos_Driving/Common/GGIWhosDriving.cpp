@@ -3,6 +3,14 @@
 
 #include "GGIWhosDriving.h"
 #include "GGameState.h"
+#include "GEconomicDataAsset.h"
+#include "Engine/GameInstance.h"
+
+void UGGIWhosDriving::Init()
+{
+	Super::Init();
+	LoadEconomicData();
+}
 
 void UGGIWhosDriving::HostSession(FString sessionName)
 {
@@ -59,6 +67,13 @@ int32 UGGIWhosDriving::GetMoneyFromRepairParts() const
 int32 UGGIWhosDriving::GetMoneyFromTime() const
 {
 	return moneyFromTime;
+}
+
+void UGGIWhosDriving::LoadEconomicData()
+{
+	enemiesKillsToMoneyConversionRate = economicData->EnemiesKillsToMoneyConversionRate;
+	partsToMoneyConversionRate = economicData->PartsToMoneyConversionRate;
+	timeBonusMultiplier = economicData->TimeBonusMultiplier;
 }
 
 void UGGIWhosDriving::CalculateMoneyOnFinish()
