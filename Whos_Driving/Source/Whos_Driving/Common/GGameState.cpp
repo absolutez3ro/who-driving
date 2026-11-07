@@ -139,7 +139,6 @@ void AGGameState::Tick(float deltaTime)
 
 void AGGameState::BroadcastTimerUpdate()
 {
-	OnTimerUpdate.Broadcast();
 	ForceNetUpdate();
 }
 

@@ -8,7 +8,6 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResourcesInfoUpdate, int32, repairParts);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerFinish);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTimerUpdate);
 
 class UGLevelsDataAsset;
 
@@ -44,7 +43,7 @@ public:
 	float elapsedTime = 0.0f;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Race|Timer")
-	bool bTimerRunning = 0.0f;
+	bool bTimerRunning = false;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Race|Timer")
 	bool bHaveTime = true;
@@ -60,9 +59,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Race|Timer")
 	FText GetRemainingTimeText() const;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnTimerUpdate OnTimerUpdate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGLevelsDataAsset> levelsData;
