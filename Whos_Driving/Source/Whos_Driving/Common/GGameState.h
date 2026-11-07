@@ -19,6 +19,7 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	int32 GetRepairParts() const;
 	void PlusRepairParts(int32 amount);
+	void IncrementEnemiesKills();
 	
 	UPROPERTY(BlueprintAssignable)
 	FOnResourcesInfoUpdate OnResourcesInfoUpdate;
@@ -26,7 +27,11 @@ public:
 	UFUNCTION()
 	void HandleEnemyDeath(int32 scrapPrice);
 
+
 protected:
 	UPROPERTY(Replicated, BlueprintReadOnly)
-	int32 repairParts;
+	int32 repairParts = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	int32 enemiesKill = 0;
 };

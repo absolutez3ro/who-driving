@@ -13,6 +13,7 @@
 // Event dispatcher declarations
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnSessionsFound, const TArray<FString>&, sessionNames);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
 
 
 UCLASS()
@@ -33,11 +34,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	bool JoinSessionByIndex(int32 sessionIndex);
 
+	void PlusMoney(int32 amount);
+
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnSessionsFound OnSessionsFound;
 
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnJoiningFailed OnJoiningFailed;
+
+	UPROPERTY(BlueprintAssignable, Category = "Resources")
+	FOnMoneyChanged OnMoneyChanged;
+
+	UFUNCTION()
+	void HandleRaceFinish();
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int32 moneyCount = 0;
 
 private:
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);

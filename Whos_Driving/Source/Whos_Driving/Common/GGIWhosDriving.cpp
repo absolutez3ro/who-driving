@@ -35,6 +35,12 @@ void UGGIWhosDriving::HostSession(FString sessionName)
 	}
 }
 
+void UGGIWhosDriving::HandleRaceFinish()
+{
+	PlusMoney(1000);
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Purple, FString::Printf(TEXT("Money: %d"), moneyCount));
+}
+
 void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSuccessful)
 {
 	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get();
@@ -206,6 +212,16 @@ bool UGGIWhosDriving::JoinSessionByIndex(int32 sessionIndex)
 		return true;
 	}
 	return false;
+}
+
+void UGGIWhosDriving::PlusMoney(int32 amount)
+{
+	moneyCount += amount;
+	if (moneyCount < 0)
+	{
+		moneyCount = 0;
+	}
+	OnMoneyChanged.Broadcast(moneyCount);
 }
 
 void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)
