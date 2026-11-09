@@ -6,6 +6,8 @@
 #include "UObject/Object.h"
 #include "GVehicleModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRepair);
+
 /**
  * 
  */
@@ -33,6 +35,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	float GetHealthAsPercentage() const;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnRepair OnRepair;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")

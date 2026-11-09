@@ -15,6 +15,7 @@
 #include "GBoxComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
+#include "Vehicle/Components/GVehicleModuleComponent.h"
 
 AGPlayerController::AGPlayerController()
 {
@@ -169,6 +170,46 @@ void AGPlayerController::TryToSendDelegate()
 	{
 		TryToRepair.Execute(currentModule);
 	}
+}
+
+bool AGPlayerController::CanRepairCurrentModule() const
+{
+	if (!bIsLookingOnModule || currentModule.IsNone())
+	{
+		return false;
+	}
+
+	if (AGPlayerCar* car = GetSeatedVehicle())
+	{
+		if (UGVehicleModuleComponent* moduleComp = car->GetModuleComponent())
+		{
+			if (UGVehicleModule* module = moduleComp->FindModule(currentModule))
+			{
+				return module->CanRepair();
+			}
+		}
+	}
+	return false;
+}
+
+void AGPlayerController::StartSkillCheck()
+{
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->AddMappingContext(skillcheckMappingContext, 10);
+	subsystem->RemoveMappingContext(vehicleMappingContext);
+	subsystem->RemoveMappingContext(mouseLookMappingContext);
+	subsystem->RemoveMappingContext(gameplayMappingContext);
+}
+
+void AGPlayerController::EndSkillCheck()
+{
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->RemoveMappingContext(skillcheckMappingContext);
+	subsystem->AddMappingContext(vehicleMappingContext, 0);
+	subsystem->AddMappingContext(mouseLookMappingContext, 1);
+	subsystem->AddMappingContext(gameplayMappingContext, 2);
 }
 
 void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)

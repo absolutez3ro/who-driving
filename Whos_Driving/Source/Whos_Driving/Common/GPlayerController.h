@@ -29,7 +29,8 @@ enum class EGCombatAction : uint8
 	ChangeFireMode
 };
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FTryToRepair, FName, moduleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -80,11 +81,17 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
+	UFUNCTION(BlueprintCallable)
+	bool CanRepairCurrentModule() const;
+
 	UPROPERTY(BlueprintAssignable)
 	FGOnModuleInfoUpdated OnModuleInfoUpdated;
 
 	UPROPERTY()
-	FGTryToRepair TryToRepair;
+	FOnSkillCheck OnSkillCheck;
+
+	UPROPERTY()
+	FTryToRepair TryToRepair;
 
 protected:
 	void BeginPlay() override;
@@ -94,6 +101,12 @@ protected:
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
 	void RefreshWeaponAmmoWidget();
+
+	UFUNCTION(BlueprintCallable)
+	void StartSkillCheck();
+
+	UFUNCTION(BlueprintCallable)
+	void EndSkillCheck();
 
 	UFUNCTION()
 	void OnRep_VehicleContext();
@@ -128,6 +141,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> mouseLookMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputMappingContext> skillcheckMappingContext;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> lookAction;

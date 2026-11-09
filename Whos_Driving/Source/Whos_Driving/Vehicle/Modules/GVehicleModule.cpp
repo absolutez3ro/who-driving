@@ -58,6 +58,7 @@ void UGVehicleModule::ApplyRepair()
 	{
 		return;
 	}
+	OnRepair.Broadcast();
 	GetWorld()->GetGameState<AGGameState>()->PlusRepairParts(-actualRepairCost);
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
