@@ -30,7 +30,6 @@ enum class EGCombatAction : uint8
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FTryToRepair, FName, moduleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -90,9 +89,6 @@ public:
 	UPROPERTY()
 	FOnSkillCheck OnSkillCheck;
 
-	UPROPERTY()
-	FTryToRepair TryToRepair;
-
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
@@ -106,10 +102,13 @@ protected:
 	void StartSkillCheck();
 
 	UFUNCTION(BlueprintCallable)
-	void EndSkillCheck();
+	void EndSkillCheck(bool bSuccess);
 
 	UFUNCTION()
 	void OnRep_VehicleContext();
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRepair(FName moduleId);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleSeat(AGPlayerCar* vehicle, int32 seatIndex, FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
@@ -203,8 +202,6 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
-
-	void TryToSendDelegate();
 
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;

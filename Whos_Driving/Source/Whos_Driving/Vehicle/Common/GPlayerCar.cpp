@@ -401,7 +401,6 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
-	SubscribeToRepairEvent();
 }
 
 void AGPlayerCar::LoadCarData()
@@ -456,17 +455,6 @@ void AGPlayerCar::LoadCarData()
 		electrician->baseRepairCost = carData->ElectricianBaseRepairCost;
 		electrician->destroyedModuleCostMultiplier = carData->ElectricianDestroyedCostMultiplier;
 	}
-}
-
-void AGPlayerCar::SubscribeToRepairEvent()
-{
-	AGPlayerController* controller = Cast<AGPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
-	if (!controller)
-	{
-		return;
-	}
-
-	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
 }
 
 void AGPlayerCar::HandleToRepair(FName moduleId)

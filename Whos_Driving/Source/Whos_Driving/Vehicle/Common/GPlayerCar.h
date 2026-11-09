@@ -100,7 +100,8 @@ public:
 	
 	UGVehicleModuleComponent* GetModuleComponent() const;
 
-
+	UFUNCTION()
+	void HandleToRepair(FName moduleId);
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;
@@ -113,6 +114,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
+
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
@@ -147,10 +150,6 @@ protected:
 
 	void LoadCarData();
 
-	void SubscribeToRepairEvent();
-
-	UFUNCTION()
-	void HandleToRepair(FName moduleId);
 	void BreakDoor(FName moduleId);
 	void RepairDoor(FName moduleId);
 

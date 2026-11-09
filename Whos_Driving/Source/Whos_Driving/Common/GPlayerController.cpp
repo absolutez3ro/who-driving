@@ -89,7 +89,7 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
+		//enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
 	}
 	if (!enhancedInput)
 	{
@@ -164,14 +164,6 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 	}
 }
 
-void AGPlayerController::TryToSendDelegate()
-{
-	if (bIsLookingOnModule)
-	{
-		TryToRepair.Execute(currentModule);
-	}
-}
-
 bool AGPlayerController::CanRepairCurrentModule() const
 {
 	if (!bIsLookingOnModule || currentModule.IsNone())
@@ -202,7 +194,7 @@ void AGPlayerController::StartSkillCheck()
 	subsystem->RemoveMappingContext(gameplayMappingContext);
 }
 
-void AGPlayerController::EndSkillCheck()
+void AGPlayerController::EndSkillCheck(bool bSuccess)
 {
 	ULocalPlayer* localPlayer = GetLocalPlayer();
 	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
@@ -210,6 +202,32 @@ void AGPlayerController::EndSkillCheck()
 	subsystem->AddMappingContext(vehicleMappingContext, 0);
 	subsystem->AddMappingContext(mouseLookMappingContext, 1);
 	subsystem->AddMappingContext(gameplayMappingContext, 2);
+	if (bSuccess && IsLocalController())
+	{
+		ServerRequestRepair(currentModule);
+	}
+}
+ 
+void AGPlayerController::ServerRequestRepair_Implementation(FName moduleId)
+{
+	if (!bIsLookingOnModule || currentModule != moduleId)
+	{
+		return;
+	}
+
+	if (AGPlayerCar* car = GetSeatedVehicle())
+	{
+		if (UGVehicleModuleComponent* moduleComp = car->GetModuleComponent())
+		{
+			if (UGVehicleModule* module = moduleComp->FindModule(moduleId))
+			{
+				if (module->CanRepair())
+				{
+					car->HandleToRepair(moduleId);
+				}
+			}
+		}
+	}
 }
 
 void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
