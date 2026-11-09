@@ -74,6 +74,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
 	void DamageModule(const FName& moduleId, float damage);
+	void DamageModuleInPercent(const FName& moduleId, float damageInPercent);
+	void FailureSkillCheck(const FName& moduleId);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
@@ -157,6 +159,7 @@ protected:
 	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:
 
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> throttleAction;
 
@@ -186,6 +189,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleWheelVisual> wheelVisuals;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Damage")
+	float failureDamagePercent = 10.0f;
 
 	TArray<bool> appliedDestroyedWheels;
 

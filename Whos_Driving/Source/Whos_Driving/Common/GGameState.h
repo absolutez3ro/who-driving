@@ -67,7 +67,7 @@ protected:
 	void BeginPlay() override;
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
-	int32 repairParts = 0;
+	int32 repairParts = 100;
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 	int32 enemyKills = 0;

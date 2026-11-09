@@ -104,11 +104,13 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void EndSkillCheck(bool bSuccess);
 
+	void FailSkillCheck(const FName& moduleId);
+
 	UFUNCTION()
 	void OnRep_VehicleContext();
 
 	UFUNCTION(Server, Reliable)
-	void ServerRequestRepair(FName moduleId);
+	void ServerRequestRepair(const FName& moduleId);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleSeat(AGPlayerCar* vehicle, int32 seatIndex, FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);

@@ -296,6 +296,17 @@ void AGPlayerCar::DamageModule(const FName& moduleId, float damage)
 	PublishModuleStates();
 }
 
+void AGPlayerCar::DamageModuleInPercent(const FName& moduleId, const float damageInPercent)
+{
+	moduleComponent->DamageModuleInPercent(moduleId, damageInPercent);
+	PublishModuleStates();
+}
+
+void AGPlayerCar::FailureSkillCheck(const FName& moduleId)
+{
+	DamageModuleInPercent(moduleId, failureDamagePercent);
+}
+
 void AGPlayerCar::PublishModuleStates()
 {
 	if (!HasAuthority())
@@ -406,6 +417,7 @@ void AGPlayerCar::BeginPlay()
 void AGPlayerCar::LoadCarData()
 {
 	baseCarHealth = carData->BaseCarHealth;
+	failureDamagePercent = carData->FailureDamagePercent;
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
 	for (auto& wheel : wheels)
 	{

@@ -15,7 +15,8 @@ class WHOS_DRIVING_API UGVehicleModuleComponent : public UActorComponent
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Modules")
-	void DamageModule(FName moduleId, float damage);
+	void DamageModule(const FName& moduleId, const float damage);
+	void DamageModuleInPercent(const FName& moduleId, const float damageInPercent);
 
 	UGVehicleModule* FindModule(FName moduleId) const;
 	void RegisterModule(UGVehicleModule* module);

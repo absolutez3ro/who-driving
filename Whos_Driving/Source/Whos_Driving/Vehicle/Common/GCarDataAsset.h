@@ -95,4 +95,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Damage", meta = (ToolTip = "Maximum car speed with a broken engine (km/h)"))
 	float BrokenEngineMaxSpeed;
+
+	UPROPERTY(EditAnywhere, Category = "SkillCheck", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float FailureDamagePercent;
 };

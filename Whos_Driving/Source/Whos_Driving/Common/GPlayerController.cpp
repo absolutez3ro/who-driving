@@ -206,26 +206,34 @@ void AGPlayerController::EndSkillCheck(bool bSuccess)
 	{
 		ServerRequestRepair(currentModule);
 	}
+	else
+	{
+		FailSkillCheck(currentModule);
+	}
 }
  
-void AGPlayerController::ServerRequestRepair_Implementation(FName moduleId)
+void AGPlayerController::ServerRequestRepair_Implementation(const FName& moduleId)
 {
-	if (!bIsLookingOnModule || currentModule != moduleId)
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComp = car->GetModuleComponent();
+	if (UGVehicleModule* module = moduleComp->FindModule(moduleId))
 	{
-		return;
-	}
-
-	if (AGPlayerCar* car = GetSeatedVehicle())
-	{
-		if (UGVehicleModuleComponent* moduleComp = car->GetModuleComponent())
+		if (module->CanRepair())
 		{
-			if (UGVehicleModule* module = moduleComp->FindModule(moduleId))
-			{
-				if (module->CanRepair())
-				{
-					car->HandleToRepair(moduleId);
-				}
-			}
+			car->HandleToRepair(moduleId);
+		}
+	}
+}
+
+void AGPlayerController::FailSkillCheck(const FName& moduleId)
+{
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	if (UGVehicleModule* module = moduleComponent->FindModule(moduleId))
+	{
+		if (!module->IsDestroyed())
+		{
+			car->FailureSkillCheck(moduleId);
 		}
 	}
 }
