@@ -16,6 +16,7 @@
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicle/Components/GVehicleModuleComponent.h"
+#include "GSkillCheckDataAsset.h"
 
 AGPlayerController::AGPlayerController()
 {
@@ -89,7 +90,7 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		//enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToCallSkillcheck);
 	}
 	if (!enhancedInput)
 	{
@@ -152,6 +153,28 @@ void AGPlayerController::SetupInputComponent()
 		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Completed, this, &AGPlayerController::RequestAimStop);
 		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerController::RequestAimStop);
 	}
+}
+
+void AGPlayerController::TryToCallSkillcheck()
+{
+	if (!CanRepairCurrentModule())
+	{
+		return;
+	}
+
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComp = car->GetModuleComponent();
+	UGVehicleModule* module = moduleComp->FindModule(currentModule);
+	if (!module)
+	{
+		return;
+	}
+
+	int32 cycleCount = (module->IsDestroyed()) ? skillCheckData->TotalCyclesForDestroyedState : skillCheckData->TotalCyclesForModuleInRepairState;
+	float healthPercent = module->GetHealthAsPercentage();
+	float healthAlpha = FMath::Clamp(healthPercent / 100.0f, 0.0f, 1.0f);
+	float goodZoneWidth = skillCheckData->BaseGoodZoneWidth + (skillCheckData->MaxHealthBonusWidth * healthAlpha);
+	CallSkillcheck(cycleCount, goodZoneWidth);
 }
 
 void AGPlayerController::LookInput(const FInputActionValue& value)

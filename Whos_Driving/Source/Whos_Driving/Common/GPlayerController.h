@@ -14,6 +14,7 @@ class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UGWeaponAmmoWidget;
 class UInputMappingContext;
+class UGSkillCheckDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState, int32, actualRepairCost);
 UENUM()
@@ -204,6 +205,15 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void CallSkillcheck(int32 cycleCounts, float goodZoneWidth);
+
+	UFUNCTION()
+	void TryToCallSkillcheck();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
+	TObjectPtr<UGSkillCheckDataAsset> skillCheckData;
 
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
