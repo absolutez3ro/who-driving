@@ -51,6 +51,8 @@ public:
 
 	virtual void Init() override;
 
+	UFUNCTION(BlueprintCallable, Category = "Debug")
+	void PrintNetDriver();
 protected:
 	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
 	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);

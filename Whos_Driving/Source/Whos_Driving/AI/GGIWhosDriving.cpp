@@ -14,13 +14,15 @@ void UGGIWhosDriving::Init()
 	{
 		GEngine->OnNetworkFailure().AddUObject(this, &UGGIWhosDriving::HandleNetworkFailure);
 		GEngine->OnTravelFailure().AddUObject(this, &UGGIWhosDriving::HandleTravelFailure);
-		const FString netDriver= GetNetDriverInfo();
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, netDriver);
-
 	}
 
 }
 
+void UGGIWhosDriving::PrintNetDriver()
+{
+	const FString netDriver = GetNetDriverInfo();
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, netDriver);
+}
 void UGGIWhosDriving::HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
