@@ -8,12 +8,19 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "Online/OnlineSessionNames.h"
 #include "GGIWhosDriving.generated.h"
 
 // Event dispatcher declarations
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGOnSessionsFound, const TArray<FString>&, sessionNames);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGOnSessionsFound, const TArray<FString>&, sessionNames, const TArray<int32>&, sessionTypes);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
 
+UENUM(BlueprintType)
+enum class ESessionType : uint8
+{
+	LAN    UMETA(DisplayName = "LAN"),
+	Steam  UMETA(DisplayName = "Steam")
+};
 
 UCLASS()
 class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
@@ -22,7 +29,10 @@ class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Session")
-	void HostSession(FString sessionName);
+	void HostSessionLAN(FString sessionName);
+
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	void HostSessionSteam(FString sessionName);
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void DestroySession();
@@ -31,7 +41,7 @@ public:
 	void FindSessions();
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
-	bool JoinSessionByIndex(int32 sessionIndex);
+	bool JoinSessionByIndex(int32 sessionIndex, int32 type);
 
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnSessionsFound OnSessionsFound;
@@ -40,16 +50,22 @@ public:
 	FGOnJoiningFailed OnJoiningFailed;
 
 private:
+	void FindLANSessions();
+	void FindSteamSessions();
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
 	void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
 	void OnFindSessionsComplete(bool bWasSuccessful);
+	void OnFindSteamSessionsComplete(bool bWasSuccessful);
 	void OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result);
-
+	FName mySessionSystem= FName(TEXT("NULL"));
 	FDelegateHandle createSessionDelegateHandle;
 	FDelegateHandle destroySessionDelegateHandle;
-	FDelegateHandle findSessionsDelegateHandle;
+	FDelegateHandle findLANSessionsDelegateHandle;
+	FDelegateHandle findSteamSessionsDelegateHandle;
 	FDelegateHandle joinSessionDelegateHandle;
 	TArray<FString> sessionsNames;
 	TArray<int32> sessionIndices;
-	TSharedPtr<FOnlineSessionSearch> sessionsFound;
+	TArray<int32> sessionTypes;
+	TSharedPtr<FOnlineSessionSearch> LANSessionsFound;
+	TSharedPtr<FOnlineSessionSearch> SteamSessionsFound;
 };
