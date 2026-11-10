@@ -55,6 +55,7 @@ protected:
 	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
 	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);
 private:
+	FString GetNetDriverInfo() const;
 	void FindLANSessions();
 	void FindSteamSessions();
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
