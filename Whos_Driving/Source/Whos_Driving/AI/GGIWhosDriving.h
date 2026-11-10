@@ -49,6 +49,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnJoiningFailed OnJoiningFailed;
 
+	virtual void Init() override;
+
+protected:
+	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
+	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);
 private:
 	void FindLANSessions();
 	void FindSteamSessions();

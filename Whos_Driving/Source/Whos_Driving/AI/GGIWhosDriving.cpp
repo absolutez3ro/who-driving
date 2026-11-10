@@ -2,6 +2,37 @@
 
 
 #include "GGIWhosDriving.h"
+
+#include "Engine/Engine.h"
+#include "Engine/NetDriver.h"
+
+void UGGIWhosDriving::Init()
+{
+	Super::Init();
+
+	if (GEngine)
+	{
+		GEngine->OnNetworkFailure().AddUObject(this, &UGGIWhosDriving::HandleNetworkFailure);
+		GEngine->OnTravelFailure().AddUObject(this, &UGGIWhosDriving::HandleTravelFailure);
+	}
+}
+
+void UGGIWhosDriving::HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
+		FString::Printf(TEXT("NetworkFailure: %s | %s"), ENetworkFailure::ToString(failureType), *errorString));
+}
+
+void UGGIWhosDriving::HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
+		FString::Printf(TEXT("TravelFailure: %s | %s"), ETravelFailure::ToString(failureType), *errorString));
+}
+
+
+
+
+
 void UGGIWhosDriving::HostSessionLAN(FString sessionName)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Trying to create session..."));
@@ -490,6 +521,7 @@ void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCom
 		{
 			APlayerController* playerController = GetFirstLocalPlayerController();
 
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, FString::Printf(TEXT("address to connect to: %s"), *connectString));
 			if (playerController)
 			{
 				playerController->ClientTravel(connectString, TRAVEL_Absolute);
