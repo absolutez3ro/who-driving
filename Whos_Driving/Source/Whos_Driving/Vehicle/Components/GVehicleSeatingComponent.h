@@ -59,6 +59,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	int32 GetCharacterSeat(AWhos_DrivingCharacter* character) const;
 
+	// The seat-to-module mapping is data: UGVehicleSeatComponent::repairableModuleIds.
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Repair")
+	bool CanRepairModuleFromSeat(int32 seatIndex, FName moduleId) const;
+
+	// Warns about seat data that names missing modules and about modules no seat can repair.
+	// Call after the vehicle has rebuilt its module registry.
+	void LogRepairAccessProblems() const;
+
 	
 	bool RequestSeat(AGPlayerController* controller, int32 seatIndex, const FVector& viewOrigin, const FVector& viewDirection);
 	bool RequestExit(AGPlayerController* controller);

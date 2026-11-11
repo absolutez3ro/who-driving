@@ -75,6 +75,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
 	void DamageModule(const FName& moduleId, float damage);
 
+	// Server only. Repairs the module if the occupant of seatIndex may reach it (UGVehicleSeatComponent::repairableModuleIds).
+	bool RepairModuleFromSeat(int32 seatIndex, FName moduleId);
+
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
 
@@ -147,10 +150,6 @@ protected:
 
 	void LoadCarData();
 
-	void SubscribeToRepairEvent();
-
-	UFUNCTION()
-	void HandleToRepair(FName moduleId);
 	void BreakDoor(FName moduleId);
 	void RepairDoor(FName moduleId);
 

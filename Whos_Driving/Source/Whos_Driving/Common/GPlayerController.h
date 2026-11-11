@@ -29,8 +29,6 @@ enum class EGCombatAction : uint8
 	ChangeFireMode
 };
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
-
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
 {
@@ -77,14 +75,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
 	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost);
 
+	// Checks only the seat rule; module state and repair parts are checked by the module itself.
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Modules")
+	bool CanRepairModuleFromCurrentSeat(FName moduleId) const;
+
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
 	UPROPERTY(BlueprintAssignable)
 	FGOnModuleInfoUpdated OnModuleInfoUpdated;
-
-	UPROPERTY()
-	FGTryToRepair TryToRepair;
 
 protected:
 	void BeginPlay() override;
@@ -103,6 +102,8 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleExit();
+	UFUNCTION(Server, Reliable)
+	void ServerRequestModuleRepair(FName moduleId);
 	UFUNCTION(Server, Reliable)
 	void ServerSelectWeapon(int32 weaponIndex);
 	UFUNCTION(Server, Reliable)
@@ -188,13 +189,14 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
 
-	void TryToSendDelegate();
+	void RequestLookedAtModuleRepair();
 
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
 	bool IsVehicleOccupant() const;
 	float lastRadioRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
+	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
 	class UGVehicleCombatComponent* GetOwnedCombat() const;
 };

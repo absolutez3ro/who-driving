@@ -88,7 +88,8 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
+		// IA_Repair has no trigger, so Triggered would send a server request every frame while the key is held.
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestLookedAtModuleRepair);
 	}
 	if (!enhancedInput)
 	{
@@ -163,12 +164,37 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 	}
 }
 
-void AGPlayerController::TryToSendDelegate()
+void AGPlayerController::RequestLookedAtModuleRepair()
 {
-	if (bIsLookingOnModule)
+	// The client check only saves a request; the server repeats it in ServerRequestModuleRepair.
+	if (IsLocalController() && bIsLookingOnModule && CanRepairModuleFromCurrentSeat(currentModule))
 	{
-		TryToRepair.Execute(currentModule);
+		ServerRequestModuleRepair(currentModule);
 	}
+}
+
+bool AGPlayerController::CanRepairModuleFromCurrentSeat(FName moduleId) const
+{
+	if (!IsVehicleOccupant())
+	{
+		return false;
+	}
+	const UGVehicleSeatingComponent* seating = seatedVehicle->GetSeatingComponent();
+	return seating->CanRepairModuleFromSeat(seating->GetCharacterSeat(driverCharacter), moduleId);
+}
+
+void AGPlayerController::ServerRequestModuleRepair_Implementation(FName moduleId)
+{
+	const float now = GetWorld()->GetTimeSeconds();
+	if (now - lastRepairRequestTime < 0.15f || !IsVehicleOccupant())
+	{
+		return;
+	}
+	lastRepairRequestTime = now;
+	const int32 seatIndex = seatedVehicle->GetSeatingComponent()->GetCharacterSeat(driverCharacter);
+	const bool bRepaired = seatedVehicle->RepairModuleFromSeat(seatIndex, moduleId);
+	UE_LOG(LogTemp, Display, TEXT("Repair request: controller=%s seat=%d module=%s repaired=%d"),
+		*GetName(), seatIndex, *moduleId.ToString(), bRepaired);
 }
 
 void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
