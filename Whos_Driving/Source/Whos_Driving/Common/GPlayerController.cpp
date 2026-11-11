@@ -3,6 +3,8 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleCombatComponent.h"
+#include "GWeaponAmmoWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Whos_DrivingCharacter.h"
@@ -65,10 +67,11 @@ void AGPlayerController::Tick(float deltaTime)
 	FName moduleId = NAME_None;
 	float currentHpInPercentage = 0.0f;
 	EGModuleState moduleState = EGModuleState::Full;
-	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState);
+	int32 actualRepairCost = 0;
+	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
 	if (bFoundModule)
 	{
-		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState);
+		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
 		currentModule = moduleId;
 	}
 	if (bIsLookingOnModule != bFoundModule)
@@ -85,7 +88,8 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
+		// IA_Repair has no trigger, so Triggered would send a server request every frame while the key is held.
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestLookedAtModuleRepair);
 	}
 	if (!enhancedInput)
 	{
@@ -99,13 +103,12 @@ void AGPlayerController::SetupInputComponent()
 	{
 		enhancedInput->BindAction(exitVehicleAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestVehicleExit);
 	}
-	if (primaryWeaponAction)
+	for (int32 weaponIndex = 0; weaponIndex < weaponSelectActions.Num(); ++weaponIndex)
 	{
-		enhancedInput->BindAction(primaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestPrimaryWeapon);
-	}
-	if (secondaryWeaponAction)
-	{
-		enhancedInput->BindAction(secondaryWeaponAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestSecondaryWeapon);
+		if (weaponSelectActions[weaponIndex])
+		{
+			enhancedInput->BindAction(weaponSelectActions[weaponIndex].Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWeapon, weaponIndex);
+		}
 	}
 	if (windowLeftAction)
 	{
@@ -161,12 +164,37 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 	}
 }
 
-void AGPlayerController::TryToSendDelegate()
+void AGPlayerController::RequestLookedAtModuleRepair()
 {
-	if (bIsLookingOnModule)
+	// The client check only saves a request; the server repeats it in ServerRequestModuleRepair.
+	if (IsLocalController() && bIsLookingOnModule && CanRepairModuleFromCurrentSeat(currentModule))
 	{
-		TryToRepair.Execute(currentModule);
+		ServerRequestModuleRepair(currentModule);
 	}
+}
+
+bool AGPlayerController::CanRepairModuleFromCurrentSeat(FName moduleId) const
+{
+	if (!IsVehicleOccupant())
+	{
+		return false;
+	}
+	const UGVehicleSeatingComponent* seating = seatedVehicle->GetSeatingComponent();
+	return seating->CanRepairModuleFromSeat(seating->GetCharacterSeat(driverCharacter), moduleId);
+}
+
+void AGPlayerController::ServerRequestModuleRepair_Implementation(FName moduleId)
+{
+	const float now = GetWorld()->GetTimeSeconds();
+	if (now - lastRepairRequestTime < 0.15f || !IsVehicleOccupant())
+	{
+		return;
+	}
+	lastRepairRequestTime = now;
+	const int32 seatIndex = seatedVehicle->GetSeatingComponent()->GetCharacterSeat(driverCharacter);
+	const bool bRepaired = seatedVehicle->RepairModuleFromSeat(seatIndex, moduleId);
+	UE_LOG(LogTemp, Display, TEXT("Repair request: controller=%s seat=%d module=%s repaired=%d"),
+		*GetName(), seatIndex, *moduleId.ToString(), bRepaired);
 }
 
 void AGPlayerController::SetDriverCharacter(AWhos_DrivingCharacter* newDriver)
@@ -253,6 +281,21 @@ void AGPlayerController::RefreshVehicleView()
 		{
 			SetViewTarget(target);
 		}
+		RefreshWeaponAmmoWidget();
+	}
+}
+
+void AGPlayerController::RefreshWeaponAmmoWidget()
+{
+	if (!weaponAmmoWidget && weaponAmmoWidgetClass)
+	{
+		weaponAmmoWidget = CreateWidget<UGWeaponAmmoWidget>(this, weaponAmmoWidgetClass);
+		weaponAmmoWidget->AddToViewport();
+	}
+	if (weaponAmmoWidget)
+	{
+		AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+		weaponAmmoWidget->SetCombatComponent(IsValid(character) ? character->GetCombatComponent() : nullptr);
 	}
 }
 
@@ -421,18 +464,11 @@ UGVehicleCombatComponent* AGPlayerController::GetOwnedCombat() const
 	return character->GetCombatComponent();
 }
 
-void AGPlayerController::RequestPrimaryWeapon()
+void AGPlayerController::RequestWeapon(int32 weaponIndex)
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(0, FVector::ForwardVector);
-	}
-}
-void AGPlayerController::RequestSecondaryWeapon()
-{
-	if (IsLocalController())
-	{
-		ServerCombatAction(1, FVector::ForwardVector);
+		ServerSelectWeapon(weaponIndex);
 	}
 }
 void AGPlayerController::RequestWindowLeft()
@@ -442,7 +478,7 @@ void AGPlayerController::RequestWindowLeft()
 		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
 		{
 			// Q/E are camera-relative, so the server needs the current view direction.
-			ServerCombatAction(2, combat->GetAimDirection());
+			ServerCombatAction(EGCombatAction::WindowLeft, combat->GetAimDirection());
 		}
 	}
 }
@@ -452,7 +488,7 @@ void AGPlayerController::RequestWindowRight()
 	{
 		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
 		{
-			ServerCombatAction(3, combat->GetAimDirection());
+			ServerCombatAction(EGCombatAction::WindowRight, combat->GetAimDirection());
 		}
 	}
 }
@@ -464,7 +500,7 @@ void AGPlayerController::RequestFireStart()
 		{
 			// Use the same current camera direction as continuous aim updates.
 			// PlayerCameraManager can still contain the preceding frame during input.
-			ServerCombatAction(4, combat->GetAimDirection());
+			ServerCombatAction(EGCombatAction::FireStart, combat->GetAimDirection());
 		}
 	}
 }
@@ -472,39 +508,47 @@ void AGPlayerController::RequestFireStop()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(5, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::FireStop, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestAimStart()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(6, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::AimStart, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestAimStop()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(7, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::AimStop, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestReload()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(8, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::Reload, FVector::ForwardVector);
 	}
 }
 void AGPlayerController::RequestFireMode()
 {
 	if (IsLocalController())
 	{
-		ServerCombatAction(9, FVector::ForwardVector);
+		ServerCombatAction(EGCombatAction::ChangeFireMode, FVector::ForwardVector);
 	}
 }
 
-void AGPlayerController::ServerCombatAction_Implementation(uint8 action, FVector_NetQuantizeNormal direction)
+void AGPlayerController::ServerSelectWeapon_Implementation(int32 weaponIndex)
+{
+	if (UGVehicleCombatComponent* combat = GetOwnedCombat())
+	{
+		combat->SelectWeapon(weaponIndex);
+	}
+}
+
+void AGPlayerController::ServerCombatAction_Implementation(EGCombatAction action, FVector_NetQuantizeNormal direction)
 {
 	UGVehicleCombatComponent* combat = GetOwnedCombat();
 	if (!combat)
@@ -513,34 +557,28 @@ void AGPlayerController::ServerCombatAction_Implementation(uint8 action, FVector
 	}
 	switch (action)
 	{
-	case 0:
-		combat->SelectWeapon(EGWeaponSlot::Primary);
-		break;
-	case 1:
-		combat->SelectWeapon(EGWeaponSlot::Secondary);
-		break;
-	case 2:
+	case EGCombatAction::WindowLeft:
 		combat->RequestWindowSide(true, direction);
 		break;
-	case 3:
+	case EGCombatAction::WindowRight:
 		combat->RequestWindowSide(false, direction);
 		break;
-	case 4:
+	case EGCombatAction::FireStart:
 		combat->SetTrigger(true, direction);
 		break;
-	case 5:
+	case EGCombatAction::FireStop:
 		combat->SetTrigger(false, direction);
 		break;
-	case 6:
+	case EGCombatAction::AimStart:
 		combat->SetAiming(true);
 		break;
-	case 7:
+	case EGCombatAction::AimStop:
 		combat->SetAiming(false);
 		break;
-	case 8:
+	case EGCombatAction::Reload:
 		combat->RequestReload();
 		break;
-	case 9:
+	case EGCombatAction::ChangeFireMode:
 		combat->ChangeFireMode();
 		break;
 	default:
@@ -574,7 +612,7 @@ void AGPlayerController::ClientSetupLobbyInput_Implementation()
 	this->SetInputMode(inputMode);
 }
 
-bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState)
+bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost)
 {
 	outModuleId = NAME_None;
 	outCurrentHPInPercentage = 0.0f;
@@ -640,6 +678,7 @@ bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurren
 	outModuleId = state.moduleId;
 	outCurrentHPInPercentage = state.currentHP / state.maxHP * 100.0f;
 	outModuleState = state.moduleState;
+	outRepairCost = state.actualRepairCost;
 
 	return true;
 }

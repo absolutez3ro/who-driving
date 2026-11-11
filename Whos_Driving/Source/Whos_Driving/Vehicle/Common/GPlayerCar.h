@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
 #include "GVehicleWheelModule.h"
+#include "GVehicleModule.h"
 #include "GPlayerCar.generated.h"
 
 class UInputMappingContext;
@@ -36,6 +37,9 @@ struct FGVehicleModuleState
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
 	EGModuleState moduleState = EGModuleState::Full;
+
+	UPROPERTY(BlueprintReadOnly, Category = "VehicleDamage")
+	int32 actualRepairCost;
 };
 
 USTRUCT(BlueprintType)
@@ -65,10 +69,14 @@ class WHOS_DRIVING_API AGPlayerCar : public AWheeledVehiclePawn
 	
 public:
 	AGPlayerCar(const FObjectInitializer& objectInitializer);
+	void SubscribeOnDelegates();
 	float TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
 	void DamageModule(const FName& moduleId, float damage);
+
+	// Server only. Repairs the module if the occupant of seatIndex may reach it (UGVehicleSeatComponent::repairableModuleIds).
+	bool RepairModuleFromSeat(int32 seatIndex, FName moduleId);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
@@ -92,6 +100,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
+	
+	UGVehicleModuleComponent* GetModuleComponent() const;
 
 
 public:
@@ -140,11 +150,11 @@ protected:
 
 	void LoadCarData();
 
-	void SubscribeToRepairEvent();
+	void BreakDoor(FName moduleId);
+	void RepairDoor(FName moduleId);
 
 	UFUNCTION()
-	void HandleToRepair(FName moduleId);
-
+	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")

@@ -25,8 +25,13 @@ public:
 													 UAnimSequence* basePose);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
 	static bool AddMeshSocket(USkeletalMesh* mesh, FName socketName, FName boneName, FTransform offset);
+	// Skeleton sockets are shared by all of its meshes and do not require resaving the heavy mesh assets.
+	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
+	static bool AddSkeletonSocket(USkeleton* skeleton, FName socketName, FName boneName, FTransform offset);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
 	static bool AlignCombatHand(UAnimBlueprint* blueprint);
+	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
+	static bool AlignCombatLeftHand(UAnimBlueprint* blueprint);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Editor")
 	static bool SetCombatArmStretch(UAnimBlueprint* blueprint, double maximumScale);
 };

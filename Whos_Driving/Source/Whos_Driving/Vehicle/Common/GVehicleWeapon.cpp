@@ -133,11 +133,12 @@ void AGVehicleWeapon::AttachMeshes()
 		return;
 	}
 	AttachToActor(character, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	GetFirstPersonMesh()->AttachToComponent(character->GetFirstPersonMesh(),
+	GetFirstPersonMesh()->AttachToComponent(character->GetWeaponAttachMesh(true, definition->GripSocket),
 											FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 											definition->GripSocket);
-	GetThirdPersonMesh()->AttachToComponent(
-		character->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, definition->GripSocket);
+	GetThirdPersonMesh()->AttachToComponent(character->GetWeaponAttachMesh(false, definition->GripSocket),
+											FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+											definition->GripSocket);
 	GetFirstPersonMesh()->SetRelativeTransform(definition->GripOffset);
 	GetThirdPersonMesh()->SetRelativeTransform(definition->GripOffset);
 }
@@ -169,6 +170,25 @@ void AGVehicleWeapon::OnRep_Presentation()
 	{
 		AttachMeshes();
 	}
+	NotifyStateChanged();
+}
+
+void AGVehicleWeapon::OnRep_CurrentBullets()
+{
+	NotifyStateChanged();
+}
+
+void AGVehicleWeapon::OnRep_ReserveAmmo()
+{
+	NotifyStateChanged();
+}
+
+void AGVehicleWeapon::NotifyStateChanged()
+{
+	if (AWhos_DrivingCharacter* character = GetCharacter())
+	{
+		character->GetCombatComponent()->NotifyWeaponStateChanged(this);
+	}
 }
 
 bool AGVehicleWeapon::ConsumeRound()
@@ -178,6 +198,7 @@ bool AGVehicleWeapon::ConsumeRound()
 		return false;
 	}
 	--CurrentBullets;
+	NotifyStateChanged();
 	ForceNetUpdate();
 	return true;
 }
@@ -211,6 +232,7 @@ void AGVehicleWeapon::FinishReload()
 	reserveAmmo -= count;
 	bReloading = false;
 	OnRep_Reload();
+	NotifyStateChanged();
 	ForceNetUpdate();
 }
 
@@ -278,19 +300,26 @@ void AGVehicleWeapon::PlayEquip()
 	}
 }
 
+FVector AGVehicleWeapon::GetShotOrigin() const
+{
+	const FTransform grip = definition->GripOffset * GetCharacter()->GetMesh()->GetSocketTransform(definition->GripSocket);
+	return grip.TransformPosition(
+		GetThirdPersonMesh()->GetSocketTransform(definition->MuzzleSocket, RTS_Component).GetLocation());
+}
+
 void AGVehicleWeapon::SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson)
 {
 	AWhos_DrivingCharacter* character = GetCharacter();
-	if (!character)
+	if (!character || !definition)
 	{
 		return;
 	}
 	UStaticMeshComponent* magazine = bFirstPerson ? firstMagazine.Get() : worldMagazine.Get();
-	USceneComponent* target = bInHand ? (bFirstPerson ? character->GetFirstPersonMesh() : character->GetMesh())
+	const FName handSocket = bLeftHand ? definition->LeftHandMagazineSocket : definition->RightHandMagazineSocket;
+	const FName socket = bInHand ? handSocket : definition->MagazineSocket;
+	USceneComponent* target = bInHand ? character->GetWeaponAttachMesh(bFirstPerson, handSocket)
 									  : (bFirstPerson ? GetFirstPersonMesh() : GetThirdPersonMesh());
-	magazine->AttachToComponent(target, FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-								bInHand ? FName(bLeftHand ? TEXT("M8_Magazine_L") : TEXT("M8_Magazine_R"))
-										: FName(TEXT("MagazineSocket")));
+	magazine->AttachToComponent(target, FAttachmentTransformRules::SnapToTargetNotIncludingScale, socket);
 }
 
 void AGVehicleWeapon::MulticastShot_Implementation(FVector_NetQuantize impact, bool bHit)
@@ -313,9 +342,9 @@ void AGVehicleWeapon::MulticastShot_Implementation(FVector_NetQuantize impact, b
 		GetFirstPersonMesh()->PlayAnimation(definition->WeaponFire, false);
 		GetThirdPersonMesh()->PlayAnimation(definition->WeaponFire, false);
 	}
-	UGameplayStatics::SpawnEmitterAttached(definition->MuzzleEffect, mesh, TEXT("MuzzleSocket"));
-	UGameplayStatics::SpawnEmitterAttached(definition->ShellEffect, mesh, TEXT("ShellSocket"));
-	UGameplayStatics::PlaySoundAtLocation(this, definition->FireSound, mesh->GetSocketLocation(TEXT("MuzzleSocket")));
+	UGameplayStatics::SpawnEmitterAttached(definition->MuzzleEffect, mesh, definition->MuzzleSocket);
+	UGameplayStatics::SpawnEmitterAttached(definition->ShellEffect, mesh, definition->ShellSocket);
+	UGameplayStatics::PlaySoundAtLocation(this, definition->FireSound, mesh->GetSocketLocation(definition->MuzzleSocket));
 	if (bHit && definition->ImpactEffect)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), definition->ImpactEffect, impact);
@@ -347,7 +376,8 @@ void AGVehicleWeapon::Tick(float deltaSeconds)
 		}
 	}
 	// Owner/definition replication can arrive in either order, including during late join.
-	if (bEquipped && GetCharacter() && GetFirstPersonMesh()->GetAttachParent() != GetCharacter()->GetFirstPersonMesh())
+	if (bEquipped && definition && GetCharacter() &&
+		GetFirstPersonMesh()->GetAttachParent() != GetCharacter()->GetWeaponAttachMesh(true, definition->GripSocket))
 	{
 		AttachMeshes();
 	}

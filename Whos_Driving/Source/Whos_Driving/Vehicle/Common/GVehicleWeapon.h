@@ -10,7 +10,8 @@ class AWhos_DrivingCharacter;
 class UStaticMeshComponent;
 
 // Uses the existing shooter weapon's first/third-person meshes; gameplay is server-authoritative.
-UCLASS()
+// The hidden categories belong to the template weapon and do nothing here: tune weapons in UGWeaponDefinition.
+UCLASS(HideCategories = (Ammo, Aim, Refire, Perception, Animation))
 class WHOS_DRIVING_API AGVehicleWeapon : public AShooterWeapon
 {
 	GENERATED_BODY()
@@ -34,6 +35,8 @@ public:
 	}
 	void SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson);
 	void PlayEquip();
+	// Shots start from the animated skeleton, so the result does not depend on how a visible mesh is retargeted.
+	FVector GetShotOrigin() const;
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	UGWeaponDefinition* GetDefinition() const
@@ -86,7 +89,7 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Definition, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UGWeaponDefinition> definition;
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	UPROPERTY(ReplicatedUsing = OnRep_ReserveAmmo, BlueprintReadOnly, Category = "Weapon")
 	int32 reserveAmmo = 0;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	EGWeaponFireMode fireMode = EGWeaponFireMode::Single;
@@ -111,11 +114,15 @@ protected:
 	void OnRep_Presentation();
 	UFUNCTION()
 	void OnRep_Reload();
+	UFUNCTION()
+	void OnRep_ReserveAmmo();
+	void OnRep_CurrentBullets() override;
 
 private:
 	void ConfigureMeshes();
 	void AttachMeshes();
 	void FinishReload();
+	void NotifyStateChanged();
 	AWhos_DrivingCharacter* GetCharacter() const;
 	FTimerHandle reloadTimer;
 	float lastShotTime = -100.0f;

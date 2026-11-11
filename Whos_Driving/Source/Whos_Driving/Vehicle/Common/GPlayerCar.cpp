@@ -26,7 +26,6 @@
 #include "GVehicleEngineModule.h"
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
-#include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -45,6 +44,69 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	InitEngine(objectInitializer);
 	InitElectrician(objectInitializer);
 	RecalculateCarHealth();
+}
+
+void AGPlayerCar::SubscribeOnDelegates()
+{
+	auto doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		door->OnDoorChangeState.AddDynamic(this, &AGPlayerCar::HandleDoorState);
+	}
+}
+
+void AGPlayerCar::HandleDoorState(FName moduleId, EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakDoor(moduleId);
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairDoor(moduleId);
+	}
+}
+
+void AGPlayerCar::BreakDoor(FName moduleId)
+{
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(false, true);
+	}
+}
+
+void AGPlayerCar::RepairDoor(FName moduleId)
+{	
+	USkeletalMeshComponent* doorMesh = nullptr;
+	TArray<USceneComponent*> children;
+	GetMesh()->GetChildrenComponents(true, children);
+
+	for (USceneComponent* child : children)
+	{
+		if (child->GetFName() == moduleId)
+		{
+			doorMesh = Cast<USkeletalMeshComponent>(child);
+			break;
+		}
+	}
+
+	if (doorMesh)
+	{
+		doorMesh->SetVisibility(true, true);
+	}
 }
 
 void AGPlayerCar::InitSeats()
@@ -253,6 +315,7 @@ void AGPlayerCar::PublishModuleStates()
 		state.maxHP = module->maxHP;
 		state.currentHP = module->currentHP;
 		state.moduleState = module->moduleState;
+		state.actualRepairCost = module->actualRepairCost;
 
 		moduleStates.Add(state);
 	}
@@ -317,8 +380,15 @@ void AGPlayerCar::BeginPlay()
 	Super::BeginPlay();
 
 	moduleComponent->RebuildModuleRegistry(this);
-
 	LoadCarData();
+	if (HasAuthority())
+	{
+		seatingComponent->LogRepairAccessProblems();
+	}
+
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	movementComponent->SubscribeOnDelegates();
+	SubscribeOnDelegates();
 
 	if (HasAuthority())
 	{
@@ -334,7 +404,6 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
-	SubscribeToRepairEvent();
 }
 
 void AGPlayerCar::LoadCarData()
@@ -346,6 +415,8 @@ void AGPlayerCar::LoadCarData()
 		wheel->maxHP = carData->WheelMaxHealth;
 		wheel->currentHP = wheel->maxHP;
 		wheel->repairThreshold = carData->WheelRepairThreshold;
+		wheel->baseRepairCost = carData->WheelBaseRepairCost;
+		wheel->destroyedModuleCostMultiplier = carData->WheelDestroyedModuleCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleDoorModule>> doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
@@ -354,6 +425,8 @@ void AGPlayerCar::LoadCarData()
 		door->maxHP = carData->DoorMaxHealth;
 		door->currentHP = door->maxHP;
 		door->repairThreshold = carData->DoorRepairThreshold;
+		door->baseRepairCost = carData->DoorBaseRepairCost;
+		door->destroyedModuleCostMultiplier = carData->DoorDestroyedModuleCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleSteeringWheelModule>> steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
@@ -362,6 +435,8 @@ void AGPlayerCar::LoadCarData()
 		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
 		steeringWheel->currentHP = steeringWheel->maxHP;
 		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
+		steeringWheel->baseRepairCost = carData->SteeringWheelBaseRepairCost;
+		steeringWheel->destroyedModuleCostMultiplier = carData->SteeringWheelDestroyedCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleEngineModule>> engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
@@ -370,6 +445,8 @@ void AGPlayerCar::LoadCarData()
 		engine->maxHP = carData->EngineMaxHealth;
 		engine->currentHP = engine->maxHP;
 		engine->repairThreshold = carData->EngineRepairThreshold;
+		engine->baseRepairCost = carData->EngineBaseRepairCost;
+		engine->destroyedModuleCostMultiplier = carData->EngineDestroyedCostMultiplier;
 	}
 
 	TArray<TObjectPtr<UGVehicleElectricianModule>> electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
@@ -378,25 +455,30 @@ void AGPlayerCar::LoadCarData()
 		electrician->maxHP = carData->ElectricianMaxHealth;
 		electrician->currentHP = electrician->maxHP;
 		electrician->repairThreshold = carData->ElectricianRepairThreshold;
+		electrician->baseRepairCost = carData->ElectricianBaseRepairCost;
+		electrician->destroyedModuleCostMultiplier = carData->ElectricianDestroyedCostMultiplier;
 	}
 }
 
-void AGPlayerCar::SubscribeToRepairEvent()
+bool AGPlayerCar::RepairModuleFromSeat(int32 seatIndex, FName moduleId)
 {
-	AGPlayerController* controller = Cast<AGPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
-	if (!controller)
+	if (!HasAuthority())
 	{
-		return;
+		return false;
 	}
-
-	controller->TryToRepair.BindDynamic(this, &AGPlayerCar::HandleToRepair);
-}
-
-void AGPlayerCar::HandleToRepair(FName moduleId)
-{
+	if (!seatingComponent->CanRepairModuleFromSeat(seatIndex, moduleId))
+	{
+		UE_LOG(LogTemp, Display, TEXT("Repair rejected: module %s is not repairable from seat %d"), *moduleId.ToString(), seatIndex);
+		return false;
+	}
 	UGVehicleModule* module = moduleComponent->FindModule(moduleId);
+	if (!module || !module->CanRepair())
+	{
+		return false;
+	}
 	module->ApplyRepair();
 	PublishModuleStates();
+	return true;
 }
 
 
@@ -408,6 +490,11 @@ TSubclassOf<AWhos_DrivingCharacter> AGPlayerCar::GetSeatCharacterClass() const
 UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 {
 	return seatingComponent;
+}
+
+UGVehicleModuleComponent* AGPlayerCar::GetModuleComponent() const
+{
+	return moduleComponent;
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)

@@ -18,7 +18,7 @@ void AGBaseEnemyCar::BeginPlay()
 	Super::BeginPlay();
 	maxHp = baseData->MaxHp;
 	currentHp = maxHp;
-	scrapPrice = baseData->ScrapPrice;
+	//scrapPrice = baseData->ScrapPrice;
 	USkeletalMesh* targetMesh = baseData->Mesh;
 	if (targetMesh)
 	{

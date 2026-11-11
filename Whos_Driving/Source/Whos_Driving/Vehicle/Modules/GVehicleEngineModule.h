@@ -6,6 +6,8 @@
 #include "GVehicleModule.h"
 #include "GVehicleEngineModule.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEngineChangeState, EGModuleState, newState);
+
 /**
  * 
  */
@@ -14,8 +16,10 @@ class WHOS_DRIVING_API UGVehicleEngineModule : public UGVehicleModule
 {
 	GENERATED_BODY()
 public:
-	void ApplyRepair() override;
+	UPROPERTY(BlueprintAssignable)
+	FOnEngineChangeState OnEngineChangeState;
 
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState) override;
 };

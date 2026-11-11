@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "GVehicleModule.h"
 #include "GVehicleMovementComponent.generated.h"
 
 class UGCarDataAsset;
@@ -17,12 +18,20 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 	
 public:
 	UGVehicleMovementComponent();
+	void SubscribeOnDelegates();
+
+	UFUNCTION()
 	void BreakWheel(int32 wheelIndex);
 	void RepairWheel(int32 wheelIndex);
+
+	UFUNCTION()
 	void BreakSteeringWheel();
 	void RepairSteeringWheel();
+
+	UFUNCTION()
 	void BreakEngine();
 	void RepairEngine();
+
 	void StopDrivingInput();
 	void SetWindowDrivingLock(bool bLocked);
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Combat")
@@ -64,6 +73,15 @@ protected:
 	void ApplyWindowDrivingLock();
 	UFUNCTION()
 	void OnRep_WindowDrivingLock();
+
+	UFUNCTION()
+	void HandleEngineState(EGModuleState newState);
+
+	UFUNCTION()
+	void HandleSteeringWheelState(EGModuleState newState);
+
+	UFUNCTION()
+	void HandleWheelState(int32 wheelIndex, EGModuleState newState);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ClampMax = "1.0", ClampMin = "0.0"))
 	float brokenWheelFrictionMultiplier;

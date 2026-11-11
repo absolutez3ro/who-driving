@@ -3,6 +3,11 @@
 
 #include "GVehicleMovementComponent.h"
 #include "GCarDataAsset.h"
+#include "GPlayerCar.h"
+#include "GVehicleEngineModule.h"
+#include "GVehicleSteeringWheelModule.h"
+#include "GVehicleWheelModule.h"
+#include "GVehicleModuleComponent.h"
 #include "Net/UnrealNetwork.h"
 
 UGVehicleMovementComponent::UGVehicleMovementComponent() 
@@ -176,6 +181,58 @@ void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
 		ThrottleInput = SteeringInput = BrakeInput = HandbrakeInput = 0.0f;
 		ReplicatedState.ThrottleInput = ReplicatedState.SteeringInput = 0.0f;
 		ReplicatedState.BrakeInput = ReplicatedState.HandbrakeInput = 0.0f;
+	}
+}
+
+
+void UGVehicleMovementComponent::SubscribeOnDelegates()
+{
+	AGPlayerCar* car = Cast<AGPlayerCar>(GetOwner());
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	UGVehicleEngineModule* engine = Cast<UGVehicleEngineModule>(moduleComponent->FindModule("Engine"));
+	engine->OnEngineChangeState.AddDynamic(this, &UGVehicleMovementComponent::HandleEngineState);
+	UGVehicleSteeringWheelModule* steeringWheel = Cast<UGVehicleSteeringWheelModule>(moduleComponent->FindModule("Steering_Wheel"));
+	steeringWheel->OnSteeringWheelChangeState.AddDynamic(this, &UGVehicleMovementComponent::HandleSteeringWheelState);
+	auto wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
+	for (auto& wheel : wheels)
+	{
+		wheel->OnWheelChangeState.AddDynamic(this, &UGVehicleMovementComponent::HandleWheelState);
+	}
+}
+
+void UGVehicleMovementComponent::HandleEngineState(EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakEngine();
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairEngine();
+	}
+}
+
+void UGVehicleMovementComponent::HandleSteeringWheelState(EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakSteeringWheel();
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairSteeringWheel();
+	}
+}
+
+void UGVehicleMovementComponent::HandleWheelState(int32 wheelIndex, EGModuleState newState)
+{
+	if (newState == EGModuleState::Destroyed)
+	{
+		BreakWheel(wheelIndex);
+	}
+	else if (newState == EGModuleState::Full)
+	{
+		RepairWheel(wheelIndex);
 	}
 }
 

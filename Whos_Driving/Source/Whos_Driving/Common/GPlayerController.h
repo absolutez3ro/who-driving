@@ -4,7 +4,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetSerialization.h"
 #include "GVehicleRadioComponent.h"
-#include "GWeaponDefinition.h"
 #include "GVehicleModule.h"
 
 #include "GPlayerController.generated.h"
@@ -13,10 +12,22 @@ struct FInputActionValue;
 class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
+class UGWeaponAmmoWidget;
 class UInputMappingContext;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState, int32, actualRepairCost);
+UENUM()
+enum class EGCombatAction : uint8
+{
+	WindowLeft,
+	WindowRight,
+	FireStart,
+	FireStop,
+	AimStart,
+	AimStop,
+	Reload,
+	ChangeFireMode
+};
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -40,9 +51,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Seats")
 	void RequestVehicleExit();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
-	void RequestPrimaryWeapon();
-	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
-	void RequestSecondaryWeapon();
+	void RequestWeapon(int32 weaponIndex);
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
 	void RequestWindowLeft();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
@@ -64,16 +73,17 @@ public:
 	void RequestNextTrack();
 
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
-	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
+	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost);
+
+	// Checks only the seat rule; module state and repair parts are checked by the module itself.
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Modules")
+	bool CanRepairModuleFromCurrentSeat(FName moduleId) const;
 
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
 	UPROPERTY(BlueprintAssignable)
 	FGOnModuleInfoUpdated OnModuleInfoUpdated;
-
-	UPROPERTY()
-	FGTryToRepair TryToRepair;
 
 protected:
 	void BeginPlay() override;
@@ -82,6 +92,7 @@ protected:
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
+	void RefreshWeaponAmmoWidget();
 
 	UFUNCTION()
 	void OnRep_VehicleContext();
@@ -92,7 +103,11 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleExit();
 	UFUNCTION(Server, Reliable)
-	void ServerCombatAction(uint8 action, FVector_NetQuantizeNormal direction);
+	void ServerRequestModuleRepair(FName moduleId);
+	UFUNCTION(Server, Reliable)
+	void ServerSelectWeapon(int32 weaponIndex);
+	UFUNCTION(Server, Reliable)
+	void ServerCombatAction(EGCombatAction action, FVector_NetQuantizeNormal direction);
 	UFUNCTION(Server, Unreliable)
 	void ServerCombatView(FVector_NetQuantizeNormal direction);
 
@@ -133,11 +148,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> exitVehicleAction;
 
+	// Each action selects the weapon with the same index in UGVehicleCombatComponent::loadout.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> primaryWeaponAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> secondaryWeaponAction;
+	TArray<TObjectPtr<UInputAction>> weaponSelectActions;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> windowLeftAction;
@@ -163,6 +176,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> nextTrackAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UGWeaponAmmoWidget> weaponAmmoWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGWeaponAmmoWidget> weaponAmmoWidget;
+
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;
 	FName currentModule = NAME_None;
@@ -170,13 +189,14 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
 
-	void TryToSendDelegate();
+	void RequestLookedAtModuleRepair();
 
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
 	bool IsVehicleOccupant() const;
 	float lastRadioRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
+	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
 	class UGVehicleCombatComponent* GetOwnedCombat() const;
 };
