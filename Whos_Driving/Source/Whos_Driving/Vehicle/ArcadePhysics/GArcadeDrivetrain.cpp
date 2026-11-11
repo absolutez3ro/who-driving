@@ -6,7 +6,7 @@
 namespace
 {
 	// Pedal travel that counts as a deliberate press.
-	constexpr float pedalPressThreshold = 0.1f;
+	constexpr float drivetrainPedalPressThreshold = 0.1f;
 }
 
 void FGArcadeDrivetrain::Reset()
@@ -62,8 +62,8 @@ void FGArcadeDrivetrain::UpdateDirection(const FGArcadeDrivetrainInput& input,
 										 const FGArcadeTransmissionSettings& transmission, float deltaTime)
 {
 	const bool bIsNearlyStopped = FMath::Abs(input.forwardSpeed) < transmission.ReverseEngageSpeed;
-	const bool bIsThrottlePressed = input.throttle > pedalPressThreshold;
-	const bool bIsBrakePressed = input.brake > pedalPressThreshold;
+	const bool bIsThrottlePressed = input.throttle > drivetrainPedalPressThreshold;
+	const bool bIsBrakePressed = input.brake > drivetrainPedalPressThreshold;
 	const bool bIsReversing = currentGear < 0;
 	const bool bWantsReverse = !bIsReversing && bIsBrakePressed && !bIsThrottlePressed;
 	const bool bWantsForward = bIsReversing && bIsThrottlePressed && !bIsBrakePressed;
@@ -123,7 +123,7 @@ void FGArcadeDrivetrain::UpdateAutomaticShifting(const FGArcadeDrivetrainInput& 
 
 	// Spinning wheels alone push the engine rpm up, so the road speed has to agree before an upshift.
 	const int32 gearCount = transmission.ForwardGearRatios.Num();
-	const bool bCanUpshift = currentGear < gearCount && input.bHasGroundContact && driveDemand > pedalPressThreshold;
+	const bool bCanUpshift = currentGear < gearCount && input.bHasGroundContact && driveDemand > drivetrainPedalPressThreshold;
 	const bool bIsRoadFastEnough = ComputeRoadRpm(input, transmission, currentGear) >= transmission.UpshiftRpm * transmission.UpshiftRoadSpeedRatio;
 	if (bCanUpshift && bIsRoadFastEnough && engineRpm >= transmission.UpshiftRpm)
 	{

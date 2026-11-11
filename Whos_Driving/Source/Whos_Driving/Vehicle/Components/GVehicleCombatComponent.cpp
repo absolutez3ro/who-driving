@@ -202,6 +202,15 @@ AGVehicleWeapon* UGVehicleCombatComponent::GetCurrentWeapon() const
 	return GetWeapon(selectedWeaponIndex);
 }
 
+bool UGVehicleCombatComponent::GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const
+{
+	const AGVehicleWeapon* weapon = GetCurrentWeapon();
+	const bool bHasWeapon = weapon && weapon->IsEquipped();
+	outMagazineAmmo = bHasWeapon ? weapon->GetBulletCount() : 0;
+	outReserveAmmo = bHasWeapon ? weapon->GetReserveAmmo() : 0;
+	return bHasWeapon;
+}
+
 void UGVehicleCombatComponent::NotifyWeaponStateChanged(const AGVehicleWeapon* weapon)
 {
 	if (weapon == GetCurrentWeapon())

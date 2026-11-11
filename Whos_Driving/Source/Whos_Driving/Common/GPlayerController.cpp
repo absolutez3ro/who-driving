@@ -3,8 +3,6 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleCombatComponent.h"
-#include "GWeaponAmmoWidget.h"
-#include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Whos_DrivingCharacter.h"
@@ -281,22 +279,41 @@ void AGPlayerController::RefreshVehicleView()
 		{
 			SetViewTarget(target);
 		}
-		RefreshWeaponAmmoWidget();
 	}
+	// Tracked on every controller, so the ammo getter also answers on the server.
+	RefreshAmmoSource();
 }
 
-void AGPlayerController::RefreshWeaponAmmoWidget()
+void AGPlayerController::RefreshAmmoSource()
 {
-	if (!weaponAmmoWidget && weaponAmmoWidgetClass)
+	AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
+	UGVehicleCombatComponent* combat = IsValid(character) ? character->GetCombatComponent() : nullptr;
+	if (ammoSource.Get() == combat)
 	{
-		weaponAmmoWidget = CreateWidget<UGWeaponAmmoWidget>(this, weaponAmmoWidgetClass);
-		weaponAmmoWidget->AddToViewport();
+		return;
 	}
-	if (weaponAmmoWidget)
+	if (ammoSource.IsValid())
 	{
-		AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
-		weaponAmmoWidget->SetCombatComponent(IsValid(character) ? character->GetCombatComponent() : nullptr);
+		ammoSource->OnWeaponAmmoChanged.RemoveDynamic(this, &AGPlayerController::HandleWeaponAmmoChanged);
 	}
+	ammoSource = combat;
+	if (combat)
+	{
+		combat->OnWeaponAmmoChanged.AddDynamic(this, &AGPlayerController::HandleWeaponAmmoChanged);
+	}
+	OnWeaponAmmoChanged.Broadcast();
+}
+
+void AGPlayerController::HandleWeaponAmmoChanged()
+{
+	OnWeaponAmmoChanged.Broadcast();
+}
+
+bool AGPlayerController::GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const
+{
+	outMagazineAmmo = 0;
+	outReserveAmmo = 0;
+	return ammoSource.IsValid() && ammoSource->GetCurrentWeaponAmmo(outMagazineAmmo, outReserveAmmo);
 }
 
 void AGPlayerController::RequestLookedAtSeat()
