@@ -14,6 +14,7 @@
 // Event dispatcher declarations
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGOnSessionsFound, const TArray<FString>&, sessionNames, const TArray<int32>&, sessionTypes);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInvitationAccepted);
 
 UENUM(BlueprintType)
 enum class ESessionType : uint8
@@ -32,7 +33,7 @@ public:
 	void HostSessionLAN(FString sessionName);
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
-	void HostSessionSteam(FString sessionName);
+	void HostSessionSteam(FString sessionName, bool openUIAfter);
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void DestroySession();
@@ -49,7 +50,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnJoiningFailed OnJoiningFailed;
 
+	UFUNCTION(BlueprintCallable, Category = "Session")
+	void ShowSteamInviteUI();
+
 	virtual void Init() override;
+	virtual void Shutdown() override;
+	FDelegateHandle inviteAcceptedDelegateHandle;
+	FOnInvitationAccepted OnInvitationAccepted;
+	void OnSessionUserInviteAccepted(const bool bWasSuccessful, const int32 controllerId, FUniqueNetIdPtr userId, const FOnlineSessionSearchResult& inviteResult);
 
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void PrintNetDriver();
@@ -57,13 +65,19 @@ protected:
 	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
 	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);
 private:
+	//destroy func needs to know if player destroy while joining by invitation or on his own
+	bool currentlyJoining = false;
+	bool openUIAfterHosting = false;
+	FOnlineSessionSearchResult pendingInviteResult;
 	FString GetNetDriverInfo() const;
 	void FindLANSessions();
 	void FindSteamSessions();
 	void OnCreateSessionComplete(FName sessionName, bool bWasSuccessful);
 	void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
+	void OnDestroySessionBeforJoiningComplete(FName sessionName, bool bWasSuccessful);
 	void OnFindSessionsComplete(bool bWasSuccessful);
 	void OnFindSteamSessionsComplete(bool bWasSuccessful);
+	bool JoinSession(const FOnlineSessionSearchResult& sessionToJoin);
 	void OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result);
 	FName mySessionSystem= FName(TEXT("NULL"));
 	FDelegateHandle createSessionDelegateHandle;

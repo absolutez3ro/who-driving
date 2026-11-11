@@ -5,6 +5,7 @@
 
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
 
 void UGGIWhosDriving::Init()
 {
@@ -15,8 +16,38 @@ void UGGIWhosDriving::Init()
 		GEngine->OnNetworkFailure().AddUObject(this, &UGGIWhosDriving::HandleNetworkFailure);
 		GEngine->OnTravelFailure().AddUObject(this, &UGGIWhosDriving::HandleTravelFailure);
 	}
-
+	if (IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(FName(TEXT("Steam"))))
+	{
+		IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			inviteAcceptedDelegateHandle = sessionInterface->AddOnSessionUserInviteAcceptedDelegate_Handle(FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &UGGIWhosDriving::OnSessionUserInviteAccepted));
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("SESSION INTERFACE INVALID")));
+		}
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("WARNING. No online subsystem steam found. You CAN'T accept invites/host steam sessions.")));
+	}
 }
+
+void UGGIWhosDriving::Shutdown()
+{
+	if (IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(FName(TEXT("Steam"))))
+	{
+		IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			sessionInterface->ClearOnSessionUserInviteAcceptedDelegate_Handle(inviteAcceptedDelegateHandle);
+		}
+	}
+
+	Super::Shutdown();
+}
+
 
 void UGGIWhosDriving::PrintNetDriver()
 {
@@ -25,8 +56,7 @@ void UGGIWhosDriving::PrintNetDriver()
 }
 void UGGIWhosDriving::HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
-		FString::Printf(TEXT("NetworkFailure: %s | %s"), ENetworkFailure::ToString(failureType), *errorString));
+	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NetworkFailure: %s | %s"), ENetworkFailure::ToString(failureType), *errorString));
 }
 
 void UGGIWhosDriving::HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString)
@@ -55,7 +85,7 @@ FString UGGIWhosDriving::GetNetDriverInfo() const
 		netDriver->IsServer() ? TEXT("Server") : TEXT("Client"));
 }
 
-
+//HOST
 
 void UGGIWhosDriving::HostSessionLAN(FString sessionName)
 {
@@ -95,7 +125,7 @@ void UGGIWhosDriving::HostSessionLAN(FString sessionName)
 	}
 }
 
-void UGGIWhosDriving::HostSessionSteam(FString sessionName)
+void UGGIWhosDriving::HostSessionSteam(FString sessionName, bool openUIAfter)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Trying to create session..."));
 	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get(FName(TEXT("Steam")));
@@ -149,7 +179,9 @@ void UGGIWhosDriving::HostSessionSteam(FString sessionName)
 			{
 				sessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(createSessionDelegateHandle);
 				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Failed to start session creation request!"));
+				openUIAfterHosting = false;
 			}
+			openUIAfterHosting = openUIAfter;
 		}
 	}
 }
@@ -171,6 +203,9 @@ void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSucces
 	if (bWasSuccessful)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session created!"));
+		if (openUIAfterHosting) {
+			ShowSteamInviteUI();
+		}
 	}
 	else
 	{
@@ -178,6 +213,7 @@ void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSucces
 	}
 }
 
+//DESTROY
 
 void UGGIWhosDriving::DestroySession()
 {
@@ -187,8 +223,15 @@ void UGGIWhosDriving::DestroySession()
 		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
 		if (sessionInterface.IsValid())
 		{
+			if (currentlyJoining) 
+			{
+				destroySessionDelegateHandle = sessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+					FOnDestroySessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnDestroySessionBeforJoiningComplete));
+			}else
+			{
 			destroySessionDelegateHandle = sessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
 				FOnDestroySessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnDestroySessionComplete));
+			}
 
 			if (!sessionInterface->DestroySession(NAME_GameSession))
 			{
@@ -220,6 +263,29 @@ void UGGIWhosDriving::OnDestroySessionComplete(FName sessionName, bool bWasSucce
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT eliminated!"));
 	}
 }
+
+void UGGIWhosDriving::OnDestroySessionBeforJoiningComplete(FName sessionName, bool bWasSuccessful)
+{
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get(mySessionSystem);
+	if (onlineSubsystem)
+	{
+		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+		if (sessionInterface.IsValid())
+		{
+			sessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(destroySessionDelegateHandle);
+		}
+	}
+	if (bWasSuccessful)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Session eliminated!"));
+		JoinSession(pendingInviteResult);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session NOT eliminated!"));
+	}
+}
+//SEARCH
 
 void UGGIWhosDriving::FindSessions()
 {
@@ -441,6 +507,49 @@ void UGGIWhosDriving::OnFindSessionsComplete(bool bWasSuccessful)
 		OnSessionsFound.Broadcast(sessionsNames, sessionTypes);
 }
 
+//JOIN
+
+bool UGGIWhosDriving::JoinSession(const FOnlineSessionSearchResult& sessionToJoin)
+{
+	IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get(mySessionSystem);
+	if (!onlineSubsystem)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("ONLINE SUBSYSTEM INVALID"));
+		return false;
+	}
+
+	IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
+	if (!sessionInterface.IsValid())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SESSION INTERFACE INVALID"));
+		return false;
+	}
+
+
+	joinSessionDelegateHandle = sessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
+		FOnJoinSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnJoinSessionComplete));
+
+	bool bStarted = false;
+	const ULocalPlayer* localPlayer = GetWorld() ? GetWorld()->GetFirstLocalPlayerFromController() : nullptr;
+	if (!localPlayer || !localPlayer->GetPreferredUniqueNetId().IsValid())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("No valid local player / net id (is Steam running?)"));
+		bStarted = sessionInterface->JoinSession(0, NAME_GameSession, sessionToJoin);
+	}
+	else
+	{
+		bStarted = sessionInterface->JoinSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, sessionToJoin);
+	}
+	if (!bStarted)
+	{
+		sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session could not be joined to!"));
+		currentlyJoining = false;
+		return false;
+	}
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("JOINING"));
+	return true;
+}
 
 bool UGGIWhosDriving::JoinSessionByIndex(int32 sessionIndex, int32 type)
 {
@@ -474,47 +583,16 @@ bool UGGIWhosDriving::JoinSessionByIndex(int32 sessionIndex, int32 type)
 			return false;
 			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("!searchResults.IsValidIndex(sessionIndices[sessionIndex])"));
 		}
+		const FOnlineSessionSearchResult& sessionToJoin = searchResults[sessionIndices[sessionIndex]];
+		bool success= JoinSession(sessionToJoin);
+		return success;
 
-		IOnlineSubsystem* onlineSubsystem = IOnlineSubsystem::Get(mySessionSystem);
-		if (!onlineSubsystem)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("ONLINE SUBSYSTEM INVALID"));
-			return false;
-		}
-
-		IOnlineSessionPtr sessionInterface = onlineSubsystem->GetSessionInterface();
-		if (!sessionInterface.IsValid())
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SESSION INTERFACE INVALID"));
-			return false;
-		}
-
-
-		joinSessionDelegateHandle = sessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
-			FOnJoinSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnJoinSessionComplete));
-
-		bool bStarted = false;
-		const ULocalPlayer* localPlayer = GetWorld() ? GetWorld()->GetFirstLocalPlayerFromController() : nullptr;
-		if (!localPlayer || !localPlayer->GetPreferredUniqueNetId().IsValid())
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("No valid local player / net id (is Steam running?)"));
-			bStarted = sessionInterface->JoinSession(0, NAME_GameSession, searchResults[sessionIndices[sessionIndex]]);
-		}
-		else
-		{
-			bStarted = sessionInterface->JoinSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, searchResults[sessionIndices[sessionIndex]]);
-		}
-		if (!bStarted)
-		{
-			sessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(joinSessionDelegateHandle);
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Session could not be joined to!"));
-			return false;
-		}
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("JOINING"));
-		return true;
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SESSION FOUND INVALID"));
-	return false;
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SESSIONS FOUND INVALID"));
+		return false;
+	}
 }
 
 void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)
@@ -555,7 +633,56 @@ void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCom
 	}
 	else
 	{
+		currentlyJoining = false;
 		OnJoiningFailed.Broadcast();
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Session NOT joined!"));
+	}
+}
+
+//INVITE
+
+void UGGIWhosDriving::OnSessionUserInviteAccepted(const bool bWasSuccessful, const int32 controllerId, FUniqueNetIdPtr userId, const FOnlineSessionSearchResult& inviteResult)
+{
+	if (!bWasSuccessful || !inviteResult.IsValid())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Invite accepted, but result is invalid."));
+		return;
+	}
+	currentlyJoining = true;
+	pendingInviteResult = inviteResult;
+	IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(mySessionSystem);
+	if (!steamSubsystem) return;
+
+	IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
+	if (!sessionInterface.IsValid()) return;
+
+	// Already hosting or in a session? Leave it first, then join. (on complete will continue joining)
+	if (sessionInterface->GetNamedSession(NAME_GameSession) != nullptr)
+	{
+		DestroySession();
+	}else
+	{
+		JoinSession(pendingInviteResult);
+	}
+	return;
+}
+
+//STEAM UI
+
+void UGGIWhosDriving::ShowSteamInviteUI()
+{
+	IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(FName(TEXT("Steam")));
+	if (!steamSubsystem) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SUBSYSTEM INVALID"));
+	}
+
+	IOnlineExternalUIPtr externalUI = steamSubsystem->GetExternalUIInterface();
+	if (externalUI.IsValid())
+	{
+		externalUI->ShowInviteUI(0, NAME_GameSession);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UI INVALID"));
 	}
 }
