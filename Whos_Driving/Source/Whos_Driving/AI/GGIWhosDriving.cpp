@@ -651,13 +651,18 @@ void UGGIWhosDriving::OnSessionUserInviteAccepted(const bool bWasSuccessful, con
 	}
 	currentlyJoining = true;
 	pendingInviteResult = inviteResult;
+	mySessionSystem= FName(TEXT("Steam"));
 	IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(mySessionSystem);
-	if (!steamSubsystem) return;
-
+	if (!steamSubsystem)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("subsystem steam invalid."));
+		return;
+	}
 	IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
 	if (!sessionInterface.IsValid())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("sessionInterface is invalid."));
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("sessionInterface is invalid."));
+		return;
 	}
 
 	// Already hosting or in a session? Leave it first, then join. (on complete will continue joining)
