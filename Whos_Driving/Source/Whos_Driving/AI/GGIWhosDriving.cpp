@@ -643,6 +643,7 @@ void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCom
 
 void UGGIWhosDriving::OnSessionUserInviteAccepted(const bool bWasSuccessful, const int32 controllerId, FUniqueNetIdPtr userId, const FOnlineSessionSearchResult& inviteResult)
 {
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::White, TEXT("Invite accepted"));
 	if (!bWasSuccessful || !inviteResult.IsValid())
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Invite accepted, but result is invalid."));
@@ -654,14 +655,19 @@ void UGGIWhosDriving::OnSessionUserInviteAccepted(const bool bWasSuccessful, con
 	if (!steamSubsystem) return;
 
 	IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
-	if (!sessionInterface.IsValid()) return;
+	if (!sessionInterface.IsValid())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("sessionInterface is invalid."));
+	}
 
 	// Already hosting or in a session? Leave it first, then join. (on complete will continue joining)
 	if (sessionInterface->GetNamedSession(NAME_GameSession) != nullptr)
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("Hosted session detected. Destroying..."));
 		DestroySession();
 	}else
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("No hosted session detected. Trying to join..."));
 		JoinSession(pendingInviteResult);
 	}
 	return;
