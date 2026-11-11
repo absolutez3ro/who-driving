@@ -63,6 +63,9 @@ public:
 	{
 		return selectedWeaponIndex;
 	}
+	// Ammunition of the weapon in the hands. Returns false when the character holds no weapon.
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool CanFire() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")

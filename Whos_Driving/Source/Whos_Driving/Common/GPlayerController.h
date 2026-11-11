@@ -12,7 +12,7 @@ struct FInputActionValue;
 class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
-class UGWeaponAmmoWidget;
+class UGVehicleCombatComponent;
 class UInputMappingContext;
 
 UENUM()
@@ -30,6 +30,7 @@ enum class EGCombatAction : uint8
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnPlayerWeaponAmmoChanged);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -77,11 +78,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
 	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState);
 
+	// Ammunition of the weapon in this player's hands, for the HUD. Returns false when there is no weapon in the hands.
+	UFUNCTION(BlueprintPure, Category = "Combat|UI")
+	bool GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const;
+
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
 	UPROPERTY(BlueprintAssignable)
 	FGOnModuleInfoUpdated OnModuleInfoUpdated;
+
+	// Fires when the ammunition in the hands changes, including another weapon or another character.
+	UPROPERTY(BlueprintAssignable, Category = "Combat|UI")
+	FGOnPlayerWeaponAmmoChanged OnWeaponAmmoChanged;
 
 	UPROPERTY()
 	FGTryToRepair TryToRepair;
@@ -93,7 +102,7 @@ protected:
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
-	void RefreshWeaponAmmoWidget();
+	void RefreshAmmoSource();
 
 	UFUNCTION()
 	void OnRep_VehicleContext();
@@ -175,12 +184,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> nextTrackAction;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
-	TSubclassOf<UGWeaponAmmoWidget> weaponAmmoWidgetClass;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UGWeaponAmmoWidget> weaponAmmoWidget;
-
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;
 	FName currentModule = NAME_None;
@@ -193,8 +196,12 @@ protected:
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
 	bool IsVehicleOccupant() const;
+	UFUNCTION()
+	void HandleWeaponAmmoChanged();
 	float lastRadioRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
-	class UGVehicleCombatComponent* GetOwnedCombat() const;
+	// The character whose ammunition OnWeaponAmmoChanged reports.
+	TWeakObjectPtr<UGVehicleCombatComponent> ammoSource;
+	UGVehicleCombatComponent* GetOwnedCombat() const;
 };
