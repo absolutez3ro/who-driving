@@ -105,8 +105,8 @@ public:
 	
 	UGVehicleModuleComponent* GetModuleComponent() const;
 
-	UFUNCTION()
-	void HandleToRepair(FName moduleId);
+	//UFUNCTION()
+	//void HandleToRepair(FName moduleId);
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;

@@ -191,6 +191,11 @@ bool AGPlayerController::CanRepairCurrentModule() const
 		return false;
 	}
 
+	if (!CanRepairModuleFromCurrentSeat(currentModule))
+	{
+		return false;
+	}
+
 	if (AGPlayerCar* car = GetSeatedVehicle())
 	{
 		if (UGVehicleModuleComponent* moduleComp = car->GetModuleComponent())
@@ -240,7 +245,12 @@ void AGPlayerController::ServerRequestRepair_Implementation(const FName& moduleI
 	{
 		if (module->CanRepair())
 		{
-			car->HandleToRepair(moduleId);
+			const UGVehicleSeatingComponent* seating = seatedVehicle->GetSeatingComponent();
+			bool bSuccessRepair = car->RepairModuleFromSeat(seating->GetCharacterSeat(driverCharacter), moduleId);
+			if (!bSuccessRepair)
+			{
+				GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("FAIL REPAIR AFTER SKILLCHECK"));
+			}
 		}
 	}
 }

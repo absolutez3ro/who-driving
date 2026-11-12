@@ -60,7 +60,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void ShowSteamInviteUI();
 
-	virtual void Init() override;
+	//virtual void Init() override;
 	virtual void Shutdown() override;
 	FDelegateHandle inviteAcceptedDelegateHandle;
 	FOnInvitationAccepted OnInvitationAccepted;

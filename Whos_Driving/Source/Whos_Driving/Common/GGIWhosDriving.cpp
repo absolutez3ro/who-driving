@@ -5,13 +5,6 @@
 #include "GGameState.h"
 #include "GEconomicDataAsset.h"
 #include "Engine/GameInstance.h"
-
-void UGGIWhosDriving::Init()
-{
-	Super::Init();
-	LoadEconomicData();
-}
-
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
@@ -19,6 +12,7 @@ void UGGIWhosDriving::Init()
 void UGGIWhosDriving::Init()
 {
 	Super::Init();
+	LoadEconomicData();
 
 	if (GEngine)
 	{
