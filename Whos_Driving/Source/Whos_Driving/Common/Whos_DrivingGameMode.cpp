@@ -61,7 +61,11 @@ void AWhos_DrivingGameMode::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Car spawned"));
 
 	}
-	return;
+	AGGameState* gameState = GetGameState<AGGameState>();
+	if (gameState)
+	{
+		gameState->StartRaceTimer();
+	}
 }
 
 void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerController* newPlayer)

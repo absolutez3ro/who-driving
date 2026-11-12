@@ -15,6 +15,9 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGOnSessionsFound, const TArray<FString>&, sessionNames, const TArray<int32>&, sessionTypes);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnJoiningFailed);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInvitationAccepted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
+
+class UGEconomicDataAsset;
 
 UENUM(BlueprintType)
 enum class ESessionType : uint8
@@ -29,6 +32,8 @@ class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 	GENERATED_BODY()
 
 public:
+	void Init() override;
+
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void HostSessionLAN(FString sessionName);
 
@@ -43,6 +48,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	bool JoinSessionByIndex(int32 sessionIndex, int32 type);
+
+	void PlusMoney(int32 amount);
 
 	UPROPERTY(BlueprintAssignable, Category = "Session")
 	FGOnSessionsFound OnSessionsFound;
@@ -61,9 +68,51 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void PrintNetDriver();
+	UPROPERTY(BlueprintAssignable, Category = "Resources")
+	FOnMoneyChanged OnMoneyChanged;
+
+	UFUNCTION(BlueprintCallable, Category = "Economic")
+	void CalculateMoneyOnFinish();
+
+	UFUNCTION()
+	void HandleRaceFinish();
+
+	int32 GetMoneyFromTotal() const;
+	int32 GetMoneyFromKills() const;
+	int32 GetMoneyFromRepairParts() const;
+	int32 GetMoneyFromTime() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGEconomicDataAsset> economicData;
+
 protected:
 	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
 	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);
+	void LoadEconomicData();
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	int32 moneyCount = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	int32 enemiesKillsToMoneyConversionRate = 200;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	int32 partsToMoneyConversionRate = 100;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economic")
+	float timeBonusMultiplier = 2.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromKills = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromRepairParts = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromTime = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Economic")
+	int32 moneyFromTotal = 0;
 private:
 	//destroy func needs to know if player destroy while joining by invitation or on his own
 	bool currentlyJoining = false;

@@ -15,6 +15,8 @@
 #include "GBoxComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
+#include "Vehicle/Components/GVehicleModuleComponent.h"
+#include "GSkillCheckDataAsset.h"
 
 AGPlayerController::AGPlayerController()
 {
@@ -88,7 +90,7 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToSendDelegate);
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToCallSkillcheck);
 	}
 	if (!enhancedInput)
 	{
@@ -153,6 +155,28 @@ void AGPlayerController::SetupInputComponent()
 	}
 }
 
+void AGPlayerController::TryToCallSkillcheck()
+{
+	if (!CanRepairCurrentModule())
+	{
+		return;
+	}
+
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComp = car->GetModuleComponent();
+	UGVehicleModule* module = moduleComp->FindModule(currentModule);
+	if (!module)
+	{
+		return;
+	}
+
+	int32 cycleCount = (module->IsDestroyed()) ? skillCheckData->TotalCyclesForDestroyedState : skillCheckData->TotalCyclesForModuleInRepairState;
+	float healthPercent = module->GetHealthAsPercentage();
+	float healthAlpha = FMath::Clamp(healthPercent / 100.0f, 0.0f, 1.0f);
+	float goodZoneWidth = skillCheckData->BaseGoodZoneWidth + (skillCheckData->MaxHealthBonusWidth * healthAlpha);
+	CallSkillcheck(cycleCount, goodZoneWidth);
+}
+
 void AGPlayerController::LookInput(const FInputActionValue& value)
 {
 	AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
@@ -163,11 +187,77 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 	}
 }
 
-void AGPlayerController::TryToSendDelegate()
+bool AGPlayerController::CanRepairCurrentModule() const
 {
-	if (bIsLookingOnModule)
+	if (!bIsLookingOnModule || currentModule.IsNone())
 	{
-		TryToRepair.Execute(currentModule);
+		return false;
+	}
+
+	if (AGPlayerCar* car = GetSeatedVehicle())
+	{
+		if (UGVehicleModuleComponent* moduleComp = car->GetModuleComponent())
+		{
+			if (UGVehicleModule* module = moduleComp->FindModule(currentModule))
+			{
+				return module->CanRepair();
+			}
+		}
+	}
+	return false;
+}
+
+void AGPlayerController::StartSkillCheck()
+{
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->AddMappingContext(skillcheckMappingContext, 10);
+	subsystem->RemoveMappingContext(vehicleMappingContext);
+	subsystem->RemoveMappingContext(mouseLookMappingContext);
+	subsystem->RemoveMappingContext(gameplayMappingContext);
+}
+
+void AGPlayerController::EndSkillCheck(bool bSuccess)
+{
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->RemoveMappingContext(skillcheckMappingContext);
+	subsystem->AddMappingContext(vehicleMappingContext, 0);
+	subsystem->AddMappingContext(mouseLookMappingContext, 1);
+	subsystem->AddMappingContext(gameplayMappingContext, 2);
+	if (bSuccess && IsLocalController())
+	{
+		ServerRequestRepair(currentModule);
+	}
+	else
+	{
+		FailSkillCheck(currentModule);
+	}
+}
+ 
+void AGPlayerController::ServerRequestRepair_Implementation(const FName& moduleId)
+{
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComp = car->GetModuleComponent();
+	if (UGVehicleModule* module = moduleComp->FindModule(moduleId))
+	{
+		if (module->CanRepair())
+		{
+			car->HandleToRepair(moduleId);
+		}
+	}
+}
+
+void AGPlayerController::FailSkillCheck(const FName& moduleId)
+{
+	AGPlayerCar* car = GetSeatedVehicle();
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	if (UGVehicleModule* module = moduleComponent->FindModule(moduleId))
+	{
+		if (!module->IsDestroyed())
+		{
+			car->FailureSkillCheck(moduleId);
+		}
 	}
 }
 

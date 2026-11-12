@@ -2,6 +2,15 @@
 
 
 #include "GGIWhosDriving.h"
+#include "GGameState.h"
+#include "GEconomicDataAsset.h"
+#include "Engine/GameInstance.h"
+
+void UGGIWhosDriving::Init()
+{
+	Super::Init();
+	LoadEconomicData();
+}
 
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
@@ -139,7 +148,7 @@ void UGGIWhosDriving::HostSessionSteam(FString sessionName, bool openUIAfter)
 			createSessionDelegateHandle = sessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
 				FOnCreateSessionCompleteDelegate::CreateUObject(this, &UGGIWhosDriving::OnCreateSessionComplete));
 
-			
+
 
 			FOnlineSessionSettings sessionSettings;
 			sessionSettings.bIsLANMatch = false;
@@ -161,7 +170,7 @@ void UGGIWhosDriving::HostSessionSteam(FString sessionName, bool openUIAfter)
 			// Add to the settings map using a custom FName key
 			sessionSettings.Settings.Add(FName(TEXT("CUSTOM_SERVER_NAME")), serverNameSetting);
 			sessionSettings.Settings.Add(FName(TEXT("CUSTOM_SERVER_TYPE")), serverTypeSetting);
-			
+
 			// Steam needs the hosting player's unique net id
 			bool bStarted = false;
 			const ULocalPlayer* localPlayer = GetWorld() ? GetWorld()->GetFirstLocalPlayerFromController() : nullptr;
@@ -170,7 +179,8 @@ void UGGIWhosDriving::HostSessionSteam(FString sessionName, bool openUIAfter)
 				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("No valid local player / net id (is Steam running?)"));
 				bStarted = sessionInterface->CreateSession(0, NAME_GameSession, sessionSettings);
 
-			}else
+			}
+			else
 			{
 				bStarted = sessionInterface->CreateSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, sessionSettings);
 			}
@@ -184,6 +194,52 @@ void UGGIWhosDriving::HostSessionSteam(FString sessionName, bool openUIAfter)
 			openUIAfterHosting = openUIAfter;
 		}
 	}
+}
+void UGGIWhosDriving::HandleRaceFinish()
+{
+	//CalculateMoneyOnFinish();
+}
+
+int32 UGGIWhosDriving::GetMoneyFromTotal() const
+{
+	return moneyFromTotal;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromKills() const
+{
+	return moneyFromKills;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromRepairParts() const
+{
+	return moneyFromRepairParts;
+}
+
+int32 UGGIWhosDriving::GetMoneyFromTime() const
+{
+	return moneyFromTime;
+}
+
+void UGGIWhosDriving::LoadEconomicData()
+{
+	enemiesKillsToMoneyConversionRate = economicData->EnemiesKillsToMoneyConversionRate;
+	partsToMoneyConversionRate = economicData->PartsToMoneyConversionRate;
+	timeBonusMultiplier = economicData->TimeBonusMultiplier;
+}
+
+void UGGIWhosDriving::CalculateMoneyOnFinish()
+{
+	AGGameState* gameState = GetWorld()->GetGameState<AGGameState>();
+	moneyFromKills = 0;
+	moneyFromRepairParts = 0;
+	moneyFromTime = 0;
+	moneyFromTotal = 0;
+
+	moneyFromKills = gameState->GetEnemyKills() * enemiesKillsToMoneyConversionRate;
+	moneyFromRepairParts = gameState->GetRepairParts() * partsToMoneyConversionRate;
+	moneyFromTime = (gameState->bHaveTime) ? ceil(gameState->remainingTime) * timeBonusMultiplier : 0.0f;
+	moneyFromTotal += moneyFromKills + moneyFromRepairParts + moneyFromTime;
+	PlusMoney(moneyFromTotal);
 }
 
 void UGGIWhosDriving::OnCreateSessionComplete(FName sessionName, bool bWasSuccessful)
@@ -593,6 +649,16 @@ bool UGGIWhosDriving::JoinSessionByIndex(int32 sessionIndex, int32 type)
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("SESSIONS FOUND INVALID"));
 		return false;
 	}
+}
+
+void UGGIWhosDriving::PlusMoney(int32 amount)
+{
+	moneyCount += amount;
+	if (moneyCount < 0)
+	{
+		moneyCount = 0;
+	}
+	OnMoneyChanged.Broadcast(moneyCount);
 }
 
 void UGGIWhosDriving::OnJoinSessionComplete(FName sessionName, EOnJoinSessionCompleteResult::Type result)

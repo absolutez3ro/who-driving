@@ -5,7 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "GGameState.h"
 
-void UGVehicleModule::ApplyDamage(float damage)
+void UGVehicleModule::ApplyDamage(const float damage)
 {
 	if (!FMath::IsFinite(damage) || damage <= 0.0f || IsDestroyed())
 	{
@@ -58,6 +58,7 @@ void UGVehicleModule::ApplyRepair()
 	{
 		return;
 	}
+	OnRepair.Broadcast();
 	GetWorld()->GetGameState<AGGameState>()->PlusRepairParts(-actualRepairCost);
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);

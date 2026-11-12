@@ -14,6 +14,7 @@ class AWhos_DrivingCharacter;
 class AGPlayerCar;
 class UGWeaponAmmoWidget;
 class UInputMappingContext;
+class UGSkillCheckDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState, int32, actualRepairCost);
 UENUM()
@@ -29,7 +30,7 @@ enum class EGCombatAction : uint8
 	ChangeFireMode
 };
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FGTryToRepair, FName, moduleId);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -80,11 +81,14 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
+	UFUNCTION(BlueprintCallable)
+	bool CanRepairCurrentModule() const;
+
 	UPROPERTY(BlueprintAssignable)
 	FGOnModuleInfoUpdated OnModuleInfoUpdated;
 
 	UPROPERTY()
-	FGTryToRepair TryToRepair;
+	FOnSkillCheck OnSkillCheck;
 
 protected:
 	void BeginPlay() override;
@@ -95,8 +99,19 @@ protected:
 	void RefreshVehicleView();
 	void RefreshWeaponAmmoWidget();
 
+	UFUNCTION(BlueprintCallable)
+	void StartSkillCheck();
+
+	UFUNCTION(BlueprintCallable)
+	void EndSkillCheck(bool bSuccess);
+
+	void FailSkillCheck(const FName& moduleId);
+
 	UFUNCTION()
 	void OnRep_VehicleContext();
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRepair(const FName& moduleId);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestVehicleSeat(AGPlayerCar* vehicle, int32 seatIndex, FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
@@ -128,6 +143,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> mouseLookMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputMappingContext> skillcheckMappingContext;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> lookAction;
@@ -188,7 +206,14 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLookingModuleChanged(bool bIsLooking);
 
-	void TryToSendDelegate();
+	UFUNCTION(BlueprintImplementableEvent)
+	void CallSkillcheck(int32 cycleCounts, float goodZoneWidth);
+
+	UFUNCTION()
+	void TryToCallSkillcheck();
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
+	TObjectPtr<UGSkillCheckDataAsset> skillCheckData;
 
 private:
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;

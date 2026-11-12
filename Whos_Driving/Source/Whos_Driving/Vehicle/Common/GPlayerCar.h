@@ -74,6 +74,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Vehicle|Damage")
 	void DamageModule(const FName& moduleId, float damage);
+	void DamageModuleInPercent(const FName& moduleId, float damageInPercent);
+	void FailureSkillCheck(const FName& moduleId);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);
@@ -100,7 +102,8 @@ public:
 	
 	UGVehicleModuleComponent* GetModuleComponent() const;
 
-
+	UFUNCTION()
+	void HandleToRepair(FName moduleId);
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;
@@ -113,6 +116,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
+
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
@@ -147,16 +152,13 @@ protected:
 
 	void LoadCarData();
 
-	void SubscribeToRepairEvent();
-
-	UFUNCTION()
-	void HandleToRepair(FName moduleId);
 	void BreakDoor(FName moduleId);
 	void RepairDoor(FName moduleId);
 
 	UFUNCTION()
 	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> throttleAction;
@@ -187,6 +189,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleWheelVisual> wheelVisuals;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Damage")
+	float failureDamagePercent = 10.0f;
 
 	TArray<bool> appliedDestroyedWheels;
 

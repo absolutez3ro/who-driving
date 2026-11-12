@@ -21,7 +21,7 @@ UGVehicleModule* UGVehicleModuleComponent::FindModule(FName moduleId) const
 	return nullptr;
 }
 
-void UGVehicleModuleComponent::DamageModule(FName moduleId, float damage)
+void UGVehicleModuleComponent::DamageModule(const FName& moduleId, const float damage)
 {
 	AActor* ownerActor = GetOwner();
 	if (!ownerActor || !ownerActor->HasAuthority())
@@ -36,6 +36,19 @@ void UGVehicleModuleComponent::DamageModule(FName moduleId, float damage)
 	}
 
 	module->ApplyDamage(damage);
+}
+
+void UGVehicleModuleComponent::DamageModuleInPercent(const FName& moduleId, const float damageInPercent)
+{
+	AActor* ownerActor = GetOwner();
+	if (!ownerActor || !ownerActor->HasAuthority())
+	{
+		return;
+	}
+
+	UGVehicleModule* module = FindModule(moduleId);
+	const float actualDamage = module->maxHP * damageInPercent / 100.0f;
+	module->ApplyDamage(actualDamage);
 }
 
 void UGVehicleModuleComponent::RegisterModule(UGVehicleModule* module)
