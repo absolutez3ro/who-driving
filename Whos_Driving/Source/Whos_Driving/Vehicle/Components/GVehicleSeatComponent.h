@@ -21,8 +21,15 @@ class WHOS_DRIVING_API UGVehicleSeatComponent : public UBoxComponent
 public:
 	UGVehicleSeatComponent();
 
+	UFUNCTION(BlueprintPure, Category = "Vehicle|Repair")
+	bool CanRepairModule(FName moduleId) const;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Seat")
 	EGVehicleSeat seatId = EGVehicleSeat::Driver;
+
+	// Modules (UGVehicleModule::moduleId) the occupant of this seat may repair. A module missing from every seat cannot be repaired.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Repair", meta = (GetOptions = "GetRepairModuleOptions"))
+	TArray<FName> repairableModuleIds;
 
 	// Character root relative to the interaction box; camera and sitting pose can be tuned independently.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Seat")
@@ -39,4 +46,9 @@ public:
 	FVector seatedCameraOffset = FVector::ZeroVector;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Window", meta = (ClampMin = "0.1"))
 	float windowDuration = 0.45f;
+
+private:
+	// Fills the module dropdown of repairableModuleIds in the Blueprint editor.
+	UFUNCTION()
+	TArray<FString> GetRepairModuleOptions() const;
 };

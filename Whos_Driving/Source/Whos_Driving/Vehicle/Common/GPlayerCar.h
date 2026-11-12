@@ -39,7 +39,7 @@ struct FGVehicleModuleState
 	EGModuleState moduleState = EGModuleState::Full;
 
 	UPROPERTY(BlueprintReadOnly, Category = "VehicleDamage")
-	int32 actualRepairCost;
+	int32 actualRepairCost = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -76,6 +76,9 @@ public:
 	void DamageModule(const FName& moduleId, float damage);
 	void DamageModuleInPercent(const FName& moduleId, float damageInPercent);
 	void FailureSkillCheck(const FName& moduleId);
+
+	// Server only. Repairs the module if the occupant of seatIndex may reach it (UGVehicleSeatComponent::repairableModuleIds).
+	bool RepairModuleFromSeat(int32 seatIndex, FName moduleId);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void OnWheelDestroyed(int32 wheelIndex);

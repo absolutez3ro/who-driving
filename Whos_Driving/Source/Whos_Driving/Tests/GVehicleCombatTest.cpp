@@ -5,10 +5,8 @@
 #include "GVehicleCombatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleWeapon.h"
-#include "GWeaponAmmoWidget.h"
 #include "GWeaponDefinition.h"
 #include "Whos_DrivingCharacter.h"
-#include "Components/TextBlock.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
@@ -27,6 +25,7 @@ namespace
 	struct FGCombatTestScene
 	{
 		UWorld* world = nullptr;
+		AGPlayerCar* car = nullptr;
 		AGPlayerController* driver = nullptr;
 		AWhos_DrivingCharacter* avatar = nullptr;
 		UGVehicleCombatComponent* combat = nullptr;
@@ -62,7 +61,7 @@ namespace
 			world->BeginPlay();
 			// This isolated world has no GameMode to call WorldSettings::NotifyBeginPlay.
 			world->SetBegunPlay(true);
-			AGPlayerCar* car = world->SpawnActor<AGPlayerCar>(carClass);
+			car = world->SpawnActor<AGPlayerCar>(carClass);
 			driver = world->SpawnActor<AGPlayerController>();
 			driver->PlayerState = world->SpawnActor<APlayerState>();
 			FActorSpawnParameters spawn;
@@ -195,52 +194,54 @@ bool FGWeaponSelectionTest::RunTest(const FString& parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGWeaponAmmoWidgetTest, "WhosDriving.Combat.WeaponAmmoWidget",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGWeaponAmmoDataTest, "WhosDriving.Combat.WeaponAmmoData",
 								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGWeaponAmmoWidgetTest::RunTest(const FString& parameters)
+bool FGWeaponAmmoDataTest::RunTest(const FString& parameters)
 {
-	UClass* widgetClass =
-		LoadClass<UGWeaponAmmoWidget>(nullptr, TEXT("/Game/Widgets/WBP_GWeaponAmmo.WBP_GWeaponAmmo_C"));
 	FGCombatTestScene scene;
-	if (!TestNotNull(TEXT("Configured widget"), widgetClass) || !scene.Create(*this))
+	if (!scene.Create(*this))
 	{
 		return false;
 	}
-	UGWeaponAmmoWidget* widget = CreateWidget<UGWeaponAmmoWidget>(scene.world, widgetClass);
-	const UTextBlock* text = Cast<UTextBlock>(widget->GetWidgetFromName(TEXT("ammoText")));
 	AGVehicleWeapon* pistol = scene.combat->GetWeapon(pistolIndex);
 	AGVehicleWeapon* rifle = scene.combat->GetWeapon(rifleIndex);
-	if (!TestNotNull(TEXT("Ammo text"), text) || !TestNotNull(TEXT("Pistol"), pistol) || !TestNotNull(TEXT("Rifle"), rifle))
+	if (!TestNotNull(TEXT("Pistol"), pistol) || !TestNotNull(TEXT("Rifle"), rifle))
 	{
 		return false;
 	}
+	// What the HUD shows: "magazine/reserve", or nothing without a weapon in the hands.
+	const auto hudAmmo = [&scene]()
+	{
+		int32 magazineAmmo = -1;
+		int32 reserveAmmo = -1;
+		const bool bHasWeapon = scene.driver->GetCurrentWeaponAmmo(magazineAmmo, reserveAmmo);
+		return bHasWeapon ? FString::Printf(TEXT("%d/%d"), magazineAmmo, reserveAmmo) : FString(TEXT("hidden"));
+	};
 	const int32 magazine = pistol->GetDefinition()->MagazineSize;
 	const int32 reserve = pistol->GetDefinition()->InitialReserve;
 	const FString rifleAmmo =
 		FString::Printf(TEXT("%d/%d"), rifle->GetDefinition()->MagazineSize, rifle->GetDefinition()->InitialReserve);
-	TestEqual(TEXT("Hidden without a combat component"), widget->GetVisibility(), ESlateVisibility::Collapsed);
-	widget->SetCombatComponent(scene.combat);
-	TestEqual(TEXT("Visible with an equipped weapon"), widget->GetVisibility(), ESlateVisibility::HitTestInvisible);
-	TestEqual(TEXT("Shows magazine/reserve"), text->GetText().ToString(), FString::Printf(TEXT("%d/%d"), magazine, reserve));
+	TestTrue(TEXT("The controller listens to its character"), scene.combat->OnWeaponAmmoChanged.IsBound());
+	TestEqual(TEXT("Shows magazine/reserve"), hudAmmo(), FString::Printf(TEXT("%d/%d"), magazine, reserve));
 
 	TestTrue(TEXT("Round spent"), pistol->ConsumeRound());
-	TestEqual(TEXT("Counter follows a shot"), text->GetText().ToString(), FString::Printf(TEXT("%d/%d"), magazine - 1, reserve));
+	TestEqual(TEXT("Counter follows a shot"), hudAmmo(), FString::Printf(TEXT("%d/%d"), magazine - 1, reserve));
 
 	TestTrue(TEXT("Reload starts"), scene.combat->RequestReload());
 	scene.AdvanceTime(pistol->GetDefinition()->ReloadTime + 0.1f);
-	TestEqual(TEXT("Counter follows a reload"), text->GetText().ToString(), FString::Printf(TEXT("%d/%d"), magazine, reserve - 1));
+	TestEqual(TEXT("Counter follows a reload"), hudAmmo(), FString::Printf(TEXT("%d/%d"), magazine, reserve - 1));
 
 	TestTrue(TEXT("Driver can lean out"), scene.combat->RequestWindow(true));
 	TestTrue(TEXT("Rifle selected"), scene.combat->SelectWeapon(rifleIndex));
-	TestEqual(TEXT("Counter shows the selected weapon"), text->GetText().ToString(), rifleAmmo);
+	TestEqual(TEXT("Counter shows the selected weapon"), hudAmmo(), rifleAmmo);
 	pistol->SetEquipped(true);
 	pistol->ConsumeRound();
 	pistol->SetEquipped(false);
-	TestEqual(TEXT("Another weapon does not touch the counter"), text->GetText().ToString(), rifleAmmo);
+	TestEqual(TEXT("Another weapon does not touch the counter"), hudAmmo(), rifleAmmo);
 
-	widget->SetCombatComponent(nullptr);
-	TestEqual(TEXT("Hidden after losing the combat component"), widget->GetVisibility(), ESlateVisibility::Collapsed);
+	scene.car->GetSeatingComponent()->RemovePlayer(scene.driver, false);
+	TestEqual(TEXT("Hidden on foot"), hudAmmo(), FString(TEXT("hidden")));
 	return true;
 }
 

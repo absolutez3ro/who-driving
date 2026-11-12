@@ -26,7 +26,6 @@
 #include "GVehicleEngineModule.h"
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
-#include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -393,6 +392,10 @@ void AGPlayerCar::BeginPlay()
 
 	moduleComponent->RebuildModuleRegistry(this);
 	LoadCarData();
+	if (HasAuthority())
+	{
+		seatingComponent->LogRepairAccessProblems();
+	}
 
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
 	movementComponent->SubscribeOnDelegates();
@@ -469,11 +472,26 @@ void AGPlayerCar::LoadCarData()
 	}
 }
 
-void AGPlayerCar::HandleToRepair(FName moduleId)
+
+bool AGPlayerCar::RepairModuleFromSeat(int32 seatIndex, FName moduleId)
 {
+	if (!HasAuthority())
+	{
+		return false;
+	}
+	if (!seatingComponent->CanRepairModuleFromSeat(seatIndex, moduleId))
+	{
+		UE_LOG(LogTemp, Display, TEXT("Repair rejected: module %s is not repairable from seat %d"), *moduleId.ToString(), seatIndex);
+		return false;
+	}
 	UGVehicleModule* module = moduleComponent->FindModule(moduleId);
+	if (!module || !module->CanRepair())
+	{
+		return false;
+	}
 	module->ApplyRepair();
 	PublishModuleStates();
+	return true;
 }
 
 

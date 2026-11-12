@@ -1,5 +1,7 @@
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleSeatComponent.h"
+#include "GVehicleModule.h"
+#include "GVehicleModuleComponent.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
 #include "Whos_DrivingCharacter.h"
@@ -106,6 +108,42 @@ int32 UGVehicleSeatingComponent::GetCharacterSeat(AWhos_DrivingCharacter* charac
 		}
 	}
 	return INDEX_NONE;
+}
+
+bool UGVehicleSeatingComponent::CanRepairModuleFromSeat(int32 seatIndex, FName moduleId) const
+{
+	const UGVehicleSeatComponent* seat = GetSeatComponent(seatIndex);
+	return seat && seat->CanRepairModule(moduleId);
+}
+
+void UGVehicleSeatingComponent::LogRepairAccessProblems() const
+{
+	const UGVehicleModuleComponent* moduleComponent = GetOwner()->FindComponentByClass<UGVehicleModuleComponent>();
+	if (!moduleComponent)
+	{
+		return;
+	}
+	TInlineComponentArray<UGVehicleSeatComponent*> seats;
+	GetOwner()->GetComponents(seats);
+	TSet<FName> reachableModuleIds;
+	for (const UGVehicleSeatComponent* seat : seats)
+	{
+		for (const FName& moduleId : seat->repairableModuleIds)
+		{
+			reachableModuleIds.Add(moduleId);
+			if (!moduleComponent->FindModule(moduleId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Seat %s lists unknown repair module %s"), *seat->GetName(), *moduleId.ToString());
+			}
+		}
+	}
+	for (const UGVehicleModule* module : moduleComponent->GetModules())
+	{
+		if (module && !reachableModuleIds.Contains(module->moduleId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Module %s of %s cannot be repaired from any seat"), *module->moduleId.ToString(), *GetOwner()->GetName());
+		}
+	}
 }
 
 bool UGVehicleSeatingComponent::IsPlayerValid(AGPlayerController* controller) const
