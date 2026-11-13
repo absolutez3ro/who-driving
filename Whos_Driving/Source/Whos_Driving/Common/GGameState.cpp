@@ -29,6 +29,8 @@ void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(AGGameState, elapsedTime);
 	DOREPLIFETIME(AGGameState, bTimerRunning);
 	DOREPLIFETIME(AGGameState, bHaveTime);
+	DOREPLIFETIME(AGGameState, bRaceFailed);
+	DOREPLIFETIME(AGGameState, failureReason);
 }
 
 int32 AGGameState::GetRepairParts() const
@@ -148,4 +150,47 @@ FText AGGameState::GetRemainingTimeText() const
 	const int32 minutes = totalSeconds / 60;
 	const int32 seconds = totalSeconds % 60;
 	return FText::FromString(FString::Printf(TEXT("%02d:%02d"), minutes, seconds));
+}
+
+void AGGameState::SetRaceFailed(EGRaceFailureReason reason)
+{
+	if (!HasAuthority() || bRaceFailed)
+	{
+		return;
+	}
+
+	bRaceFailed = true;
+	failureReason = reason;
+	OnRep_RaceFailed();
+	ForceNetUpdate();
+}
+
+void AGGameState::OnRep_RaceFailed()
+{
+	if (bRaceFailed)
+	{
+		OnRaceFailed.Broadcast(failureReason);
+	}
+}
+
+void AGGameState::ClearRaceFailed()
+{
+	if (!HasAuthority() || !bRaceFailed)
+	{
+		return;
+	}
+	bRaceFailed = false;
+	failureReason = EGRaceFailureReason::None;
+	OnRaceFailedCleared.Broadcast();
+	ForceNetUpdate();
+}
+
+bool AGGameState::IsRaceFailed() const
+{
+	return bRaceFailed;
+}
+
+EGRaceFailureReason AGGameState::GetFailureReason() const
+{
+	return failureReason;
 }

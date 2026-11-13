@@ -76,6 +76,9 @@ public:
 	void RequestPreviousTrack();
 	void RequestNextTrack();
 
+	UFUNCTION()
+	void HandleKnockout();
+
 	UFUNCTION(Exec, BlueprintCallable, Category = "Debug")
 	void ExecDamageSelf(float amount = 10.0f);
 

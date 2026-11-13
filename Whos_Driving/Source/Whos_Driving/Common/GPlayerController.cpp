@@ -15,6 +15,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Vehicle/Components/GVehicleModuleComponent.h"
 #include "GSkillCheckDataAsset.h"
+#include "Whos_DrivingGameMode.h"
 
 AGPlayerController::AGPlayerController()
 {
@@ -487,6 +488,13 @@ void AGPlayerController::RequestNextTrack()
 	{
 		ServerRadioCommand(seatedVehicle, EGVehicleRadioCommand::Next, FVector::ZeroVector, FVector::ForwardVector);
 	}
+}
+
+void AGPlayerController::HandleKnockout()
+{
+	DisableInput(this);
+	AWhos_DrivingGameMode* gameMode = GetWorld()->GetAuthGameMode<AWhos_DrivingGameMode>();
+	gameMode->CheckAllPlayersKnockedOut();
 }
 
 void AGPlayerController::ExecDamageSelf(float amount)

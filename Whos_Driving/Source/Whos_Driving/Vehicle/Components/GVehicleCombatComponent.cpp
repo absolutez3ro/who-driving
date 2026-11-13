@@ -130,6 +130,7 @@ void UGVehicleCombatComponent::BeginPlay()
 		SpawnLoadout();
 	}
 	health = maxHealth;
+	OnZeroHealth.AddDynamic(GetPlayerController(), &AGPlayerController::HandleKnockout);
 }
 
 void UGVehicleCombatComponent::SpawnLoadout()
@@ -644,7 +645,10 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 											 FActorComponentTickFunction* tickFunction)
 {
 	Super::TickComponent(deltaSeconds, tickType, tickFunction);
-	RegenHealth(deltaSeconds);
+	if (!bInKnockout)
+	{
+		RegenHealth(deltaSeconds);
+	}
 	RefreshPresentation();
 	RefreshDriverLock();
 	if (IsLocallyOwned() && GetPlayerController())
@@ -697,16 +701,8 @@ float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigato
 		if (health <= 0.0f)
 		{
 			CancelActions(true);
-			if (AGPlayerController* controller = GetPlayerController())
-			{
-				if (AGPlayerCar* vehicle = GetVehicle())
-				{
-					vehicle->GetSeatingComponent()->RemovePlayer(controller, false);
-					controller->UnPossess();
-					controller->SetVehicleContext(nullptr, GetCharacter());
-				}
-			}
-			GetCharacter()->GetCharacterMovement()->DisableMovement();
+			bInKnockout = true;
+			OnZeroHealth.Broadcast();
 			OnRep_Loadout();
 		}
 		GetOwner()->ForceNetUpdate();

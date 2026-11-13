@@ -15,6 +15,7 @@ class UGVehicleDoorModule;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthUpdate, float, health, float, maxHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnZeroHealth);
 
 USTRUCT(BlueprintType)
 struct FGVehicleWindowState
@@ -124,12 +125,17 @@ public:
 
 	bool CanBeDamaged();
 
+	bool bInKnockout = false;
+
 	// Fires when the selected weapon's ammunition changes and when another weapon becomes selected.
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FGOnWeaponAmmoChanged OnWeaponAmmoChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Health")
 	FOnHealthUpdate OnHealthUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Health")
+	FOnZeroHealth OnZeroHealth;
 
 	// Weapon order matches AGPlayerController::weaponSelectActions.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Loadout")
@@ -173,6 +179,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
 	float healthRegenRate = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
+	float reviveHealth = 35.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
+	float reviveTime = 5.0f;
 
 	float lastDamageTime = -FLT_MAX;
 

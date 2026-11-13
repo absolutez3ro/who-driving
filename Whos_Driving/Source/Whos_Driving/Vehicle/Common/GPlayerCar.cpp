@@ -27,6 +27,7 @@
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Common/Whos_DrivingGameMode.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
@@ -268,6 +269,11 @@ void AGPlayerCar::RecalculateCarHealth()
 	for (auto& module : moduleComponent->GetModules())
 	{
 		currentCarHealth += module->currentHP;
+	}
+	if (currentCarHealth <= 0)
+	{
+		AWhos_DrivingGameMode* gameMode = GetWorld()->GetAuthGameMode<AWhos_DrivingGameMode>();
+		gameMode->CheckVehicleDestroyed();
 	}
 }
 

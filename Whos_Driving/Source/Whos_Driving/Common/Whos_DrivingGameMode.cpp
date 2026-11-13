@@ -3,7 +3,11 @@
 #include "Whos_DrivingGameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "GPlayerController.h"
+#include "Whos_DrivingCharacter.h"
+#include "Vehicle/Components/GVehicleCombatComponent.h"
 #include "GGameState.h"
+#include "Kismet/GameplayStatics.h"
 
 AWhos_DrivingGameMode::AWhos_DrivingGameMode()
 {
@@ -73,4 +77,91 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("EVENT STARTING NEW PLAYER IN LOBBY"));
 	Super::HandleStartingNewPlayer_Implementation(newPlayer);
 	SpawnPlayer(newPlayer);
+	AGPlayerController* pc = Cast<AGPlayerController>(newPlayer);
+	RegisterParticipant(pc);
+}
+
+void AWhos_DrivingGameMode::RegisterParticipant(AGPlayerController* pc)
+{
+	if (HasAuthority() && IsValid(pc))
+	{
+		participants.Add(pc);
+	}
+}
+
+void AWhos_DrivingGameMode::UnregisterParticipant(AGPlayerController* pc)
+{
+	if (HasAuthority() && IsValid(pc))
+	{
+		participants.Remove(pc);
+	}
+}
+
+void AWhos_DrivingGameMode::ReportFailure(EGRaceFailureReason reason)
+{
+	if (!HasAuthority() || bFailureAccepted || reason == EGRaceFailureReason::None)
+	{
+		return;
+	}
+
+	bFailureAccepted = true;
+	AGGameState* gameState = GetGameState<AGGameState>();
+	gameState->SetRaceFailed(reason);
+	FTimerHandle restartTimer;
+	GetWorld()->GetTimerManager().SetTimer(restartTimer, this, &AWhos_DrivingGameMode::RestartCurrentLevel, 3.0f, false);
+}
+
+void AWhos_DrivingGameMode::CheckAllPlayersKnockedOut()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	int32 validParticipants = 0;
+	for (const auto& weakPc : participants)
+	{
+		AGPlayerController* pc = weakPc.Get();
+		if (!pc || !pc->GetPlayerState<APlayerState>())
+		{
+			continue;
+		}
+		const AWhos_DrivingCharacter* character = pc->GetDriverCharacter();
+		if (!IsValid(character) || !character->GetCombatComponent())
+		{
+			continue;
+		}
+
+		++validParticipants;
+		if (!character->GetCombatComponent()->bInKnockout)
+		{
+			return;
+		}
+	}
+	if (validParticipants > 0)
+	{
+		ReportFailure(EGRaceFailureReason::AllPlayersKnockedOut);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("RACE FAILED BECAUSE ALL PLAYERS ARE KNOCKED OUT"));
+	}
+}
+
+void AWhos_DrivingGameMode::CheckVehicleDestroyed()
+{
+	ReportFailure(EGRaceFailureReason::VehicleDestroyed);
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("RACE FAILED BECAUSE VEHICLE IS DESTROYED"));
+}
+
+void AWhos_DrivingGameMode::Logout(AController* exitingController)
+{
+	if (AGPlayerController* pc = Cast<AGPlayerController>(exitingController))
+	{
+		UnregisterParticipant(pc);
+	}
+	Super::Logout(exitingController);
+}
+
+void AWhos_DrivingGameMode::RestartCurrentLevel()
+{
+	FString currentLevelName = GetWorld()->GetName();
+	UGameplayStatics::OpenLevel(GetWorld(), FName(*currentLevelName));
 }
