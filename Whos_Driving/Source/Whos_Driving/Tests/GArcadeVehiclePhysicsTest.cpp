@@ -180,7 +180,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeDriftControllerTest, "WhosDriving.Arcad
 
 bool FGArcadeDriftControllerTest::RunTest(const FString& parameters)
 {
-	const FGArcadeDriftSettings settings;
+	FGArcadeDriftSettings settings;
+	settings.bUsePhysicalSlides = false;
 	TestEqual(TEXT("Neutral steering holds the base angle"), FGArcadeDriftController::ComputeTargetAngle(settings, 0.0f), settings.BaseAngle);
 	TestEqual(TEXT("Steering into the drift opens it up"), FGArcadeDriftController::ComputeTargetAngle(settings, 1.0f), settings.MaxAngle);
 	TestEqual(TEXT("Full counter steer asks to straighten"), FGArcadeDriftController::ComputeTargetAngle(settings, -1.0f), 0.0f);
@@ -246,7 +247,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeDriftPathTest, "WhosDriving.ArcadeVehic
 
 bool FGArcadeDriftPathTest::RunTest(const FString& parameters)
 {
-	const FGArcadeDriftSettings settings;
+	FGArcadeDriftSettings settings;
+	settings.bUsePhysicalSlides = false;
 	TestEqual(TEXT("Neutral steering bends the path at the base rate"),
 			  FGArcadeDriftController::ComputePathAcceleration(settings, 0.0f), settings.PathAcceleration);
 	TestTrue(TEXT("Steering into the drift tightens the path"),
@@ -283,7 +285,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeHandbrakeTurnTest, "WhosDriving.ArcadeV
 
 bool FGArcadeHandbrakeTurnTest::RunTest(const FString& parameters)
 {
-	const FGArcadeDriftSettings settings;
+	FGArcadeDriftSettings settings;
+	settings.bUsePhysicalSlides = false;
 	const float stepTime = 1.0f / 60.0f;
 
 	FGArcadeDriftController controller;
@@ -415,7 +418,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeDriftSpeedHoldTest, "WhosDriving.Arcade
 
 bool FGArcadeDriftSpeedHoldTest::RunTest(const FString& parameters)
 {
-	const FGArcadeDriftSettings settings;
+	FGArcadeDriftSettings settings;
+	settings.bUsePhysicalSlides = false;
 	FGArcadeDriftController controller;
 	FGArcadeDriftInput input;
 	input.bIsGrounded = true;
@@ -451,6 +455,252 @@ bool FGArcadeDriftSpeedHoldTest::RunTest(const FString& parameters)
 	input.planarSpeed = 14.0f;
 	controller.Update(input, settings, 1.0f / 60.0f);
 	TestEqual(TEXT("Speed hold does not fight the handbrake"), controller.GetSpeedHoldAcceleration(), 0.0f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadePhysicalSlideTest, "WhosDriving.ArcadeVehicle.PhysicalSlide",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGArcadePhysicalSlideTest::RunTest(const FString& parameters)
+{
+	const FGArcadeDriftSettings settings;
+	TestTrue(TEXT("Improved tire grip is enabled by default"), settings.bUsePhysicalSlides);
+	const float steeringDirections[] = { -1.0f, 1.0f };
+	for (const float steeringDirection : steeringDirections)
+	{
+		FGArcadeDriftController controller;
+		FGArcadeDriftInput input;
+		input.bIsGrounded = true;
+		input.forwardSpeed = 25.0f;
+		input.planarSpeed = 25.0f;
+		input.steering = steeringDirection;
+		input.brake = 1.0f;
+		const float stepTime = 1.0f / 60.0f;
+		controller.Update(input, settings, stepTime);
+		const float initialYawAcceleration = FMath::Abs(controller.GetYawAcceleration());
+		const float initialPathAcceleration = FMath::Abs(controller.GetPathAcceleration());
+		TestTrue(TEXT("The brake tap starts with a gentle yaw response"), initialYawAcceleration < settings.MaxYawAcceleration * 0.1f);
+		for (int32 stepIndex = 0; stepIndex < 16; ++stepIndex)
+		{
+			controller.Update(input, settings, stepTime);
+		}
+		TestTrue(TEXT("Yaw authority grows as the car enters the drift"), FMath::Abs(controller.GetYawAcceleration()) > initialYawAcceleration);
+		TestTrue(TEXT("Path authority grows as the car enters the drift"), FMath::Abs(controller.GetPathAcceleration()) > initialPathAcceleration);
+		TestEqual(TEXT("Steering and S at speed enter controlled drift with default settings"),
+			static_cast<int32>(controller.GetMode()), static_cast<int32>(EGArcadeSlideMode::Drift));
+		TestTrue(TEXT("Brake entry actively swings the nose into the corner"), controller.GetYawAcceleration() * steeringDirection > 0.0f);
+		TestTrue(TEXT("Brake entry retains the controlled drift angle"), controller.GetTargetSlipAngle() * steeringDirection < -settings.ExitAngle);
+		TestTrue(TEXT("Drift steering bends the path through the corner"), controller.GetPathAcceleration() * steeringDirection > 0.0f);
+		TestTrue(TEXT("Drift retains more rear grip than the original slippery mode"), controller.GetRearGripScale() > settings.RearGripMultiplier);
+		TestTrue(TEXT("Rear axle keeps a modest slip allowance"), controller.GetRearGripScale() >= 0.75f && controller.GetRearGripScale() < 1.0f);
+
+		input.brake = 0.0f;
+		input.throttle = 1.0f;
+		input.bodySlipAngle = -25.0f * steeringDirection;
+		input.travelAngle = input.bodySlipAngle;
+		input.planarSpeed = 20.0f;
+		controller.Update(input, settings, 0.2f);
+		TestTrue(TEXT("Releasing S keeps an established drift controllable"), controller.IsDrifting());
+		TestEqual(TEXT("Lost speed is not artificially repaid during the slide"), controller.GetSpeedHoldAcceleration(), 0.0f);
+
+		input.steering = -steeringDirection;
+		controller.Update(input, settings, 0.1f);
+		TestEqual(TEXT("Counter steer requests a straightened car"), controller.GetTargetSlipAngle(), 0.0f);
+		TestTrue(TEXT("Counter steer actively reduces the slide angle"), controller.GetYawAcceleration() * steeringDirection < 0.0f);
+		input.bodySlipAngle = -2.0f * steeringDirection;
+		controller.Update(input, settings, 0.2f);
+		TestFalse(TEXT("Straightening exits controlled drift"), controller.IsDrifting());
+		TestEqual(TEXT("Rear grip fully returns after exit"), controller.GetRearGripScale(), 1.0f);
+		controller.Update(input, settings, 0.1f);
+		TestFalse(TEXT("Throttle alone does not re-enter drift"), controller.IsDrifting());
+
+		input.steering = steeringDirection;
+		input.bHandbrake = true;
+		controller.Update(input, settings, 0.2f);
+		TestEqual(TEXT("Held handbrake relies on tire forces instead of scripted spin"), controller.GetYawAcceleration(), 0.0f);
+		TestEqual(TEXT("Locked tire receives no additional fixed grip penalty"), controller.GetRearGripScale(), 1.0f);
+		input.bHandbrake = false;
+		input.bodySlipAngle = -25.0f * steeringDirection;
+		input.travelAngle = input.bodySlipAngle;
+		controller.Update(input, settings, 0.1f);
+		TestEqual(TEXT("A shallow handbrake slide hands over to controlled drift"),
+			static_cast<int32>(controller.GetMode()), static_cast<int32>(EGArcadeSlideMode::Drift));
+		TestTrue(TEXT("Handbrake handover preserves steering control"), controller.GetPathAcceleration() * steeringDirection > 0.0f);
+
+		FGArcadeDriftController slowController;
+		input.bHandbrake = false;
+		input.throttle = 0.0f;
+		input.brake = 1.0f;
+		input.forwardSpeed = 5.0f;
+		input.planarSpeed = 5.0f;
+		slowController.Update(input, settings, 0.1f);
+		TestFalse(TEXT("S at low speed still only brakes"), slowController.IsDrifting());
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeLowSpeedDriftTest, "WhosDriving.ArcadeVehicle.LowSpeedDrift",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGArcadeLowSpeedDriftTest::RunTest(const FString& parameters)
+{
+	const FGArcadeDriftSettings settings;
+	FGArcadeDriftController controller;
+	FGArcadeDriftInput input;
+	input.bIsGrounded = true;
+	input.steering = 1.0f;
+	input.brake = 1.0f;
+	input.forwardSpeed = 20.0f;
+	input.planarSpeed = 20.0f;
+	controller.Update(input, settings, 0.2f);
+	input.brake = 0.0f;
+	input.bodySlipAngle = -34.5f;
+	controller.Update(input, settings, 0.2f);
+	const float fastPathAcceleration = controller.GetPathAcceleration();
+	TestTrue(TEXT("A brake tap establishes a controlled drift at speed"), fastPathAcceleration > 0.0f);
+
+	input.throttle = 1.0f;
+	input.brake = 1.0f;
+	input.forwardSpeed = 10.0f;
+	input.planarSpeed = 12.1f;
+	controller.Update(input, settings, 1.0f / 60.0f);
+	TestTrue(TEXT("Drift assistance fades before the low speed exit"), controller.GetPathAcceleration() < fastPathAcceleration);
+
+	input.forwardSpeed = 25.0f / 3.6f;
+	input.planarSpeed = 8.4f;
+	controller.Update(input, settings, 0.2f);
+	TestFalse(TEXT("Holding W and S at 25 km/h cannot sustain a controlled drift"), controller.IsDrifting());
+	TestEqual(TEXT("Low speed exit restores rear grip"), controller.GetRearGripScale(), 1.0f);
+	TestEqual(TEXT("Low speed exit removes scripted path acceleration"), controller.GetPathAcceleration(), 0.0f);
+	TestEqual(TEXT("Low speed exit removes scripted yaw acceleration"), controller.GetYawAcceleration(), 0.0f);
+
+	input.throttle = 0.0f;
+	input.forwardSpeed = 20.0f;
+	input.planarSpeed = 20.0f;
+	controller.Update(input, settings, 1.0f / 60.0f);
+	TestFalse(TEXT("Holding S after exit cannot re-enter drift"), controller.IsDrifting());
+	input.brake = 0.0f;
+	controller.Update(input, settings, 1.0f / 60.0f);
+	input.brake = 1.0f;
+	controller.Update(input, settings, 1.0f / 60.0f);
+	TestTrue(TEXT("A fresh tap of S can start the next drift"), controller.IsDrifting());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeLockedTireTest, "WhosDriving.ArcadeVehicle.LockedTire",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGArcadeLockedTireTest::RunTest(const FString& parameters)
+{
+	const FGArcadeTireSettings tires;
+	const float stepTimes[] = { 1.0f / 120.0f, 1.0f / 60.0f, 1.0f / 30.0f, 1.0f / 15.0f };
+	const float longitudinalSpeeds[] = { -20.0f, 20.0f };
+	const float lateralSpeeds[] = { -20.0f, -5.0f, 0.0f, 5.0f, 20.0f };
+	for (const float stepTime : stepTimes)
+	{
+		for (const float longitudinalSpeed : longitudinalSpeeds)
+		{
+			for (const float lateralSpeed : lateralSpeeds)
+			{
+				FGArcadeTireContactInput input;
+				input.bUseCombinedSlip = true;
+				input.spin.radius = 0.38f;
+				input.spin.inertia = 1.444f;
+				input.spin.longitudinalSpeed = longitudinalSpeed;
+				input.spin.referenceSpeed = FMath::Abs(longitudinalSpeed);
+				input.spin.brakeTorque = 5000.0f;
+				input.spin.deltaTime = stepTime;
+				input.frictionLimit = 5000.0f;
+				input.lateralSpeed = lateralSpeed;
+				const float slipAngle = FGArcadeTireModel::ComputeSlipAngle(lateralSpeed, longitudinalSpeed, tires.SlipAngleReferenceSpeed);
+				input.lateralForce = -FGArcadeTireModel::EvaluateCurve(tires.LateralCurve, slipAngle) * input.frictionLimit;
+				const FGArcadeTireContactResult lockedContact = FGArcadeTireModel::SolveContact(input, tires.LongitudinalCurve);
+				const FVector2D travelVelocity(longitudinalSpeed, lateralSpeed);
+				TestEqual(TEXT("Held handbrake keeps the tire locked"), lockedContact.angularVelocity, 0.0f);
+				TestTrue(TEXT("Locked tire friction opposes the actual skid direction"),
+					lockedContact.force.GetSafeNormal().Equals(-travelVelocity.GetSafeNormal(), 0.001));
+				TestTrue(TEXT("Locked tire removes translational energy"), FVector2D::DotProduct(lockedContact.force, travelVelocity) < 0.0);
+				TestTrue(TEXT("Large sideways skids retain sliding friction"),
+					FMath::IsNearlyEqual(lockedContact.force.Size(), static_cast<double>(input.frictionLimit * tires.LongitudinalCurve.FloorValue), 0.1));
+
+				input.spin.brakeTorque = 0.0f;
+				for (int32 stepIndex = 0; stepIndex < 120; ++stepIndex)
+				{
+					const FGArcadeTireContactResult contact = FGArcadeTireModel::SolveContact(input, tires.LongitudinalCurve);
+					const float inertiaTorque = input.spin.inertia * (contact.angularVelocity - input.spin.angularVelocity) / stepTime;
+					TestTrue(TEXT("Released tire balances body force and wheel reaction"),
+						FMath::Abs(inertiaTorque + input.spin.radius * contact.force.X) < 0.1f);
+					const FVector2D slipVelocity(input.spin.radius * contact.angularVelocity - longitudinalSpeed, -lateralSpeed);
+					TestTrue(TEXT("Contact friction cannot add energy to body and wheel together"),
+						FVector2D::DotProduct(contact.force, slipVelocity) >= -0.01);
+					TestTrue(TEXT("Combined slip respects the friction budget"), contact.force.Size() <= input.frictionLimit + 0.01);
+					TestTrue(TEXT("Wheel resumes rolling in the direction of travel"), contact.angularVelocity * longitudinalSpeed > 0.0f);
+					input.spin.angularVelocity = contact.angularVelocity;
+				}
+				TestTrue(TEXT("Released tire returns to rolling speed"),
+					FMath::Abs(input.spin.angularVelocity * input.spin.radius - longitudinalSpeed) < 0.01f);
+			}
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGArcadeCombinedSlipBalanceTest, "WhosDriving.ArcadeVehicle.CombinedSlipBalance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGArcadeCombinedSlipBalanceTest::RunTest(const FString& parameters)
+{
+	const FGArcadeTireSettings tires;
+	const float stepTimes[] = { 1.0f / 120.0f, 1.0f / 30.0f, 1.0f / 15.0f };
+	const float travelSpeeds[] = { -20.0f, -0.2f, 0.0f, 0.2f, 20.0f };
+	const float driveTorques[] = { -3000.0f, 0.0f, 3000.0f };
+	const float brakeTorques[] = { 0.0f, 5000.0f };
+	const float lateralSpeeds[] = { -10.0f, 0.0f, 10.0f };
+	for (const float stepTime : stepTimes)
+	{
+		for (const float travelSpeed : travelSpeeds)
+		{
+			for (const float driveTorque : driveTorques)
+			{
+				for (const float brakeTorque : brakeTorques)
+				{
+					for (const float lateralSpeed : lateralSpeeds)
+					{
+						FGArcadeTireContactInput input;
+						input.bUseCombinedSlip = true;
+						input.spin.radius = 0.38f;
+						input.spin.inertia = 1.444f;
+						input.spin.longitudinalSpeed = travelSpeed;
+						input.spin.angularVelocity = travelSpeed / input.spin.radius;
+						input.spin.referenceSpeed = FMath::Max(FMath::Abs(travelSpeed), tires.SlipReferenceSpeed);
+						input.spin.driveTorque = driveTorque;
+						input.spin.brakeTorque = brakeTorque;
+						input.spin.deltaTime = stepTime;
+						input.frictionLimit = 5000.0f;
+						input.lateralSpeed = lateralSpeed;
+						input.maxBrakingForce = FMath::Abs(travelSpeed) * 350.0f / stepTime;
+						input.maxLateralForce = FMath::Abs(lateralSpeed) * 350.0f / stepTime;
+						const float slipAngle = FGArcadeTireModel::ComputeSlipAngle(lateralSpeed, travelSpeed, tires.SlipAngleReferenceSpeed);
+						input.lateralForce = -FGArcadeTireModel::EvaluateCurve(tires.LateralCurve, slipAngle) * input.frictionLimit;
+						const FGArcadeTireContactResult contact = FGArcadeTireModel::SolveContact(input, tires.LongitudinalCurve);
+						const double inertiaTorque = input.spin.inertia * (contact.angularVelocity - input.spin.angularVelocity) / stepTime;
+						const double externalTorque = driveTorque - contact.signedBrakeTorque - input.spin.radius * contact.force.X;
+						TestTrue(TEXT("Combined slip closes the wheel torque balance"), FMath::Abs(inertiaTorque - externalTorque) < 0.1);
+						TestTrue(TEXT("Combined slip respects the grip budget"), contact.force.Size() <= input.frictionLimit + 0.01);
+						TestTrue(TEXT("Brake remains within its torque budget"), FMath::Abs(contact.signedBrakeTorque) <= brakeTorque + 0.01f);
+						TestTrue(TEXT("Brake does not reverse wheel rotation"), contact.signedBrakeTorque * contact.angularVelocity >= -0.01f);
+						TestTrue(TEXT("Lateral force cannot reverse the skid within a step"), FMath::Abs(contact.force.Y) <= input.maxLateralForce + 0.01);
+						if (contact.force.X * travelSpeed < 0.0f)
+						{
+							TestTrue(TEXT("Braking force cannot reverse travel within a step"), FMath::Abs(contact.force.X) <= input.maxBrakingForce + 0.01);
+						}
+						const FVector2D slipVelocity(input.spin.radius * contact.angularVelocity - travelSpeed, -lateralSpeed);
+						TestTrue(TEXT("Sliding contact dissipates energy even under power"), FVector2D::DotProduct(contact.force, slipVelocity) >= -0.01);
+					}
+				}
+			}
+		}
+	}
 	return true;
 }
 

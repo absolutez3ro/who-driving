@@ -439,18 +439,23 @@ struct FGArcadeAssistSettings
 	float TractionLimitMinimumScale = 0.6f;
 };
 
-// Arcade drift: a brake tap or the handbrake at speed swings the tail out, steering then holds the drift angle.
+// Controlled brake-to-drift with optional tire grip improvements and physical handbrake slides.
 USTRUCT(BlueprintType)
 struct FGArcadeDriftSettings
 {
 	GENERATED_BODY()
 
-	// Lift off, steer and tap the brake to start a drift.
+	// Preserve controlled brake-to-drift, retain more rear grip and disable artificial speed hold.
+	// Handbrake slides use wheel lock and combined tire slip instead of a scripted spin.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
+	bool bUsePhysicalSlides = true;
+
+	// Lift off, steer and tap the brake to start a controlled drift.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
 	bool bEnableBrakeDrift = true;
 
-	// Steer and pull the handbrake to swing the car round towards the steering side. Releasing it while the
-	// slide is shallower than HandbrakeTurnHandoverAngle carries on as a drift.
+	// Fade driving assists while steering with the handbrake, then control shallow slides on release.
+	// Legacy mode also commands a spin while the handbrake is held.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift")
 	bool bEnableHandbrakeDrift = true;
 
@@ -530,7 +535,7 @@ struct FGArcadeDriftSettings
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "90.0", Units = "deg"))
 	float HandbrakeTurnHandoverAngle = 60.0f;
 
-	// Rear lateral grip while drifting.
+	// Rear lateral grip while drifting. Improved tire grip keeps this at or above 0.75.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float RearGripMultiplier = 0.45f;
 
@@ -550,7 +555,7 @@ struct FGArcadeDriftSettings
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", Units = "deg"))
 	float ExitAngle = 7.0f;
 
-	// The drift ends below this share of its minimum entry speed.
+	// Each slide mode ends below this share of its own minimum entry speed.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drift", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ExitSpeedRatio = 0.6f;
 

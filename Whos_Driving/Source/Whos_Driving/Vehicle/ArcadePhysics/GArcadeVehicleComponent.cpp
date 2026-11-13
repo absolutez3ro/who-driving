@@ -730,11 +730,12 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	const float longitudinalSpeed = FVector::DotProduct(runtime.contactVelocity, runtime.longitudinalDirection);
 	const float lateralSpeed = FVector::DotProduct(runtime.contactVelocity, runtime.lateralDirection);
 
-	// The handbrake and a slide loosen the rear axle sideways, which is what lets the tail swing out.
+	// Handbrake cornering loss comes from wheel slip; controlled drifts use a modest rear grip reduction.
 	const float grip = tires.FrictionCoefficient * state.surfaceFriction * runtime.gripMultiplier;
 	const bool bIsRear = IsRearWheel(wheelIndex);
 	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && bIsRear;
-	const float handbrakeGripScale = bIsHandbrakeWheel ? tuningData.Brakes.HandbrakeLateralGripMultiplier : 1.0f;
+	const bool bUsePhysicalSlides = tuningData.Drift.bUsePhysicalSlides;
+	const float handbrakeGripScale = bIsHandbrakeWheel && !bUsePhysicalSlides ? tuningData.Brakes.HandbrakeLateralGripMultiplier : 1.0f;
 	const float slideGripScale = bIsRear ? driftController.GetRearGripScale() : 1.0f;
 	const float lateralGrip = grip * FMath::Min(handbrakeGripScale, slideGripScale);
 	const float frictionLimit = grip * state.normalLoad;
@@ -749,6 +750,22 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	spinInput.referenceSpeed = FMath::Max(FMath::Abs(longitudinalSpeed), tires.SlipReferenceSpeed);
 	spinInput.deltaTime = frame.deltaTime;
 
+	if (bUsePhysicalSlides && tuningData.Assists.bEnableTractionLimit && drivetrain.GetDriveDemand() > holdDriveDemandThreshold)
+	{
+		// Allow the first flare of wheelspin. As it grows, bring drive torque towards the
+		// torque the sliding tire can transmit so the wheel can catch up with road speed.
+		const float launchWeight = 1.0f - FMath::SmoothStep(2.0f, 6.0f, static_cast<float>(frame.velocity.Size()));
+		const float driveDirection = FMath::Sign(spinInput.driveTorque);
+		const float drivenSlip = state.slipRatio * driveDirection;
+		const float permittedSlip = FMath::Max(0.25f, tires.LongitudinalCurve.PeakSlip * 2.0f);
+		const float slipWeight = FMath::SmoothStep(permittedSlip, permittedSlip + 0.65f, drivenSlip);
+		const float slidingGrip = FMath::Clamp(tires.LongitudinalCurve.FloorValue, 0.0f, 1.0f);
+		const float recoveryTorque = frictionLimit * slidingGrip * radius * 0.9f;
+		const float requestedTorque = FMath::Abs(spinInput.driveTorque);
+		const float limitedTorque = FMath::Min(requestedTorque, recoveryTorque);
+		spinInput.driveTorque = driveDirection * FMath::Lerp(requestedTorque, limitedTorque, launchWeight * slipWeight);
+	}
+
 	state.slipAngle = FGArcadeTireModel::ComputeSlipAngle(lateralSpeed, longitudinalSpeed, tires.SlipAngleReferenceSpeed);
 	float lateralForce = -FGArcadeTireModel::EvaluateCurve(tires.LateralCurve, state.slipAngle) * lateralGrip * state.normalLoad;
 
@@ -761,8 +778,11 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	contactInput.spin = spinInput;
 	contactInput.frictionLimit = frictionLimit;
 	contactInput.lateralForce = lateralForce;
-	contactInput.lateralSuppression = tires.LateralSuppression;
+	contactInput.lateralSuppression = bUsePhysicalSlides ? 0.0f : tires.LateralSuppression;
 	contactInput.maxBrakingForce = FMath::Abs(longitudinalSpeed) * stoppingForcePerSpeed;
+	contactInput.bUseCombinedSlip = bUsePhysicalSlides;
+	contactInput.lateralSpeed = lateralSpeed;
+	contactInput.maxLateralForce = lateralStoppingForce;
 	const FGArcadeTireContactResult contact = FGArcadeTireModel::SolveContact(contactInput, tires.LongitudinalCurve);
 	state.angularVelocity = contact.angularVelocity;
 	state.slipRatio = FGArcadeTireModel::ComputeSlipRatio(state.angularVelocity * radius, longitudinalSpeed, tires.SlipReferenceSpeed);
@@ -849,14 +869,25 @@ void UGArcadeVehicleComponent::HoldWheel(int32 wheelIndex, const FGArcadeChassis
 
 float UGArcadeVehicleComponent::ComputeDriveTorque(int32 wheelIndex, float tractionScale) const
 {
-	return drivetrain.GetWheelTorque() * wheelRuntimes[wheelIndex].driveTorqueShare * tractionScale;
+	// Disconnect the rear drive while the handbrake is held so engine torque cannot defeat the lock.
+	if (GetTuningData().Drift.bUsePhysicalSlides && vehicleInput.bHandbrake && IsRearWheel(wheelIndex))
+	{
+		return 0.0f;
+	}
+	const float brakePriorityScale = 1.0f - drivetrain.GetBrakeDemand();
+	return drivetrain.GetWheelTorque() * wheelRuntimes[wheelIndex].driveTorqueShare * tractionScale * brakePriorityScale;
 }
 
 float UGArcadeVehicleComponent::ComputeBrakeTorque(int32 wheelIndex) const
 {
 	const UGArcadeVehicleTuning& tuningData = GetTuningData();
 	const FGArcadeBrakeSettings& brakes = tuningData.Brakes;
-	const float driftBrakeScale = FMath::Lerp(1.0f, tuningData.Drift.BrakeScale, driftController.GetDriftBlend());
+	// Preserve the short brake tap that initiates a controlled drift. Handbrake turns keep full braking.
+	const float slideBrakeScale = tuningData.Drift.bUsePhysicalSlides && driftController.GetMode() == EGArcadeSlideMode::HandbrakeTurn
+		? 1.0f
+		: FMath::Lerp(1.0f, tuningData.Drift.BrakeScale, driftController.GetDriftBlend());
+	// Overlapping pedals restore service braking as the drive request increases.
+	const float driftBrakeScale = FMath::Lerp(slideBrakeScale, 1.0f, drivetrain.GetDriveDemand());
 	const float serviceBrakeTorque = drivetrain.GetBrakeDemand() * brakes.TotalBrakeTorque * wheelRuntimes[wheelIndex].brakeTorqueShare * driftBrakeScale;
 	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && IsRearWheel(wheelIndex);
 	const float handbrakeTorque = bIsHandbrakeWheel ? brakes.HandbrakeTorque : 0.0f;
@@ -968,7 +999,7 @@ FVector UGArcadeVehicleComponent::ComputeGroundYawAssists(const FGArcadeChassisF
 	const float corneringMinimumSpeed = assists.CorneringAssistMinimumSpeed / GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
 	const bool bHasSteeringInput = HasSteeringInput();
 
-	// While drifting, the drift controller owns the yaw; the grip assists fade out with the drift blend.
+	// Driving assists fade out during a slide. Scripted yaw is only supplied by the legacy drift mode.
 	float yawAcceleration = driftController.GetYawAcceleration();
 	const float gripScale = 1.0f - driftController.GetDriftBlend();
 

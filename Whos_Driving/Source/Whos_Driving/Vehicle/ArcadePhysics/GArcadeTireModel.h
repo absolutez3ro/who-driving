@@ -43,6 +43,10 @@ struct FGArcadeTireContactInput
 	float lateralForce = 0.0f;
 	float lateralSuppression = 0.0f;
 	float maxBrakingForce = MAX_flt;
+	// At large longitudinal slip, friction opposes the contact patch's actual sliding velocity.
+	bool bUseCombinedSlip = false;
+	float lateralSpeed = 0.0f;
+	float maxLateralForce = MAX_flt;
 };
 
 struct FGArcadeTireContactResult

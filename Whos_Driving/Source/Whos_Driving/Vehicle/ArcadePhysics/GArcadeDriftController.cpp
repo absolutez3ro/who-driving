@@ -9,6 +9,12 @@ namespace
 
 	// Below this speed a path acceleration would ask for an absurd turning rate, metres per second.
 	constexpr float pathMinimumSpeed = 1.0f;
+
+	// Keep enough rear cornering force to arrest a slide without removing the brake-to-drift mechanic.
+	constexpr float minimumControlledRearGrip = 0.75f;
+
+	// Time for yaw and path control to build up after a brake tap or handbrake handover.
+	constexpr float minimumDriftEntryTime = 0.26f;
 }
 
 void FGArcadeDriftController::Reset()
@@ -35,16 +41,32 @@ void FGArcadeDriftController::Update(const FGArcadeDriftInput& input, const FGAr
 	UpdateMode(input, settings, deltaTime);
 	UpdateEntryLatches(input);
 
-	const float blendRate = deltaTime / FMath::Max(settings.BlendTime, UE_KINDA_SMALL_NUMBER);
-	driftBlend = FMath::Clamp(driftBlend + (IsDrifting() ? blendRate : -blendRate), 0.0f, 1.0f);
+	const float blendTime = settings.bUsePhysicalSlides && mode == EGArcadeSlideMode::Drift
+		? FMath::Max(settings.BlendTime, minimumDriftEntryTime)
+		: FMath::Max(settings.BlendTime, UE_KINDA_SMALL_NUMBER);
+	const float forwardSpeedKilometersPerHour = input.forwardSpeed * GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
+	const float driftExitSpeed = settings.BrakeDriftMinimumSpeed * settings.ExitSpeedRatio;
+	const float fullDriftSpeed = FMath::Max(settings.BrakeDriftMinimumSpeed, driftExitSpeed + UE_KINDA_SMALL_NUMBER);
+	const float driftSpeedBlend = FMath::SmoothStep(driftExitSpeed, fullDriftSpeed, forwardSpeedKilometersPerHour);
+	const float targetBlend = mode == EGArcadeSlideMode::Drift ? driftSpeedBlend : (IsDrifting() ? 1.0f : 0.0f);
+	driftBlend = FMath::FInterpConstantTo(driftBlend, targetBlend, deltaTime, 1.0f / blendTime);
 
 	switch (mode)
 	{
 		case EGArcadeSlideMode::Drift:
 			UpdateDriftControl(input, settings, deltaTime);
+			yawAcceleration *= driftSpeedBlend;
+			pathAcceleration *= driftSpeedBlend;
 			break;
 		case EGArcadeSlideMode::HandbrakeTurn:
-			UpdateHandbrakeTurnControl(input, settings);
+			if (settings.bUsePhysicalSlides)
+			{
+				ClearControlOutputs(input);
+			}
+			else
+			{
+				UpdateHandbrakeTurnControl(input, settings);
+			}
 			break;
 		case EGArcadeSlideMode::Grip:
 		default:
@@ -52,6 +74,7 @@ void FGArcadeDriftController::Update(const FGArcadeDriftInput& input, const FGAr
 			break;
 	}
 	UpdateSpeedHold(input, settings);
+	speedHoldAcceleration *= driftSpeedBlend;
 	UpdateRearGrip(settings);
 }
 
@@ -105,7 +128,8 @@ void FGArcadeDriftController::UpdateMode(const FGArcadeDriftInput& input, const 
 			break;
 		case EGArcadeSlideMode::HandbrakeTurn:
 		{
-			const bool bIsTooSlow = input.planarSpeed * GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond < ComputeMinimumSlideSpeed(settings);
+			const float minimumTurnSpeed = settings.HandbrakeDriftMinimumSpeed * settings.ExitSpeedRatio;
+			const bool bIsTooSlow = input.planarSpeed * GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond <= minimumTurnSpeed;
 			const bool bHasBeenAirborneTooLong = airTime > settings.MaxAirTime;
 			if (!input.bHandbrake || bIsTooSlow || bHasBeenAirborneTooLong)
 			{
@@ -146,7 +170,8 @@ bool FGArcadeDriftController::ShouldStartHandbrakeTurn(const FGArcadeDriftInput&
 bool FGArcadeDriftController::ShouldEndDrift(const FGArcadeDriftInput& input, const FGArcadeDriftSettings& settings) const
 {
 	const float speedKilometersPerHour = input.forwardSpeed * GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
-	const bool bIsTooSlow = speedKilometersPerHour < ComputeMinimumSlideSpeed(settings);
+	const float minimumDriftSpeed = settings.BrakeDriftMinimumSpeed * settings.ExitSpeedRatio;
+	const bool bIsTooSlow = speedKilometersPerHour <= minimumDriftSpeed;
 	const bool bHasStraightened = modeTime >= settings.MinimumDuration && FMath::Abs(input.bodySlipAngle) < settings.ExitAngle;
 	const bool bHasBeenAirborneTooLong = airTime > settings.MaxAirTime;
 	return bIsTooSlow || bHasStraightened || bHasBeenAirborneTooLong;
@@ -158,7 +183,7 @@ void FGArcadeDriftController::FinishHandbrakeTurn(const FGArcadeDriftInput& inpu
 	const float slideAngle = FMath::Abs(input.travelAngle);
 	const float speedKilometersPerHour = input.forwardSpeed * GArcadeVehicleUnits::kilometersPerHourPerMeterPerSecond;
 	const bool bIsSliding = slideAngle >= settings.ExitAngle && slideAngle <= settings.HandbrakeTurnHandoverAngle;
-	const bool bIsFastEnough = speedKilometersPerHour >= ComputeMinimumSlideSpeed(settings);
+	const bool bIsFastEnough = speedKilometersPerHour > settings.BrakeDriftMinimumSpeed * settings.ExitSpeedRatio;
 	if (input.bIsGrounded && bIsSliding && bIsFastEnough)
 	{
 		// The slide side is opposite to where the velocity points relative to the nose.
@@ -170,6 +195,9 @@ void FGArcadeDriftController::FinishHandbrakeTurn(const FGArcadeDriftInput& inpu
 
 void FGArcadeDriftController::EnterMode(EGArcadeSlideMode newMode, float direction, const FGArcadeDriftInput& input)
 {
+	// A brake press used during a slide must be released before it can start the next one.
+	const bool bIsSlideTransition = mode != EGArcadeSlideMode::Grip || newMode != EGArcadeSlideMode::Grip;
+	bIsBrakeLatched = bIsBrakeLatched || (bIsSlideTransition && input.brake > pedalPressThreshold);
 	mode = newMode;
 	driftDirection = newMode == EGArcadeSlideMode::Grip ? 0.0f : direction;
 	modeTime = 0.0f;
@@ -178,7 +206,6 @@ void FGArcadeDriftController::EnterMode(EGArcadeSlideMode newMode, float directi
 	bHasPreviousSlipAngle = false;
 	if (newMode != EGArcadeSlideMode::Grip)
 	{
-		bIsBrakeLatched = bIsBrakeLatched || input.brake > pedalPressThreshold;
 		bIsHandbrakeLatched = bIsHandbrakeLatched || input.bHandbrake;
 	}
 }
@@ -207,8 +234,11 @@ void FGArcadeDriftController::UpdateDriftControl(const FGArcadeDriftInput& input
 	const float steeringIntoDrift = input.steering * driftDirection;
 	targetSlipAngle = -driftDirection * ComputeTargetAngle(settings, steeringIntoDrift);
 
-	// The path channel bends the velocity through the corner; the yaw channel keeps the nose ahead of it.
-	pathAcceleration = driftDirection * ComputePathAcceleration(settings, steeringIntoDrift) * driftBlend;
+	// Ramp both controls together, even if a preceding handbrake slide already faded the grip assists.
+	const float entryTime = FMath::Max(settings.BlendTime, minimumDriftEntryTime);
+	const float entryBlend = settings.bUsePhysicalSlides ? FMath::SmoothStep(0.0f, entryTime, modeTime + deltaTime) : 1.0f;
+	const float pathBlend = FMath::Min(driftBlend, entryBlend);
+	pathAcceleration = driftDirection * ComputePathAcceleration(settings, steeringIntoDrift) * pathBlend;
 	const float pathYawRate = pathAcceleration / FMath::Max(input.planarSpeed, pathMinimumSpeed);
 
 	// More yaw towards the drift side lowers the slip angle, so the error and its rate both feed yaw directly:
@@ -220,7 +250,7 @@ void FGArcadeDriftController::UpdateDriftControl(const FGArcadeDriftInput& input
 		: 0.0f;
 	const float angleControl = settings.AngleStiffness * angleError + settings.AngleDamping * slipRate;
 	const float rateControl = settings.YawRateMatchStrength * (pathYawRate - input.yawRate);
-	yawAcceleration = FMath::Clamp(angleControl + rateControl, -settings.MaxYawAcceleration, settings.MaxYawAcceleration);
+	yawAcceleration = FMath::Clamp(angleControl + rateControl, -settings.MaxYawAcceleration, settings.MaxYawAcceleration) * entryBlend;
 	previousSlipAngle = input.bodySlipAngle;
 	bHasPreviousSlipAngle = true;
 }
@@ -249,7 +279,7 @@ void FGArcadeDriftController::UpdateHandbrakeTurnControl(const FGArcadeDriftInpu
 void FGArcadeDriftController::UpdateSpeedHold(const FGArcadeDriftInput& input, const FGArcadeDriftSettings& settings)
 {
 	const bool bIsRequestingDrive = input.throttle > pedalPressThreshold && input.brake <= pedalPressThreshold && !input.bHandbrake;
-	if (mode != EGArcadeSlideMode::Drift || !input.bIsGrounded || !bIsRequestingDrive)
+	if (settings.bUsePhysicalSlides || mode != EGArcadeSlideMode::Drift || !input.bIsGrounded || !bIsRequestingDrive)
 	{
 		speedHoldAcceleration = 0.0f;
 		// Coasting or braking must not build a speed debt that is repaid on the next throttle press.
@@ -263,7 +293,15 @@ void FGArcadeDriftController::UpdateSpeedHold(const FGArcadeDriftInput& input, c
 
 void FGArcadeDriftController::UpdateRearGrip(const FGArcadeDriftSettings& settings)
 {
-	const float slideGrip = mode == EGArcadeSlideMode::HandbrakeTurn ? settings.HandbrakeTurnRearGripMultiplier : settings.RearGripMultiplier;
+	float slideGrip = mode == EGArcadeSlideMode::HandbrakeTurn ? settings.HandbrakeTurnRearGripMultiplier : settings.RearGripMultiplier;
+	if (settings.bUsePhysicalSlides)
+	{
+		// Locked-wheel friction already handles the handbrake. A controlled brake drift only needs
+		// a modest rear grip reduction; the yaw and path controller still initiates and steers it.
+		slideGrip = mode == EGArcadeSlideMode::HandbrakeTurn
+			? 1.0f
+			: FMath::Clamp(settings.RearGripMultiplier, minimumControlledRearGrip, 1.0f);
+	}
 	rearGripScale = FMath::Lerp(1.0f, slideGrip, driftBlend);
 }
 
@@ -274,9 +312,4 @@ void FGArcadeDriftController::ClearControlOutputs(const FGArcadeDriftInput& inpu
 	targetSlipAngle = 0.0f;
 	previousSlipAngle = input.bodySlipAngle;
 	bHasPreviousSlipAngle = false;
-}
-
-float FGArcadeDriftController::ComputeMinimumSlideSpeed(const FGArcadeDriftSettings& settings)
-{
-	return FMath::Min(settings.BrakeDriftMinimumSpeed, settings.HandbrakeDriftMinimumSpeed) * settings.ExitSpeedRatio;
 }
