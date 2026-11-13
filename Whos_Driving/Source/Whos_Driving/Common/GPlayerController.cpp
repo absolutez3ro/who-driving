@@ -489,7 +489,7 @@ void AGPlayerController::RequestNextTrack()
 	}
 }
 
-void AGPlayerController::DamageSelf(float amount)
+void AGPlayerController::ExecDamageSelf(float amount)
 {
 	AWhos_DrivingCharacter* targetActor = GetDriverCharacter();
 	targetActor->GetCombatComponent()->ApplyDamage(amount, this);

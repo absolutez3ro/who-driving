@@ -3,6 +3,8 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleMovementComponent.h"
+#include "GVehicleModuleComponent.h"
+#include "Vehicle/Modules/GVehicleDoorModule.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
 #include "Whos_DrivingCharacter.h"
@@ -217,6 +219,22 @@ void UGVehicleCombatComponent::NotifyWeaponStateChanged(const AGVehicleWeapon* w
 	{
 		OnWeaponAmmoChanged.Broadcast();
 	}
+}
+
+UGVehicleDoorModule* UGVehicleCombatComponent::GetDoorModuleForSeat()
+{
+	AGPlayerCar* car = GetVehicle();
+	UGVehicleSeatingComponent* seating = car->GetSeatingComponent();
+	UGVehicleSeatComponent* seat = seating->GetSeatComponent(GetSeatIndex());
+	auto doors = car->GetModuleComponent()->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		if (door->moduleSide == seat->side)
+		{
+			return door;
+		}
+	}
+	return nullptr;
 }
 
 float UGVehicleCombatComponent::GetWindowAlpha() const
@@ -666,25 +684,33 @@ float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigato
 	}
 
 	const float applied = FMath::Min(amount, health);
-	health -= applied;
-	OnHealthUpdate.Broadcast(health, maxHealth);
-	lastDamageTime = GetServerTime();
-	if (health <= 0.0f)
+	UGVehicleDoorModule* door = GetDoorModuleForSeat();
+	if (!CanBeDamaged())
 	{
-		CancelActions(true);
-		if (AGPlayerController* controller = GetPlayerController())
-		{
-			if (AGPlayerCar* vehicle = GetVehicle())
-			{
-				vehicle->GetSeatingComponent()->RemovePlayer(controller, false);
-				controller->UnPossess();
-				controller->SetVehicleContext(nullptr, GetCharacter());
-			}
-		}
-		GetCharacter()->GetCharacterMovement()->DisableMovement();
-		OnRep_Loadout();
+		GetVehicle()->DamageModule(door->moduleId, applied);
 	}
-	GetOwner()->ForceNetUpdate();
+	else
+	{
+		health -= applied;
+		OnHealthUpdate.Broadcast(health, maxHealth);
+		lastDamageTime = GetServerTime();
+		if (health <= 0.0f)
+		{
+			CancelActions(true);
+			if (AGPlayerController* controller = GetPlayerController())
+			{
+				if (AGPlayerCar* vehicle = GetVehicle())
+				{
+					vehicle->GetSeatingComponent()->RemovePlayer(controller, false);
+					controller->UnPossess();
+					controller->SetVehicleContext(nullptr, GetCharacter());
+				}
+			}
+			GetCharacter()->GetCharacterMovement()->DisableMovement();
+			OnRep_Loadout();
+		}
+		GetOwner()->ForceNetUpdate();
+	}
 	return applied;
 }
 
@@ -719,4 +745,10 @@ FVector UGVehicleCombatComponent::GetFirstPersonPoseOffset() const
 										 0.0f, 1.0f);
 	const float reloadLift = weapon->IsReloading() ? definition->ReloadHandLift * liftAlpha : 0.0f;
 	return definition->ViewmodelOffset + FVector(0.0f, 0.0f, reloadLift);
+}
+
+bool UGVehicleCombatComponent::CanBeDamaged()
+{
+	UGVehicleDoorModule* door = GetDoorModuleForSeat();
+	return door->IsDestroyed() || IsOutside();
 }

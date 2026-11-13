@@ -19,6 +19,7 @@ class WHOS_DRIVING_API UGVehicleDoorModule : public UGVehicleModule
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	int32 doorId = INDEX_NONE;
+	EGComponentSide moduleSide;
 	FOnDoorChangeState OnDoorChangeState;
 protected:
 	void OnDestroyed() override;

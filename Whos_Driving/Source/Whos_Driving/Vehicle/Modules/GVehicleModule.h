@@ -20,6 +20,13 @@ enum class EGModuleState : uint8
 	Destroyed
 };
 
+UENUM(BlueprintType)
+enum class EGComponentSide : uint8
+{
+	Left,
+	Right
+};
+
 UCLASS()
 class WHOS_DRIVING_API UGVehicleModule : public UObject
 {

@@ -11,6 +11,7 @@ class AGPlayerCar;
 class AGPlayerController;
 class AGVehicleWeapon;
 class UAnimInstance;
+class UGVehicleDoorModule;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthUpdate, float, health, float, maxHealth);
@@ -54,6 +55,8 @@ public:
 	void RecordCosmeticShot();
 	// Weapons report their replicated state here, so listeners only ever deal with the selected weapon.
 	void NotifyWeaponStateChanged(const AGVehicleWeapon* weapon);
+
+	UGVehicleDoorModule* GetDoorModuleForSeat();
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;
@@ -118,6 +121,8 @@ public:
 	float GetServerTime() const;
 	UFUNCTION(BlueprintPure, Category = "Combat|Animation")
 	FVector GetFirstPersonPoseOffset() const;
+
+	bool CanBeDamaged();
 
 	// Fires when the selected weapon's ammunition changes and when another weapon becomes selected.
 	UPROPERTY(BlueprintAssignable, Category = "Combat")

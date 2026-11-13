@@ -9,6 +9,7 @@ class AGPlayerController;
 class APlayerState;
 class AWhos_DrivingCharacter;
 class UGVehicleSeatComponent;
+class UGVehicleDoorModule;
 
 USTRUCT(BlueprintType)
 struct FGVehicleSeatState
