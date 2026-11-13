@@ -13,6 +13,7 @@ class AGVehicleWeapon;
 class UAnimInstance;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthUpdate, float, health, float, maxHealth);
 
 USTRUCT(BlueprintType)
 struct FGVehicleWindowState
@@ -122,6 +123,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FGOnWeaponAmmoChanged OnWeaponAmmoChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Health")
+	FOnHealthUpdate OnHealthUpdate;
+
 	// Weapon order matches AGPlayerController::weaponSelectActions.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Loadout")
 	TArray<TObjectPtr<UGWeaponDefinition>> loadout;
@@ -144,6 +148,7 @@ protected:
 	void InitializeComponent() override;
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
+	void RegenHealth(float deltaSeconds);
 	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Combat")
 	TArray<TObjectPtr<AGVehicleWeapon>> weapons;
 	UPROPERTY(ReplicatedUsing = OnRep_Loadout, BlueprintReadOnly, Category = "Combat")
@@ -154,8 +159,18 @@ protected:
 	FVector_NetQuantizeNormal aimDirection = FVector::ForwardVector;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
 	bool bAiming = false;
-	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadOnly, Category = "Combat")
+
+	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadOnly, Category = "Combat|Health")
 	float health = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
+	float regenCooldown = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
+	float healthRegenRate = 5.0f;
+
+	float lastDamageTime = -FLT_MAX;
+
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
 	float equipStartTime = -100.0f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")

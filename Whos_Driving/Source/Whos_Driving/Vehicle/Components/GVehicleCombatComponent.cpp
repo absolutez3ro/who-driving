@@ -125,9 +125,9 @@ void UGVehicleCombatComponent::BeginPlay()
 	GetCharacter()->GetFirstPersonMesh()->HideBoneByName(TEXT("head"), EPhysBodyOp::PBO_None);
 	if (IsAuthority())
 	{
-		health = maxHealth;
 		SpawnLoadout();
 	}
+	health = maxHealth;
 }
 
 void UGVehicleCombatComponent::SpawnLoadout()
@@ -626,6 +626,7 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 											 FActorComponentTickFunction* tickFunction)
 {
 	Super::TickComponent(deltaSeconds, tickType, tickFunction);
+	RegenHealth(deltaSeconds);
 	RefreshPresentation();
 	RefreshDriverLock();
 	if (IsLocallyOwned() && GetPlayerController())
@@ -639,14 +640,35 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 	}
 }
 
+void UGVehicleCombatComponent::RegenHealth(float deltaSeconds)
+{
+	if (IsAuthority() && health > 0.0f && health < maxHealth &&
+		GetServerTime() - lastDamageTime >= regenCooldown)
+	{
+		const float previous = health;
+		health = FMath::Min(health + healthRegenRate * deltaSeconds, maxHealth);
+		OnHealthUpdate.Broadcast(health, maxHealth);
+		if (!FMath::IsNearlyEqual(previous, health))
+		{
+			if (GetNetMode() != NM_DedicatedServer)
+			{
+				RefreshPresentation();
+			}
+		}
+	}
+}
+
 float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigatorController)
 {
 	if (!IsAuthority() || !FMath::IsFinite(amount) || amount <= 0.0f || health <= 0.0f)
 	{
 		return 0.0f;
 	}
+
 	const float applied = FMath::Min(amount, health);
 	health -= applied;
+	OnHealthUpdate.Broadcast(health, maxHealth);
+	lastDamageTime = GetServerTime();
 	if (health <= 0.0f)
 	{
 		CancelActions(true);

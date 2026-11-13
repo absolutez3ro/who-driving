@@ -489,6 +489,12 @@ void AGPlayerController::RequestNextTrack()
 	}
 }
 
+void AGPlayerController::DamageSelf(float amount)
+{
+	AWhos_DrivingCharacter* targetActor = GetDriverCharacter();
+	targetActor->GetCombatComponent()->ApplyDamage(amount, this);
+}
+
 bool AGPlayerController::IsVehicleOccupant() const
 {
 	if (!IsValid(seatedVehicle) || !IsValid(driverCharacter) || driverCharacter->GetOwner() != this)

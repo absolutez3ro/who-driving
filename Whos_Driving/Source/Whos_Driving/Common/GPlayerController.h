@@ -76,6 +76,9 @@ public:
 	void RequestPreviousTrack();
 	void RequestNextTrack();
 
+	UFUNCTION(Exec, BlueprintCallable, Category = "Debug")
+	void DamageSelf(float amount = 10.0f);
+
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
 	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost);
 
