@@ -32,6 +32,7 @@ enum class EGCombatAction : uint8
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnPlayerWeaponAmmoChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGOnPlayerHealthChanged, float, health, float, maxHealth);
 
 UCLASS()
 class WHOS_DRIVING_API AGPlayerController : public APlayerController
@@ -96,6 +97,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|UI")
 	bool GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const;
 
+	// Health of this player's character, for the HUD. Returns false while the controller has no character yet,
+	// which on a client lasts until the character reference replicates.
+	UFUNCTION(BlueprintPure, Category = "Combat|UI")
+	bool GetCurrentHealth(float& outHealth, float& outMaxHealth) const;
+
 	UFUNCTION(Client, Reliable)
 	void ClientSetupLobbyInput();
 
@@ -110,6 +116,9 @@ public:
 	// Fires when the ammunition in the hands changes, including another weapon or another character.
 	UPROPERTY(BlueprintAssignable, Category = "Combat|UI")
 	FGOnPlayerWeaponAmmoChanged OnWeaponAmmoChanged;
+	// Fires when this player's health changes, including when the controller gets another character.
+	UPROPERTY(BlueprintAssignable, Category = "Combat|UI")
+	FGOnPlayerHealthChanged OnHealthChanged;
 
 protected:
 	void BeginPlay() override;
@@ -118,7 +127,7 @@ protected:
 	void SetupInputComponent() override;
 	void LookInput(const FInputActionValue& value);
 	void RefreshVehicleView();
-	void RefreshAmmoSource();
+	void RefreshCombatSource();
 
 	UFUNCTION(BlueprintCallable)
 	void StartSkillCheck();
@@ -236,11 +245,13 @@ private:
 	bool IsVehicleOccupant() const;
 	UFUNCTION()
 	void HandleWeaponAmmoChanged();
+	UFUNCTION()
+	void HandleHealthChanged(float health, float maxHealth);
 	float lastRadioRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
 	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
-	// The character whose ammunition OnWeaponAmmoChanged reports.
-	TWeakObjectPtr<UGVehicleCombatComponent> ammoSource;
+	// The character whose ammunition and health OnWeaponAmmoChanged and OnHealthChanged report.
+	TWeakObjectPtr<UGVehicleCombatComponent> combatSource;
 	UGVehicleCombatComponent* GetOwnedCombat() const;
 };

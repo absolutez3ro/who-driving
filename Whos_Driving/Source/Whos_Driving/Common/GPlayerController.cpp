@@ -382,28 +382,38 @@ void AGPlayerController::RefreshVehicleView()
 			SetViewTarget(target);
 		}
 	}
-	// Tracked on every controller, so the ammo getter also answers on the server.
-	RefreshAmmoSource();
+	// Tracked on every controller, so the HUD getters also answer on the server.
+	RefreshCombatSource();
 }
 
-void AGPlayerController::RefreshAmmoSource()
+void AGPlayerController::RefreshCombatSource()
 {
+	// On a client the character reference replicates after BeginPlay, so the HUD binds to this controller
+	// and the controller follows the character through OnRep_VehicleContext and OnRep_Pawn.
 	AWhos_DrivingCharacter* character = seatedVehicle ? driverCharacter.Get() : Cast<AWhos_DrivingCharacter>(GetPawn());
 	UGVehicleCombatComponent* combat = IsValid(character) ? character->GetCombatComponent() : nullptr;
-	if (ammoSource.Get() == combat)
+	if (combatSource.Get() == combat)
 	{
 		return;
 	}
-	if (ammoSource.IsValid())
+	if (combatSource.IsValid())
 	{
-		ammoSource->OnWeaponAmmoChanged.RemoveDynamic(this, &AGPlayerController::HandleWeaponAmmoChanged);
+		combatSource->OnWeaponAmmoChanged.RemoveDynamic(this, &AGPlayerController::HandleWeaponAmmoChanged);
+		combatSource->OnHealthUpdate.RemoveDynamic(this, &AGPlayerController::HandleHealthChanged);
 	}
-	ammoSource = combat;
+	combatSource = combat;
 	if (combat)
 	{
 		combat->OnWeaponAmmoChanged.AddDynamic(this, &AGPlayerController::HandleWeaponAmmoChanged);
+		combat->OnHealthUpdate.AddDynamic(this, &AGPlayerController::HandleHealthChanged);
 	}
 	OnWeaponAmmoChanged.Broadcast();
+	float health = 0.0f;
+	float maxHealth = 0.0f;
+	if (GetCurrentHealth(health, maxHealth))
+	{
+		OnHealthChanged.Broadcast(health, maxHealth);
+	}
 }
 
 void AGPlayerController::HandleWeaponAmmoChanged()
@@ -411,11 +421,29 @@ void AGPlayerController::HandleWeaponAmmoChanged()
 	OnWeaponAmmoChanged.Broadcast();
 }
 
+void AGPlayerController::HandleHealthChanged(float health, float maxHealth)
+{
+	OnHealthChanged.Broadcast(health, maxHealth);
+}
+
 bool AGPlayerController::GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const
 {
 	outMagazineAmmo = 0;
 	outReserveAmmo = 0;
-	return ammoSource.IsValid() && ammoSource->GetCurrentWeaponAmmo(outMagazineAmmo, outReserveAmmo);
+	return combatSource.IsValid() && combatSource->GetCurrentWeaponAmmo(outMagazineAmmo, outReserveAmmo);
+}
+
+bool AGPlayerController::GetCurrentHealth(float& outHealth, float& outMaxHealth) const
+{
+	outHealth = 0.0f;
+	outMaxHealth = 0.0f;
+	if (!combatSource.IsValid())
+	{
+		return false;
+	}
+	outHealth = combatSource->GetHealth();
+	outMaxHealth = combatSource->maxHealth;
+	return true;
 }
 
 void AGPlayerController::RequestLookedAtSeat()
