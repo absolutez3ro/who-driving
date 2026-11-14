@@ -799,7 +799,14 @@ void AGPlayerController::RequestRevive()
 	{
 		return;
 	}
-	ServerRequestRevive(targetPlayer);
+	UGVehicleCombatComponent* combat = targetPlayer->GetCombatComponent();
+	int32 targetSeatIndex = combat->GetSeatIndex();
+	int32 reviverSeatIndex = driverCharacter->GetCombatComponent()->GetSeatIndex();
+	bool bSameSeatRow = (reviverSeatIndex < 2) == (targetSeatIndex < 2);
+	if (bSameSeatRow)
+	{
+		ServerRequestRevive(targetPlayer);
+	}
 }
 
 void AGPlayerController::RequestReviveStop()
