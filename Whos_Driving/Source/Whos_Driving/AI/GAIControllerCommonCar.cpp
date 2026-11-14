@@ -10,6 +10,9 @@
 #include "ChaosVehicleMovementComponent.h"
 #include "AI/AGSplineActor.h"
 #include "CollisionQueryParams.h"
+#include "Common/Whos_DrivingCharacter.h"
+#include "Vehicle/Components/GVehicleCombatComponent.h"
+
 void AGAIControllerCommonCar::BeginPlay()
 {
 	Super::BeginPlay();
@@ -81,10 +84,10 @@ void AGAIControllerCommonCar::BeginPlay()
 
 void AGAIControllerCommonCar::SetPlayerRef()
 {
-	AActor* foundActor = UGameplayStatics::GetActorOfClass(GetWorld(), AGPlayerCar::StaticClass());
+	AActor* foundCar = UGameplayStatics::GetActorOfClass(GetWorld(), AGPlayerCar::StaticClass());
 
 	// 3. Cast to your specific type
-	AGPlayerCar* carReference = Cast<AGPlayerCar>(foundActor);
+	AGPlayerCar* carReference = Cast<AGPlayerCar>(foundCar);
 
 	if (carReference)
 	{
@@ -93,6 +96,18 @@ void AGAIControllerCommonCar::SetPlayerRef()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Found Actor: %s"), *carReference->GetName());
+	}
+
+	playerCharacters.Empty();
+	TArray<AActor*> foundPlayers;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWhos_DrivingCharacter::StaticClass(), foundPlayers);
+	for (AActor* actor : foundPlayers)
+	{
+		if (AWhos_DrivingCharacter* character =
+			Cast<AWhos_DrivingCharacter>(actor))
+		{
+			playerCharacters.Add(character);
+		}
 	}
 }
 
@@ -130,90 +145,189 @@ void AGAIControllerCommonCar::StartShootDelay()
 
 void AGAIControllerCommonCar::Shoot_Implementation()
 {
-	UE_LOG(LogTemp, Log, TEXT("trying to shoot"));
-	FVector toPlayer = playerCarRef->GetActorLocation() - GetPawn()->GetActorLocation();
-	float distance = toPlayer.Length();
-	bool inSight = !TraceShot();
-	if (inSight)
+	UE_LOG(LogTemp, Log, TEXT("Trying to shoot"));
+
+	TArray<AActor*> availableTargets;
+
+	if (IsValid(playerCarRef))
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Green, TEXT("player in sight"));
-	}else
+		availableTargets.Add(playerCarRef);
+	}
+
+	for (int32 i = playerCharacters.Num() - 1; i >= 0; --i)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("player NOT in sight"));
+		AWhos_DrivingCharacter* character = playerCharacters[i].Get();
+
+		if (!IsValid(character))
+		{
+			playerCharacters.RemoveAt(i);
+			continue;
+		}
+
+		availableTargets.Add(character);
+	}
+
+	TArray<AActor*> visibleTargets;
+
+	const FVector enemyLocation = GetPawn()->GetActorLocation();
+
+	for (AActor* target : availableTargets)
+	{
+		if (!IsValid(target))
+		{
+			continue;
+		}
+
+		const float distanceSquared = FVector::DistSquared(
+			enemyLocation,
+			target->GetActorLocation()
+		);
+
+		if (distanceSquared > FMath::Square(hitRange))
+		{
+			continue;
+		}
+		visibleTargets.Add(target);
+	}
+
+	if (visibleTargets.Num() == 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("No visible player targets"));
+		StartShootDelay();
 		return;
 	}
-	if (FMath::RandRange(0.0f, 1.0f) <= hitChance && distance<=hitRange)
+
+	AActor* targetActor = visibleTargets[
+		FMath::RandRange(0, visibleTargets.Num() - 1)
+	];
+
+	if (FMath::RandRange(0.0f, 1.0f) > hitChance)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Missed"));
+
+		if (AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn()))
+		{
+			enemyCar->PlayMissSound_Implementation();
+		}
+
+		StartShootDelay();
+		return;
+	}
+
+	const float damage = FMath::RandRange(minDamage, maxDamage);
+
+	if (AGPlayerCar* targetCar = Cast<AGPlayerCar>(targetActor))
 	{
 		TArray<FName> shootableModuleNames[6];
 		TArray<int32> shootableGroupIndices;
-		const float damage = FMath::RandRange(minDamage, maxDamage);
+
 		for (int32 i = 0; i < 6; i++)
 		{
-			float overallHp = 0;
+			float overallHp = 0.f;
+
 			for (int32 j = 0; j < moduleNames[i].Num(); j++)
 			{
-				const float moduleHp = playerCarRef->GetModuleDamageState(moduleNames[i][j]).currentHP;
+				const float moduleHp =
+					targetCar->GetModuleDamageState(
+						moduleNames[i][j]
+					).currentHP;
+
 				overallHp += moduleHp;
-				if (moduleHp > 0)
+
+				if (moduleHp > 0.f)
 				{
 					shootableModuleNames[i].Add(moduleNames[i][j]);
 				}
 			}
-			if (overallHp > 0)
+
+			if (overallHp > 0.f)
 			{
 				shootableGroupIndices.Add(i);
 			}
 		}
-		// Add 5 manually because "base hp" is not a module.
+
 		shootableGroupIndices.Add(5);
 
-		float totalWeight = 0;
-		for (int32 i = 0; i < shootableGroupIndices.Num(); i++)
+		float totalWeight = 0.f;
+
+		for (int32 groupIndex : shootableGroupIndices)
 		{
-			totalWeight += weights[shootableGroupIndices[i]];
+			totalWeight += weights[groupIndex];
 		}
-		float accumulatedWeight = 0;
-		const float randomWeight = FMath::RandRange(0.0f, totalWeight);
+
+		if (totalWeight <= 0.f)
+		{
+			StartShootDelay();
+			return;
+		}
+
+		const float randomWeight = FMath::RandRange(0.f, totalWeight);
+		float accumulatedWeight = 0.f;
 		int32 targetGroupIndex = -1;
 
-		for (int32 i = 0; i < shootableGroupIndices.Num(); i++)
+		for (int32 groupIndex : shootableGroupIndices)
 		{
-			accumulatedWeight += weights[shootableGroupIndices[i]];
+			accumulatedWeight += weights[groupIndex];
+
 			if (randomWeight <= accumulatedWeight)
 			{
-				targetGroupIndex = shootableGroupIndices[i];
+				targetGroupIndex = groupIndex;
 				break;
 			}
 		}
 
-		if (targetGroupIndex >= 0)
+		if (targetGroupIndex == 5)
 		{
-			if (targetGroupIndex == 5)
-			{
-				playerCarRef->TakeDamage(damage, FDamageEvent(), nullptr, this);
-				UE_LOG(LogTemp, Log, TEXT("hit main hp %f"), damage);
-			}
-			else
-			{
-				const int32 lastModuleIndex = moduleNames[targetGroupIndex].Num() - 1;
-				const FName targetedModule = moduleNames[targetGroupIndex][FMath::RandRange(0, lastModuleIndex)];
-				playerCarRef->DamageModule(targetedModule, damage);
-				UE_LOG(LogTemp, Log, TEXT("hit part %s damage: %f"), *targetedModule.ToString(), damage);
-			}
-			AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn());
-			enemyCar->PlayShotSound_Implementation();
+			targetCar->TakeDamage(
+				damage,
+				FDamageEvent(),
+				nullptr,
+				this
+			);
+
+			UE_LOG(LogTemp, Log, TEXT("Hit car main HP: %f"), damage);
 		}
-		else
+		else if (targetGroupIndex >= 0 &&
+			shootableModuleNames[targetGroupIndex].Num() > 0)
 		{
-			UE_LOG(LogTemp, Error, TEXT("no part of car got shot for some reason"));
+			const TArray<FName>& modules =
+				shootableModuleNames[targetGroupIndex];
+
+			const FName targetedModule = modules[
+				FMath::RandRange(0, modules.Num() - 1)
+			];
+
+			targetCar->DamageModule(targetedModule, damage);
+
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("Hit module %s, damage: %f"),
+				*targetedModule.ToString(),
+				damage
+			);
 		}
 	}
-	else
+
+	else if (AWhos_DrivingCharacter* targetCharacter =
+		Cast<AWhos_DrivingCharacter>(targetActor))
 	{
-		UE_LOG(LogTemp, Log, TEXT("missed"));
-		AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn());
-		enemyCar->PlayMissSound_Implementation();
+		targetCharacter->GetCombatComponent()->ApplyDamage(damage, targetCharacter->GetController());
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Blue, TEXT("ENEMY SHOOTING AT PLAYER"));
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("Hit player character: %s, damage: %f"),
+			*GetNameSafe(targetCharacter),
+			damage
+		);
 	}
+
+	if (AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn()))
+	{
+		enemyCar->PlayShotSound_Implementation();
+	}
+
 	StartShootDelay();
 }
 

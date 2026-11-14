@@ -14,7 +14,7 @@ class UGCommonEnemyDataAsset;
 class USplineComponent;
 class AAGSplineActor;
 class UChaosVehicleMovementComponent;
-
+class AWhos_DrivingCharacter;
 
 
 UCLASS()
@@ -52,6 +52,7 @@ private:
 	TObjectPtr<USoundBase> hitSound;
 	TObjectPtr<USoundBase> missSound;
 	AGPlayerCar* playerCarRef;
+	TArray<TWeakObjectPtr<AWhos_DrivingCharacter>> playerCharacters;
 	// Base distance ahead of the car to aim at (cm)
 	float lookAheadDistance = 800.f;
 	// Extra look-ahead per unit of speed (seconds). Faster = look further ahead
