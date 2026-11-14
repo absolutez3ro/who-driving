@@ -124,6 +124,12 @@ public:
 		return confirmedShots;
 	}
 	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetReviveTimeSeconds() const
+	{
+		return reviveTimeSeconds;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetServerTime() const;
 	UFUNCTION(BlueprintPure, Category = "Combat|Animation")
 	FVector GetFirstPersonPoseOffset() const;
@@ -196,7 +202,7 @@ protected:
 	float reviveHealth = 35.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
-	float reviveTimeSeconds = 5.0f;
+	float reviveTimeSeconds = 1.0f;
 
 	float lastDamageTime = -FLT_MAX;
 

@@ -76,8 +76,15 @@ public:
 	void RequestFireMode();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
 	void RequestRevive();
+	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
+	void RequestReviveStop();
 	UFUNCTION(Server, Reliable)
 	void ServerRequestRevive(AWhos_DrivingCharacter* targetPlayer);
+	UFUNCTION(Server, Reliable)
+	void ServerCancelRevive();
+	UFUNCTION()
+	void CompleteRevive();
+
 	void SendCombatView(const FVector& direction);
 	void RequestPreviousTrack();
 	void RequestNextTrack();
@@ -269,4 +276,6 @@ private:
 	// The character whose ammunition and health OnWeaponAmmoChanged and OnHealthChanged report.
 	TWeakObjectPtr<UGVehicleCombatComponent> combatSource;
 	UGVehicleCombatComponent* GetOwnedCombat() const;
+	TWeakObjectPtr<AWhos_DrivingCharacter> reviveTarget;
+	FTimerHandle reviveTimer;
 };

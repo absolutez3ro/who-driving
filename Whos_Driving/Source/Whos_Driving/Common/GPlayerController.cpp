@@ -58,6 +58,8 @@ void AGPlayerController::EndPlay(const EEndPlayReason::Type endPlayReason)
 	{
 		seatedVehicle->GetSeatingComponent()->RemovePlayer(this, true);
 	}
+	GetWorld()->GetTimerManager().ClearTimer(reviveTimer);
+	reviveTarget.Reset();
 	Super::EndPlay(endPlayReason);
 }
 
@@ -155,6 +157,8 @@ void AGPlayerController::SetupInputComponent()
 	if (reviveAction)
 	{
 		enhancedInput->BindAction(reviveAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestRevive);
+		enhancedInput->BindAction(reviveAction.Get(), ETriggerEvent::Completed, this, &AGPlayerController::RequestReviveStop);
+		enhancedInput->BindAction(reviveAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerController::RequestReviveStop);
 	}
 }
 
@@ -781,6 +785,7 @@ void AGPlayerController::RequestRevive()
 	const FVector end = origin + rotation.Vector() * 3000.0f;
 	FCollisionQueryParams query(SCENE_QUERY_STAT(PlayerLook), false);
 	query.AddIgnoredActor(seatedVehicle);
+	query.AddIgnoredActor(GetPawn());
 	FHitResult hit;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel4, query);
 
@@ -797,22 +802,44 @@ void AGPlayerController::RequestRevive()
 	ServerRequestRevive(targetPlayer);
 }
 
-void AGPlayerController::ServerRequestRevive_Implementation(AWhos_DrivingCharacter* targetPlayer)
+void AGPlayerController::RequestReviveStop()
 {
-	UGVehicleCombatComponent* combat =
-		targetPlayer->GetCombatComponent();
-
-	if (!IsValid(combat))
+	if (IsLocalController())
 	{
-		return;
-	}
-
-	if (!combat->Revive())
-	{
-		return;
+		ServerCancelRevive();
 	}
 }
 
+void AGPlayerController::ServerCancelRevive_Implementation()
+{
+	GetWorld()->GetTimerManager().ClearTimer(reviveTimer);
+	reviveTarget.Reset();
+}
+
+void AGPlayerController::ServerRequestRevive_Implementation(AWhos_DrivingCharacter* targetPlayer)
+{
+	if (GetWorld()->GetTimerManager().IsTimerActive(reviveTimer))
+	{
+		return;
+	}
+	AWhos_DrivingCharacter* reviverCharacter = driverCharacter;
+	if (!IsValid(reviverCharacter) || reviverCharacter == targetPlayer)
+	{
+		return;
+	}
+	UGVehicleCombatComponent* targetCombat = targetPlayer->GetCombatComponent();
+	reviveTarget = targetPlayer;
+	const float reviveDuration = targetCombat->GetReviveTimeSeconds();
+	GetWorld()->GetTimerManager().SetTimer(reviveTimer, this, &AGPlayerController::CompleteRevive, reviveDuration, false);
+}
+
+void AGPlayerController::CompleteRevive()
+{
+	AWhos_DrivingCharacter* targetPlayer = reviveTarget.Get();
+	reviveTarget.Reset();
+	UGVehicleCombatComponent* combat = targetPlayer->GetCombatComponent();
+	combat->Revive();
+}
 
 
 void AGPlayerController::ServerSelectWeapon_Implementation(int32 weaponIndex)
