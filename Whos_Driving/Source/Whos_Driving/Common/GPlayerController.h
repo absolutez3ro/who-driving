@@ -82,6 +82,9 @@ public:
 	UFUNCTION(Exec, BlueprintCallable, Category = "Debug")
 	void ExecDamageSelf(float amount = 10.0f);
 
+	UFUNCTION(Server, Reliable)
+	void ServerExecDamageSelf(float amount);
+
 	UFUNCTION(BlueprintCallable, Category = "Vehicle|Modules")
 	bool TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost);
 

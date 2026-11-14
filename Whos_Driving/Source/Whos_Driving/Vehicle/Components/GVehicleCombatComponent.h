@@ -58,6 +58,7 @@ public:
 	void NotifyWeaponStateChanged(const AGVehicleWeapon* weapon);
 
 	UGVehicleDoorModule* GetDoorModuleForSeat();
+	void BindKnockoutDelegate(AGPlayerController* controller);
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;

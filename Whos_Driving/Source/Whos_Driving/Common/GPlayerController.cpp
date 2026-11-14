@@ -316,6 +316,10 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 	if (IsValid(character))
 	{
 		character->SetOwner(this);
+		if (IsValid(character->GetCombatComponent()))
+		{
+			character->GetCombatComponent()->BindKnockoutDelegate(this);
+		}
 		character->ForceNetUpdate();
 	}
 	else
@@ -499,8 +503,38 @@ void AGPlayerController::HandleKnockout()
 
 void AGPlayerController::ExecDamageSelf(float amount)
 {
+	if (HasAuthority())
+	{
+		ServerExecDamageSelf_Implementation(amount);
+	}
+	else
+	{
+		ServerExecDamageSelf(amount);
+	}
+}
+
+void AGPlayerController::ServerExecDamageSelf_Implementation(float amount)
+{
+	if (!FMath::IsFinite(amount) || amount <= 0.0f)
+	{
+		return;
+	}
+
 	AWhos_DrivingCharacter* targetActor = GetDriverCharacter();
-	targetActor->GetCombatComponent()->ApplyDamage(amount, this);
+
+	if (!IsValid(targetActor))
+	{
+		return;
+	}
+
+	UGVehicleCombatComponent* combat = targetActor->GetCombatComponent();
+
+	if (!IsValid(combat))
+	{
+		return;
+	}
+
+	combat->ApplyDamage(amount, this);
 }
 
 bool AGPlayerController::IsVehicleOccupant() const

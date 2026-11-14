@@ -130,7 +130,14 @@ void UGVehicleCombatComponent::BeginPlay()
 		SpawnLoadout();
 	}
 	health = maxHealth;
-	OnZeroHealth.AddDynamic(GetPlayerController(), &AGPlayerController::HandleKnockout);
+	//if (AGPlayerController* PlayerController = GetPlayerController())
+	//{
+	//	OnZeroHealth.AddDynamic(
+	//		PlayerController,
+	//		&AGPlayerController::HandleKnockout
+	//	);
+	//}
+	OnHealthUpdate.Broadcast(health, maxHealth);
 }
 
 void UGVehicleCombatComponent::SpawnLoadout()
@@ -337,6 +344,7 @@ void UGVehicleCombatComponent::OnRep_Window()
 
 void UGVehicleCombatComponent::OnRep_Health()
 {
+	OnHealthUpdate.Broadcast(health, maxHealth);
 	RefreshPresentation();
 }
 
@@ -678,6 +686,16 @@ void UGVehicleCombatComponent::RegenHealth(float deltaSeconds)
 			}
 		}
 	}
+}
+
+void UGVehicleCombatComponent::BindKnockoutDelegate(AGPlayerController* controller)
+{
+	if (!IsValid(controller))
+	{
+		return;
+	}
+	OnZeroHealth.RemoveDynamic(controller, &AGPlayerController::HandleKnockout);
+	OnZeroHealth.AddDynamic(controller, &AGPlayerController::HandleKnockout);
 }
 
 float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigatorController)
