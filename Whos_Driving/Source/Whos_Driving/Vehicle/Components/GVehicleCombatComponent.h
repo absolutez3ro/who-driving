@@ -16,6 +16,7 @@ class UGVehicleDoorModule;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthUpdate, float, health, float, maxHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnZeroHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRevive);
 
 USTRUCT(BlueprintType)
 struct FGVehicleWindowState
@@ -59,6 +60,9 @@ public:
 
 	UGVehicleDoorModule* GetDoorModuleForSeat();
 	void BindKnockoutDelegate(AGPlayerController* controller);
+	void BindReviveDelegate(AGPlayerController* controller);
+
+	bool Revive();
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;
@@ -126,7 +130,11 @@ public:
 
 	bool CanBeDamaged();
 
+	UPROPERTY(ReplicatedUsing = OnRep_Knockout, BlueprintReadOnly, Category = "Combat|Health")
 	bool bInKnockout = false;
+
+	UFUNCTION()
+	void OnRep_Knockout();
 
 	// Fires when the selected weapon's ammunition changes and when another weapon becomes selected.
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
@@ -137,6 +145,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Health")
 	FOnZeroHealth OnZeroHealth;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Health")
+	FOnRevive OnRevive;
 
 	// Weapon order matches AGPlayerController::weaponSelectActions.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Loadout")
@@ -176,7 +187,7 @@ protected:
 	float health = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
-	float regenCooldown = 5.0f;
+	float regenCooldownSeconds = 5.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
 	float healthRegenRate = 5.0f;
@@ -185,7 +196,7 @@ protected:
 	float reviveHealth = 35.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Health")
-	float reviveTime = 5.0f;
+	float reviveTimeSeconds = 5.0f;
 
 	float lastDamageTime = -FLT_MAX;
 

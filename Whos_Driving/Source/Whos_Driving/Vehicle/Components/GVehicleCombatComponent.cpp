@@ -38,6 +38,7 @@ void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(UGVehicleCombatComponent, health);
 	DOREPLIFETIME(UGVehicleCombatComponent, equipStartTime);
 	DOREPLIFETIME(UGVehicleCombatComponent, confirmedShots);
+	DOREPLIFETIME(UGVehicleCombatComponent, bInKnockout);
 }
 
 AWhos_DrivingCharacter* UGVehicleCombatComponent::GetCharacter() const
@@ -130,13 +131,6 @@ void UGVehicleCombatComponent::BeginPlay()
 		SpawnLoadout();
 	}
 	health = maxHealth;
-	//if (AGPlayerController* PlayerController = GetPlayerController())
-	//{
-	//	OnZeroHealth.AddDynamic(
-	//		PlayerController,
-	//		&AGPlayerController::HandleKnockout
-	//	);
-	//}
 	OnHealthUpdate.Broadcast(health, maxHealth);
 }
 
@@ -335,6 +329,11 @@ void UGVehicleCombatComponent::OnRep_Loadout()
 		weapon->PlayEquip();
 	}
 	OnWeaponAmmoChanged.Broadcast();
+}
+
+void UGVehicleCombatComponent::OnRep_Knockout()
+{
+	RefreshPresentation();
 }
 
 void UGVehicleCombatComponent::OnRep_Window()
@@ -673,7 +672,7 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 void UGVehicleCombatComponent::RegenHealth(float deltaSeconds)
 {
 	if (IsAuthority() && health > 0.0f && health < maxHealth &&
-		GetServerTime() - lastDamageTime >= regenCooldown)
+		GetServerTime() - lastDamageTime >= regenCooldownSeconds)
 	{
 		const float previous = health;
 		health = FMath::Min(health + healthRegenRate * deltaSeconds, maxHealth);
@@ -696,6 +695,38 @@ void UGVehicleCombatComponent::BindKnockoutDelegate(AGPlayerController* controll
 	}
 	OnZeroHealth.RemoveDynamic(controller, &AGPlayerController::HandleKnockout);
 	OnZeroHealth.AddDynamic(controller, &AGPlayerController::HandleKnockout);
+}
+
+void UGVehicleCombatComponent::BindReviveDelegate(AGPlayerController* controller)
+{
+	if (!IsValid(controller))
+	{
+		return;
+	}
+	OnRevive.RemoveDynamic(controller, &AGPlayerController::HandleRevive);
+	OnRevive.AddDynamic(controller, &AGPlayerController::HandleRevive);
+}
+
+bool UGVehicleCombatComponent::Revive()
+{
+	if (!IsAuthority() || !bInKnockout || health > 0.0f)
+	{
+		return false;
+	}
+
+	bInKnockout = false;
+	health = reviveHealth;
+
+	lastDamageTime = GetServerTime();
+
+	OnHealthUpdate.Broadcast(health, maxHealth);
+	OnRevive.Broadcast();
+
+	OnRep_Loadout();
+
+	GetOwner()->ForceNetUpdate();
+
+	return true;
 }
 
 float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigatorController)

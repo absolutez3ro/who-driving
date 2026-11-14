@@ -27,7 +27,8 @@ enum class EGCombatAction : uint8
 	AimStart,
 	AimStop,
 	Reload,
-	ChangeFireMode
+	ChangeFireMode,
+	Revive
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
@@ -73,12 +74,23 @@ public:
 	void RequestReload();
 	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
 	void RequestFireMode();
+	UFUNCTION(BlueprintCallable, Category = "Combat|Input")
+	void RequestRevive();
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRevive(AWhos_DrivingCharacter* targetPlayer);
 	void SendCombatView(const FVector& direction);
 	void RequestPreviousTrack();
 	void RequestNextTrack();
 
 	UFUNCTION()
 	void HandleKnockout();
+	UFUNCTION()
+	void HandleRevive();
+
+	UFUNCTION(Client, Reliable)
+	void ClientHandleKnockout();
+	UFUNCTION(Client, Reliable)
+	void ClientHandleRevive();
 
 	UFUNCTION(Exec, BlueprintCallable, Category = "Debug")
 	void ExecDamageSelf(float amount = 10.0f);
@@ -224,6 +236,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> nextTrackAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> reviveAction;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;

@@ -152,6 +152,10 @@ void AGPlayerController::SetupInputComponent()
 		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Completed, this, &AGPlayerController::RequestAimStop);
 		enhancedInput->BindAction(aimAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerController::RequestAimStop);
 	}
+	if (reviveAction)
+	{
+		enhancedInput->BindAction(reviveAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestRevive);
+	}
 }
 
 void AGPlayerController::TryToCallSkillcheck()
@@ -319,6 +323,7 @@ void AGPlayerController::SetVehicleContext(AGPlayerCar* vehicle, AWhos_DrivingCh
 		if (IsValid(character->GetCombatComponent()))
 		{
 			character->GetCombatComponent()->BindKnockoutDelegate(this);
+			character->GetCombatComponent()->BindReviveDelegate(this);
 		}
 		character->ForceNetUpdate();
 	}
@@ -524,9 +529,47 @@ void AGPlayerController::RequestNextTrack()
 
 void AGPlayerController::HandleKnockout()
 {
-	DisableInput(this);
+	if (!HasAuthority())
+	{
+		return;
+	}
+	ClientHandleKnockout();
 	AWhos_DrivingGameMode* gameMode = GetWorld()->GetAuthGameMode<AWhos_DrivingGameMode>();
 	gameMode->CheckAllPlayersKnockedOut();
+}
+
+void AGPlayerController::HandleRevive()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	ClientHandleRevive();
+}
+
+void AGPlayerController::ClientHandleKnockout_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->RemoveMappingContext(gameplayMappingContext);
+	subsystem->RemoveMappingContext(vehicleMappingContext);
+	subsystem->RemoveMappingContext(skillcheckMappingContext);
+}
+
+void AGPlayerController::ClientHandleRevive_Implementation()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	subsystem->AddMappingContext(gameplayMappingContext, 2);
+	subsystem->AddMappingContext(vehicleMappingContext, 0);
 }
 
 void AGPlayerController::ExecDamageSelf(float amount)
@@ -730,6 +773,48 @@ void AGPlayerController::RequestFireMode()
 	}
 }
 
+void AGPlayerController::RequestRevive()
+{
+	FVector origin;
+	FRotator rotation;
+	GetPlayerViewPoint(origin, rotation);
+	const FVector end = origin + rotation.Vector() * 3000.0f;
+	FCollisionQueryParams query(SCENE_QUERY_STAT(PlayerLook), false);
+	query.AddIgnoredActor(seatedVehicle);
+	FHitResult hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel4, query);
+
+	if (!bHit)
+	{
+		return;
+	}
+
+	AWhos_DrivingCharacter* targetPlayer = Cast<AWhos_DrivingCharacter>(hit.GetActor());
+	if (!IsValid(targetPlayer))
+	{
+		return;
+	}
+	ServerRequestRevive(targetPlayer);
+}
+
+void AGPlayerController::ServerRequestRevive_Implementation(AWhos_DrivingCharacter* targetPlayer)
+{
+	UGVehicleCombatComponent* combat =
+		targetPlayer->GetCombatComponent();
+
+	if (!IsValid(combat))
+	{
+		return;
+	}
+
+	if (!combat->Revive())
+	{
+		return;
+	}
+}
+
+
+
 void AGPlayerController::ServerSelectWeapon_Implementation(int32 weaponIndex)
 {
 	if (UGVehicleCombatComponent* combat = GetOwnedCombat())
@@ -770,6 +855,8 @@ void AGPlayerController::ServerCombatAction_Implementation(EGCombatAction action
 		break;
 	case EGCombatAction::ChangeFireMode:
 		combat->ChangeFireMode();
+		break;
+	case EGCombatAction::Revive:
 		break;
 	default:
 		break;
