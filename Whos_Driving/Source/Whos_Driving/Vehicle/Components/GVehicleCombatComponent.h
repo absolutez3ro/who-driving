@@ -12,6 +12,7 @@ class AGPlayerController;
 class AGVehicleWeapon;
 class UAnimInstance;
 class UGVehicleDoorModule;
+class UGPlayersDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGOnWeaponAmmoChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthUpdate, float, health, float, maxHealth);
@@ -210,6 +211,9 @@ protected:
 	float equipStartTime = -100.0f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Combat")
 	int32 confirmedShots = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
+	TObjectPtr<UGPlayersDataAsset> playerData;
 
 	UFUNCTION()
 	void OnRep_Loadout();

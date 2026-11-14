@@ -17,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Common/GPlayersDataAsset.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVehicleCombat, Log, All);
 
@@ -130,7 +131,12 @@ void UGVehicleCombatComponent::BeginPlay()
 	{
 		SpawnLoadout();
 	}
+	maxHealth = playerData->MaxHealth;
 	health = maxHealth;
+	regenCooldownSeconds = playerData->RegenCooldownSeconds;
+	healthRegenRate = playerData->HealthRegenRate;
+	reviveHealth = playerData->ReviveHealth;
+	reviveTimeSeconds = playerData->ReviveTimeSeconds;
 	OnHealthUpdate.Broadcast(health, maxHealth);
 }
 
