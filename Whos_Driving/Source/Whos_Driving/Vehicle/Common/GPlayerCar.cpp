@@ -34,7 +34,6 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	moduleComponent = CreateDefaultSubobject<UGVehicleModuleComponent>(TEXT("VehicleModules"));
 	driverSeat = CreateDefaultSubobject<USceneComponent>(TEXT("Driver seat"));
 	driverSeat->SetupAttachment(GetRootComponent());
-
 	bReplicates = true;
 	SetReplicateMovement(true);
 	InitSeats();
@@ -265,7 +264,9 @@ void AGPlayerCar::RecalculateCarHealth()
 	currentCarHealth = baseCarHealth;
 	for (auto& module : moduleComponent->GetModules())
 	{
+		UE_LOG(LogTemp, Log, TEXT("recalculating health, before: %f"), currentCarHealth);
 		currentCarHealth += module->currentHP;
+		UE_LOG(LogTemp, Log, TEXT("recalculating health, after: %f"), currentCarHealth);
 	}
 }
 
@@ -327,7 +328,6 @@ void AGPlayerCar::PublishModuleStates()
 		state.currentHP = module->currentHP;
 		state.moduleState = module->moduleState;
 		state.actualRepairCost = module->actualRepairCost;
-
 		moduleStates.Add(state);
 	}
 
@@ -400,7 +400,7 @@ void AGPlayerCar::BeginPlay()
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
 	movementComponent->SubscribeOnDelegates();
 	SubscribeOnDelegates();
-
+	RecalculateCarHealth();
 	if (HasAuthority())
 	{
 		PublishModuleStates();

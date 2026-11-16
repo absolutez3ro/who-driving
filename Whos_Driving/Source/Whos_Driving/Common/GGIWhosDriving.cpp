@@ -3,12 +3,13 @@
 
 #include "GGIWhosDriving.h"
 #include "GGameState.h"
+#include "GPlayerCar.h"
 #include "GEconomicDataAsset.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
-
+#include "GVehicleModuleComponent.h"
 void UGGIWhosDriving::Init()
 {
 	Super::Init();
@@ -755,5 +756,26 @@ void UGGIWhosDriving::ShowSteamInviteUI()
 	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("UI INVALID"));
+	}
+}
+
+
+/// Car data
+
+void UGGIWhosDriving::SaveCarData(TArray<FGVehicleModuleState>& moduleStates, float currentHealth, float baseHealth){
+	carData.moduleStates = moduleStates;
+	carData.currentCarHealth = currentHealth;
+	carData.baseCarHealth = baseHealth;
+}
+
+void UGGIWhosDriving::FetchCarData() {
+	TObjectPtr<AGPlayerCar> carRef=Cast<AGPlayerCar>(UGameplayStatics::GetActorOfClass(GetWorld(), AGPlayerCar::StaticClass()));
+	if (carRef)
+	{
+		SaveCarData(carRef->moduleStates, carRef->currentCarHealth, carRef->baseCarHealth);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("FAILED TO FIND CAR IN GI")));
 	}
 }

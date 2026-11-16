@@ -28,6 +28,7 @@ class WHOS_DRIVING_API UGVehicleModule : public UObject
 public:
 	void ApplyDamage(const float damage);
 	void ApplyRepair();
+	void ApplyRepairInShop();
 	bool IsDestroyed() const;
 	bool CanRepair() const;
 	bool IsFull() const;
@@ -57,6 +58,7 @@ public:
 
 	int32 actualRepairCost;
 
+	int32 baseRepairCostShop;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	float destroyedModuleCostMultiplier = 2.0f;
 

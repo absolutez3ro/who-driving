@@ -3,6 +3,7 @@
 #include "Whos_DrivingGameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "Common/GGIWhosDriving.h"
 #include "GGameState.h"
 
 AWhos_DrivingGameMode::AWhos_DrivingGameMode()
@@ -54,6 +55,15 @@ void AWhos_DrivingGameMode::SpawnPlayer(APlayerController* newPlayer)
 
 void AWhos_DrivingGameMode::BeginPlay()
 {
+	TObjectPtr<AGGameState> GS =GetGameState<AGGameState>();
+	if (GS)
+	{
+		GS->OnPlayerFinish.AddDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("FAILED TO GET GAME STATE IN GAMEMODE")));
+	}
 	SpawnCar();
 	if (car)
 	{
@@ -73,4 +83,19 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("EVENT STARTING NEW PLAYER IN LOBBY"));
 	Super::HandleStartingNewPlayer_Implementation(newPlayer);
 	SpawnPlayer(newPlayer);
+}
+
+void AWhos_DrivingGameMode::OnLevelEnd()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("Level ended traveling")));
+	GetGameState<AGGameState>()->OnPlayerFinish.RemoveDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
+	GetGameInstance<UGGIWhosDriving>()->FetchCarData();
+	if (!HasAuthority())
+	{
+		return;
+	}
+	if (UWorld* World = GetWorld())
+	{
+		World->ServerTravel(TEXT("/Game/FirstPerson/levels/Lvl_Shop?listen"));
+	}
 }

@@ -98,6 +98,7 @@ public:
 	void SpawnDriver(APlayerController* playerController);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Damage")
+	
 	FGVehicleModuleState GetModuleDamageState(const FName& moduleId) const;
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Seats")
@@ -114,6 +115,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float baseCarHealth;
 
+	int32 baseRepairCostShop = 0;
 	UPROPERTY(ReplicatedUsing = OnRep_ModuleStates, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TArray<FGVehicleModuleState> moduleStates;
 
@@ -121,6 +123,7 @@ public:
 	TObjectPtr<UGCarDataAsset> carData;
 
 
+	void ApplyModuleStates();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
@@ -129,7 +132,6 @@ protected:
 	void BeginPlay() override;
 	void UnPossessed() override;
 
-	void ApplyModuleStates();
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
 
 	UFUNCTION()

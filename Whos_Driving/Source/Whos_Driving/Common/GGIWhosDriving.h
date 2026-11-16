@@ -4,8 +4,10 @@
 
 
 #include "CoreMinimal.h"
+#include "GSharedData.h"
 #include "Engine/GameInstance.h"
 #include "OnlineSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Online/OnlineSessionNames.h"
@@ -18,6 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInvitationAccepted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
 
 class UGEconomicDataAsset;
+struct FGVehicleModuleState;
 
 UENUM(BlueprintType)
 enum class ESessionType : uint8
@@ -25,7 +28,6 @@ enum class ESessionType : uint8
 	LAN    UMETA(DisplayName = "LAN"),
 	Steam  UMETA(DisplayName = "Steam")
 };
-
 UCLASS()
 class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 {
@@ -84,8 +86,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGEconomicDataAsset> economicData;
-
+	void FetchCarData();
+	FCarData& GetCarData() { return carData; }
+	FCarUpgradeData carUpgradeData;
+	FCharacterUpgradeData characterUpgradeData;
 protected:
+	void SaveCarData(TArray<FGVehicleModuleState>& moduleStates, float currentHealth, float baseHealth);
+	FCarData carData;
 	void HandleNetworkFailure(UWorld* world, UNetDriver* netDriver, ENetworkFailure::Type failureType, const FString& errorString);
 	void HandleTravelFailure(UWorld* world, ETravelFailure::Type failureType, const FString& errorString);
 	void LoadEconomicData();

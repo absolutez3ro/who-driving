@@ -7,11 +7,11 @@
 
 void UGVehicleModule::ApplyDamage(const float damage)
 {
-	if (!FMath::IsFinite(damage) || damage <= 0.0f || IsDestroyed())
+
+	if (!FMath::IsFinite(damage) || damage < 0.0f || IsDestroyed())
 	{
 		return;
 	}
-
 	currentHP = FMath::Clamp(currentHP - damage, 0.0f, maxHP);
 
 	if (currentHP <= 0.0f)
@@ -63,7 +63,12 @@ void UGVehicleModule::ApplyRepair()
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }
-
+void UGVehicleModule::ApplyRepairInShop()
+{
+	OnRepair.Broadcast();
+	currentHP = maxHP;
+	SetState(EGModuleState::Full);
+}
 void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
 {
 	maxHP = inMaxHP;
