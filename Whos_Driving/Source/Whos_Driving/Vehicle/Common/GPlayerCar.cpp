@@ -7,6 +7,7 @@
 #include "GVehicleSeatingComponent.h"
 #include "ChaosVehicleWheel.h"
 #include "Components/BoxComponent.h"
+#include "GGIWhosDriving.h"
 #include "Engine/DamageEvents.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GVehicleMovementComponent.h"
@@ -264,9 +265,7 @@ void AGPlayerCar::RecalculateCarHealth()
 	currentCarHealth = baseCarHealth;
 	for (auto& module : moduleComponent->GetModules())
 	{
-		UE_LOG(LogTemp, Log, TEXT("recalculating health, before: %f"), currentCarHealth);
 		currentCarHealth += module->currentHP;
-		UE_LOG(LogTemp, Log, TEXT("recalculating health, after: %f"), currentCarHealth);
 	}
 }
 
@@ -400,16 +399,36 @@ void AGPlayerCar::BeginPlay()
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(GetVehicleMovementComponent());
 	movementComponent->SubscribeOnDelegates();
 	SubscribeOnDelegates();
-	RecalculateCarHealth();
+	if (HasAuthority()) {
+		TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
+		if (gi)
+		{
+			if (gi->GetCarData().moduleStates.Num() != 0) {
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, FString::Printf(TEXT("yes car info in gi, loading")));
+				moduleStates = gi->GetCarData().moduleStates;
+				for (FGVehicleModuleState state : moduleStates)
+				{
+					//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("name: module chp: %f mhp: %f"), state.currentHP, state.maxHP));
+				}
+				currentCarHealth = gi->GetCarData().currentCarHealth;
+				baseCarHealth = gi->GetCarData().baseCarHealth;
+			}
+			else
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("no car info in gi")));
+			}
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GI")));
+		}
+	}
+	ApplyModuleStates();
 	if (HasAuthority())
 	{
 		PublishModuleStates();
 	}
-	else
-	{
-		ApplyModuleStates();
-	}
-
+	RecalculateCarHealth();
 	for (auto& module : moduleComponent->GetModules())
 	{
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);

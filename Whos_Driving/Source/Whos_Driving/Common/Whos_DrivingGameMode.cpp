@@ -69,7 +69,6 @@ void AWhos_DrivingGameMode::BeginPlay()
 	{
 		UE_LOG(LogTemp, Log, TEXT("Successfully spawned %s at World Center."), *car->GetName());
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Car spawned"));
-
 	}
 	AGGameState* gameState = GetGameState<AGGameState>();
 	if (gameState)
@@ -89,6 +88,15 @@ void AWhos_DrivingGameMode::OnLevelEnd()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("Level ended traveling")));
 	GetGameState<AGGameState>()->OnPlayerFinish.RemoveDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
+	TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
+	if (gi)
+	{
+		gi->moneyStored+= gi->GetMoneyFromTotal();;
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GI")));
+	}
 	GetGameInstance<UGGIWhosDriving>()->FetchCarData();
 	if (!HasAuthority())
 	{

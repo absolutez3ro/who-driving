@@ -4,7 +4,6 @@
 #include "GVehicleModule.h"
 #include "GameFramework/Actor.h"
 #include "GGameState.h"
-
 void UGVehicleModule::ApplyDamage(const float damage)
 {
 

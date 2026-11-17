@@ -90,6 +90,8 @@ public:
 	FCarData& GetCarData() { return carData; }
 	FCarUpgradeData carUpgradeData;
 	FCharacterUpgradeData characterUpgradeData;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economic")
+	int32 moneyStored = 0;
 protected:
 	void SaveCarData(TArray<FGVehicleModuleState>& moduleStates, float currentHealth, float baseHealth);
 	FCarData carData;

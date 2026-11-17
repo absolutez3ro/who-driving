@@ -6,12 +6,13 @@
 #include "GPlayerCar.h"
 #include "GGIWhosDriving.h"
 #include "Common/GShopDataAsset.h"
-#include "GameFramework/GameModeBase.h"
-#include "GShopGameMode.generated.h"
+#include "GameFramework/GameStateBase.h"
+#include "GGSShop.generated.h"
 
 /**
  * 
  */
+
 UENUM(BlueprintType)
 enum class EGModuleType : uint8
 {
@@ -21,16 +22,16 @@ enum class EGModuleType : uint8
 	Engine,
 	Electrician
 };
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCarSpawned);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnShopPurchase);
 
 
 UCLASS()
-class WHOS_DRIVING_API AGShopGameMode : public AGameModeBase
+class WHOS_DRIVING_API AGGSShop : public AGameStateBase
 {
 	GENERATED_BODY()
+
 private:
-	TObjectPtr<AGPlayerCar> car;
-	TArray<FName> brokenModules;
-	TObjectPtr<UGGIWhosDriving> gi;
 	const TMap<FName, FString> ModuleNames =
 	{
 		{ TEXT("Wheel_0"),   TEXT("Front left wheel") },
@@ -55,9 +56,23 @@ private:
 		{ TEXT("Engine"), EGModuleType::Engine },
 		{ TEXT("Electrician"), EGModuleType::Electrician }
 	};
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
 public:
-	UPROPERTY(BlueprintReadOnly, Category = "economy")
+	UPROPERTY(BlueprintAssignable)
+	FOnCarSpawned OnCarSpawned;
+	UPROPERTY(BlueprintAssignable)
+	FOnShopPurchase OnShopPurchase;
+	UPROPERTY(ReplicatedUsing = OnRep_Car, BlueprintReadOnly, Category = "Reference")
+	TObjectPtr<AGPlayerCar> car;
+	UFUNCTION()
+	void OnRep_Car();
+	UPROPERTY(Replicated)
+	TArray<FName> brokenModules;
+	TObjectPtr<UGGIWhosDriving> gi;
+	UPROPERTY(ReplicatedUsing = OnRep_Money, BlueprintReadOnly, Category = "economy")
 	int32 money;
+	UFUNCTION()
+	void OnRep_Money();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGShopDataAsset> dataAsset;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Car")
@@ -66,9 +81,11 @@ public:
 	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
 	void SpawnCar();
 	void BeginPlay();
-	void LoadDataFromDataAsset();
-	UFUNCTION(BlueprintCallable)
+	int32 GetRepairCostFromDataAsset(FName moduleName);
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairModule(const FName& ModuleName);
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairAll();
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void OnLevelEnd();
 };

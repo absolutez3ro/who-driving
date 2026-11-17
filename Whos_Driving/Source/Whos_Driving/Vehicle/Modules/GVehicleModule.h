@@ -58,7 +58,6 @@ public:
 
 	int32 actualRepairCost;
 
-	int32 baseRepairCostShop;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Module")
 	float destroyedModuleCostMultiplier = 2.0f;
 

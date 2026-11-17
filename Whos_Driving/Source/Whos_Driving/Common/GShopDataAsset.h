@@ -29,14 +29,26 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 wheelBaseUpgradePrice = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 wheelHpUpgradePerLevel = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 doorBaseUpgradePrice = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 doorHpUpgradePerLevel = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 engineBaseUpgradePrice = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 engineHpUpgradePerLevel = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 steerBaseUpgradePrice = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 steerHpUpgradePerLevel = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 electricianBaseUpgradePrice = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 electricianHpUpgradePerLevel = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 mainHPBaseUpgradePrice = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 mainHpUpgradePerLevel = 10;
 };
