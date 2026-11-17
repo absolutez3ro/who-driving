@@ -82,17 +82,19 @@ void AGGSShop::BeginPlay()
 	Super::BeginPlay();
 }
 
+
+//REPAIR
 void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices)
 {
 	if (GEngine)
 	{
 		if (HasAuthority())
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT("GetRepairData")));
+			//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT("GetRepairData")));
 		}
 		else
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("GetRepairData")));
+			//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("GetRepairData")));
 		}
 	}
 	if (!car) {
@@ -108,16 +110,16 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 	{
 		if (HasAuthority())
 		{
-		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT("mod state in car %i"), car->moduleStates.Num()));
+			//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT("mod state in car %i"), car->moduleStates.Num()));
 		}
 		else
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("mod state in car %i"), car->moduleStates.Num()));
+			//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("mod state in car %i"), car->moduleStates.Num()));
 		}
 	}
 	brokenModules.Empty();
 	for (TObjectPtr<UGVehicleModule> module : car->GetModuleComponent()->GetModules()) {
-		if (module->currentHP < module->maxHP)
+		if (module->currentHP < module->maxHP || true)
 		{
 			OutNames.Add(module->moduleId);
 			brokenModules.Add(module->moduleId);
@@ -142,15 +144,23 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 		OutDisplayNames.Add(TEXT("main hp"));
 		OutCurrentHp.Add(car->currentCarHealth - modulesHP);
 		OutMaxHp.Add(car->baseCarHealth);
+		int32 baseRepairCost = GetRepairCostFromDataAsset(FName("mainHP"));
+		int32 actualRepairCost = baseRepairCost * (2 - (car->currentCarHealth - modulesHP)/ car->baseCarHealth);
+		OutPrices.Add(actualRepairCost);
+		OutNames.Add(FName("mainHP"));
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), TEXT("main hp"), car->currentCarHealth - modulesHP, car->baseCarHealth));
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("modulesHP %f"), modulesHP));
 		}
 	}
 }
-
 int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
 {
+	if (moduleName== FName("mainHP"))
+	{
+		return dataAsset->mainHPBaseRepairPrice;
+	}
 	switch (moduleTypes[moduleName])
 	{
 	case EGModuleType::Wheel:
@@ -168,26 +178,50 @@ int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
 	case EGModuleType::Electrician:
 		return dataAsset->electricianBaseRepairPrice;
 		break;
+	default:
+		return dataAsset->mainHPBaseRepairPrice;
+		break;
 	}
-	return 0;
 }
-
 void AGGSShop::RepairModule(const FName& ModuleName)
 {
-	TObjectPtr<UGVehicleModule> moduleToFix = car->GetModuleComponent()->FindModule(ModuleName);
-	int32 baseRepairCost = GetRepairCostFromDataAsset(moduleToFix->moduleId);
-	if(moduleToFix->currentHP== moduleToFix->maxHP)
+	int32 baseRepairCost;
+	if (ModuleName!= FName("mainHP"))
 	{
-		return;
+		TObjectPtr<UGVehicleModule> moduleToFix = car->GetModuleComponent()->FindModule(ModuleName);
+		baseRepairCost = GetRepairCostFromDataAsset(moduleToFix->moduleId);	
+		if(moduleToFix->currentHP== moduleToFix->maxHP)
+		{
+			return;
+		}
+		int32 actualRepairCost = baseRepairCost * (2 - moduleToFix->currentHP / moduleToFix->maxHP);
+		if (money >= actualRepairCost)
+		{
+			moduleToFix->ApplyRepairInShop();
+			car->PublishModuleStates();
+			money -= actualRepairCost;
+			OnRep_Money();
+		}
 	}
-	int32 actualRepairCost = baseRepairCost * (2 - moduleToFix->currentHP / moduleToFix->maxHP);
-	if (money >= actualRepairCost)
+	else
 	{
-		moduleToFix->ApplyRepairInShop();
-		car->PublishModuleStates();
-		money -= actualRepairCost;
-		OnRep_Money();
+		baseRepairCost =dataAsset->mainHPBaseRepairPrice;
+		float modulesHP = 0;
+		for(TObjectPtr<UGVehicleModule>module : car->GetModuleComponent()->GetModules())
+		{
+			modulesHP += module->currentHP;
+		}
+		float carHealth = car->currentCarHealth - modulesHP;
+		int32 actualRepairCost = baseRepairCost * (2 - carHealth / car->baseCarHealth);
+		if (money >= actualRepairCost)
+		{
+			car->currentCarHealth = modulesHP + car->baseCarHealth;
+			car->PublishModuleStates();
+			money -= actualRepairCost;
+			OnRep_Money();
+		}
 	}
+
 }
 void AGGSShop::RepairAll()
 {
@@ -210,6 +244,24 @@ void AGGSShop::RepairAll()
 		}
 	}
 }
+
+//UPGRADE
+void AGGSShop::UpgradeModuleHp(const EGModuleType& type)
+{
+	for (FGVehicleModuleState& state : car->moduleStates)
+	{
+		if (moduleTypes[state.moduleId]==type)
+		{
+			state.moduleHpLevel++;
+		}
+	}
+	car->ApplyModuleStates();
+	car->PublishModuleStates();
+	money -= 1;
+	OnRep_Money();
+
+}
+
 
 void AGGSShop::OnLevelEnd()
 {

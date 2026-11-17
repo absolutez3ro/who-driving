@@ -61,7 +61,7 @@ void UGVehicleModuleComponent::RegisterModule(UGVehicleModule* module)
 	modules.AddUnique(module);
 }
 
-void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState)
+void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId, float baseMaxHp, float currentHp, EGModuleState moduleState, int32 HpIncreasePerLevel, int32 moduleHpLevel)
 {
 	UGVehicleModule* module = FindModule(moduleId);
 
@@ -70,7 +70,7 @@ void UGVehicleModuleComponent::ApplyReplicatedModuleState(const FName& moduleId,
 		return;
 	}
 
-	module->ApplyReplicatedState(maxHp, currentHp, moduleState);
+	module->ApplyReplicatedState(baseMaxHp, currentHp, moduleState, HpIncreasePerLevel, moduleHpLevel);
 }
 
 void UGVehicleModuleComponent::RebuildModuleRegistry(AActor* ownerActor)

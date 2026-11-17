@@ -323,7 +323,10 @@ void AGPlayerCar::PublishModuleStates()
 
 		FGVehicleModuleState state;
 		state.moduleId = module->moduleId;
-		state.maxHP = module->maxHP;
+		state.baseMaxHP = module->baseMaxHP;
+		state.moduleHpLevel = module->moduleHPLevel;
+		state.HpIncreasePerLevel = module->HPIncreasePerLevel;
+		state.maxHP = state.baseMaxHP + state.HpIncreasePerLevel * (state.moduleHpLevel - 1);
 		state.currentHP = module->currentHP;
 		state.moduleState = module->moduleState;
 		state.actualRepairCost = module->actualRepairCost;
@@ -350,9 +353,11 @@ void AGPlayerCar::ApplyModuleStates()
 	{
 		moduleComponent->ApplyReplicatedModuleState(
 			state.moduleId,
-			state.maxHP,
+			state.baseMaxHP,
 			state.currentHP,
-			state.moduleState
+			state.moduleState,
+			state.HpIncreasePerLevel,
+			state.moduleHpLevel
 		);
 	}
 }
@@ -443,7 +448,10 @@ void AGPlayerCar::LoadCarData()
 	TArray<TObjectPtr<UGVehicleWheelModule>> wheels = moduleComponent->GetModulesOfType<UGVehicleWheelModule>();
 	for (auto& wheel : wheels)
 	{
-		wheel->maxHP = carData->WheelMaxHealth;
+		wheel->baseMaxHP = carData->WheelBaseMaxHealth;
+		wheel->HPIncreasePerLevel = carData->WheelHpIncreasePerLevel;
+		wheel->moduleHPLevel = carData->WheelHpLevel;
+		wheel->maxHP = wheel->baseMaxHP + wheel->HPIncreasePerLevel * (wheel->moduleHPLevel - 1);
 		wheel->currentHP = wheel->maxHP;
 		wheel->repairThreshold = carData->WheelRepairThreshold;
 		wheel->baseRepairCost = carData->WheelBaseRepairCost;
@@ -453,7 +461,10 @@ void AGPlayerCar::LoadCarData()
 	TArray<TObjectPtr<UGVehicleDoorModule>> doors = moduleComponent->GetModulesOfType<UGVehicleDoorModule>();
 	for (auto& door : doors)
 	{
-		door->maxHP = carData->DoorMaxHealth;
+		door->baseMaxHP = carData->DoorBaseMaxHealth;
+		door->HPIncreasePerLevel = carData->DoorHpIncreasePerLevel;
+		door->moduleHPLevel = carData->DoorHpLevel;
+		door->maxHP = door->baseMaxHP + door->HPIncreasePerLevel * (door->moduleHPLevel - 1);
 		door->currentHP = door->maxHP;
 		door->repairThreshold = carData->DoorRepairThreshold;
 		door->baseRepairCost = carData->DoorBaseRepairCost;
@@ -463,7 +474,10 @@ void AGPlayerCar::LoadCarData()
 	TArray<TObjectPtr<UGVehicleSteeringWheelModule>> steeringWheels = moduleComponent->GetModulesOfType<UGVehicleSteeringWheelModule>();
 	for (auto& steeringWheel : steeringWheels)
 	{
-		steeringWheel->maxHP = carData->SteeringWheelMaxHealth;
+		steeringWheel->baseMaxHP = carData->SteeringWheelBaseMaxHealth;
+		steeringWheel->HPIncreasePerLevel = carData->SteeringWheelHpIncreasePerLevel;
+		steeringWheel->moduleHPLevel = carData->SteeringWheelHpLevel;
+		steeringWheel->maxHP = steeringWheel->baseMaxHP + steeringWheel->HPIncreasePerLevel * (steeringWheel->moduleHPLevel - 1);
 		steeringWheel->currentHP = steeringWheel->maxHP;
 		steeringWheel->repairThreshold = carData->SteeringWheelRepairThreshold;
 		steeringWheel->baseRepairCost = carData->SteeringWheelBaseRepairCost;
@@ -473,7 +487,10 @@ void AGPlayerCar::LoadCarData()
 	TArray<TObjectPtr<UGVehicleEngineModule>> engines = moduleComponent->GetModulesOfType<UGVehicleEngineModule>();
 	for (auto& engine : engines)
 	{
-		engine->maxHP = carData->EngineMaxHealth;
+		engine->baseMaxHP = carData->EngineBaseMaxHealth;
+		engine->HPIncreasePerLevel = carData->EngineHpIncreasePerLevel;
+		engine->moduleHPLevel = carData->EngineHpLevel;
+		engine->maxHP = engine->baseMaxHP + engine->HPIncreasePerLevel * (engine->moduleHPLevel - 1);
 		engine->currentHP = engine->maxHP;
 		engine->repairThreshold = carData->EngineRepairThreshold;
 		engine->baseRepairCost = carData->EngineBaseRepairCost;
@@ -483,7 +500,10 @@ void AGPlayerCar::LoadCarData()
 	TArray<TObjectPtr<UGVehicleElectricianModule>> electricians = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
 	for (auto& electrician : electricians)
 	{
-		electrician->maxHP = carData->ElectricianMaxHealth;
+		electrician->baseMaxHP = carData->ElectricianBaseMaxHealth;
+		electrician->HPIncreasePerLevel = carData->ElectricianHpIncreasePerLevel;
+		electrician->moduleHPLevel = carData->ElectricianHpLevel;
+		electrician->maxHP = electrician->baseMaxHP + electrician->HPIncreasePerLevel * (electrician->moduleHPLevel - 1);
 		electrician->currentHP = electrician->maxHP;
 		electrician->repairThreshold = carData->ElectricianRepairThreshold;
 		electrician->baseRepairCost = carData->ElectricianBaseRepairCost;

@@ -68,10 +68,17 @@ void UGVehicleModule::ApplyRepairInShop()
 	currentHP = maxHP;
 	SetState(EGModuleState::Full);
 }
-void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state)
+void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGModuleState state, int32 HpIncreasePerLevel, int32 moduleHpLevel)
 {
-	maxHP = inMaxHP;
-	currentHP = inCurrentHp;
+	baseMaxHP = inMaxHP;
+	HPIncreasePerLevel = HpIncreasePerLevel;
+	int32 increase = moduleHpLevel - moduleHPLevel;
+	moduleHPLevel = moduleHpLevel;
+	maxHP = baseMaxHP+(HPIncreasePerLevel*(moduleHPLevel-1));
+	if(currentHP>0.01 || increase==0)
+	{
+		currentHP = inCurrentHp + increase*HPIncreasePerLevel;
+	}
 	SetState(state);
 	RecalculateRepairCost();
 }

@@ -32,7 +32,7 @@ public:
 	bool IsDestroyed() const;
 	bool CanRepair() const;
 	bool IsFull() const;
-	virtual void ApplyReplicatedState(float inMaxHp, float inCurrentHp, EGModuleState state);
+	virtual void ApplyReplicatedState(float inMaxHp, float inCurrentHp, EGModuleState state, int32 HpIncreasePerLevel, int32 moduleHpLevel);
 
 	UFUNCTION(BlueprintCallable)
 	float GetHealthAsPercentage() const;
@@ -46,6 +46,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "1.0"))
 	float maxHP = 100.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "1.0"))
+	float baseMaxHP = 100.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "1.0"))
+	int32 moduleHPLevel = 1;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module", meta = (ClampMin = "1.0"))
+	float HPIncreasePerLevel = 10.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Module")
 	float currentHP = 100.0f;

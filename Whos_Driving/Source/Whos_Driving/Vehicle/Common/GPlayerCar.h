@@ -31,6 +31,10 @@ struct FGVehicleModuleState
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
 	float maxHP = 50.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
+	float baseMaxHP = 50.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
+	float HpIncreasePerLevel = 10.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentHP = 50.0f;
@@ -40,6 +44,9 @@ struct FGVehicleModuleState
 
 	UPROPERTY(BlueprintReadOnly, Category = "VehicleDamage")
 	int32 actualRepairCost = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "VehicleUpgrade")
+	int32 moduleHpLevel = 1;
 };
 
 USTRUCT(BlueprintType)

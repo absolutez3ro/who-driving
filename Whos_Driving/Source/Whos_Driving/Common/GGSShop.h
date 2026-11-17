@@ -87,5 +87,7 @@ public:
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairAll();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradeModuleHp(const EGModuleType& type);
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void OnLevelEnd();
 };

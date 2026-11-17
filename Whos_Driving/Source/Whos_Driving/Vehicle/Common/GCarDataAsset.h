@@ -22,7 +22,13 @@ public:
 	float MaxTorque;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
-	float WheelMaxHealth;
+	float WheelBaseMaxHealth;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
+	int32 WheelHpLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
+	float WheelHpIncreasePerLevel;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float WheelRepairThreshold;
@@ -34,7 +40,13 @@ public:
 	float WheelDestroyedModuleCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors")
-	float DoorMaxHealth;
+	float DoorBaseMaxHealth;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Doors")
+	int32 DoorHpLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Doors")
+	float DoorHpIncreasePerLevel;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Doors", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float DoorRepairThreshold;
@@ -46,7 +58,13 @@ public:
 	float DoorDestroyedModuleCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine")
-	float EngineMaxHealth;
+	float EngineBaseMaxHealth;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Engine")
+	int32 EngineHpLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Engine")
+	float EngineHpIncreasePerLevel;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Engine", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float EngineRepairThreshold;
@@ -58,7 +76,13 @@ public:
 	float EngineDestroyedCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel")
-	float SteeringWheelMaxHealth;
+	float SteeringWheelBaseMaxHealth;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel")
+	int32 SteeringWheelHpLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel")
+	float SteeringWheelHpIncreasePerLevel;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|SteeringWheel", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SteeringWheelRepairThreshold;
@@ -70,7 +94,13 @@ public:
 	float SteeringWheelDestroyedCostMultiplier;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician")
-	float ElectricianMaxHealth;
+	float ElectricianBaseMaxHealth;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Electrician")
+	int32 ElectricianHpLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Modules|Electrician")
+	float ElectricianHpIncreasePerLevel;
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Electrician", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ElectricianRepairThreshold;

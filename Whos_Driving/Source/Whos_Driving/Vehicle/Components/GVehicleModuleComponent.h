@@ -20,7 +20,7 @@ public:
 
 	UGVehicleModule* FindModule(FName moduleId) const;
 	void RegisterModule(UGVehicleModule* module);
-	void ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState);
+	void ApplyReplicatedModuleState(const FName& moduleId, float maxHp, float currentHp, EGModuleState moduleState, int32 HpIncreasePerLevel, int32 moduleHpLevel);
 	void RebuildModuleRegistry(AActor* ownerActor);
 
 	template<typename T>
