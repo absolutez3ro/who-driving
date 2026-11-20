@@ -8,6 +8,7 @@
 #include "ChaosVehicleWheel.h"
 #include "Components/BoxComponent.h"
 #include "GGIWhosDriving.h"
+#include "Components/ChildActorComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GVehicleMovementComponent.h"
@@ -35,6 +36,8 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	moduleComponent = CreateDefaultSubobject<UGVehicleModuleComponent>(TEXT("VehicleModules"));
 	driverSeat = CreateDefaultSubobject<USceneComponent>(TEXT("Driver seat"));
 	driverSeat->SetupAttachment(GetRootComponent());
+	hologramComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Hologram"));
+	hologramComponent->SetupAttachment(GetMesh());
 	bReplicates = true;
 	SetReplicateMovement(true);
 	InitSeats();
@@ -360,6 +363,7 @@ void AGPlayerCar::ApplyModuleStates()
 			state.moduleHpLevel
 		);
 	}
+	onModuleStatesApplied.Broadcast(moduleStates);
 }
 
 void AGPlayerCar::ApplyWheelVisual(int32 wheelIndex, bool bDestroyed)

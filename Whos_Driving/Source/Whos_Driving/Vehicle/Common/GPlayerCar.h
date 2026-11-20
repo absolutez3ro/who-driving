@@ -20,6 +20,7 @@ class UGVehicleModuleComponent;
 class UGBoxComponent;
 class UGCarDataAsset;
 class UGVehicleRadioComponent;
+class UChildActorComponent;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -66,6 +67,10 @@ struct FGVehicleWheelVisual
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Damage")
 	TObjectPtr<UStaticMesh> destroyedMesh;
 };
+
+// Fired on the server and on every client after the replicated module states were applied.
+DECLARE_MULTICAST_DELEGATE_OneParam(FGOnModuleStatesApplied, const TArray<FGVehicleModuleState>&);
+
 /**
  * 
  */
@@ -126,11 +131,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
 
+	FGOnModuleStatesApplied onModuleStatesApplied;
+
 
 	void ApplyModuleStates();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
+
+	// Spawns the dashboard damage hologram (AGVehicleHologram). Class and placement are set in the Blueprint.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Hologram")
+	TObjectPtr<UChildActorComponent> hologramComponent;
 
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
 	void BeginPlay() override;
