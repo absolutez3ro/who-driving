@@ -55,8 +55,6 @@ protected:
 private:
 	void SpawnCar();
 	void SpawnPlayer(APlayerController* newPlayer);
-	void SpawnCar();
-	void SpawnPlayer(APlayerController* newPlayer);
 
 	UPROPERTY()
 	TSet<TWeakObjectPtr<AGPlayerController>> participants;

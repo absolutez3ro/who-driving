@@ -96,7 +96,7 @@ bool FGVehicleHologramDamageTest::RunTest(const FString& parameters)
 	TestEqual(TEXT("Destroyed door is red"), GetCustomDataFloat(doorMesh, 0), 1.0f, KINDA_SMALL_NUMBER);
 
 	// ApplyRepair() needs a game state with repair parts, so restore the health the way replication does.
-	wheelModule->ApplyReplicatedState(wheelModule->maxHP, wheelModule->maxHP, EGModuleState::Full);
+	wheelModule->ApplyReplicatedState(wheelModule->baseMaxHP, wheelModule->maxHP, EGModuleState::Full, wheelModule->HPIncreasePerLevel, wheelModule->moduleHPLevel);
 	car->PublishModuleStates();
 	TestEqual(TEXT("Repaired wheel is green again"), GetCustomDataFloat(wheelMesh, 0), 0.0f, KINDA_SMALL_NUMBER);
 	TestEqual(TEXT("Body is never damaged"), GetCustomDataFloat(bodyMesh, 0), 0.0f, KINDA_SMALL_NUMBER);
