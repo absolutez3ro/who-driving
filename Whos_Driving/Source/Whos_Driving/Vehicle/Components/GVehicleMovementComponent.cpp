@@ -193,6 +193,24 @@ void UGVehicleMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UGVehicleMovementComponent, bWindowDrivingLocked);
 	DOREPLIFETIME(UGVehicleMovementComponent, windowThrottle);
+	//max speed level
+	DOREPLIFETIME(UGVehicleMovementComponent, currentMaxSpeedLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, maxMaxSpeedLevel);
+	//accelaeration level
+	DOREPLIFETIME(UGVehicleMovementComponent, currentAccelerationLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, maxAccelerationLevel);
+	//max rpm
+	DOREPLIFETIME(UGVehicleMovementComponent, maxRPMPerLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, baseMaxRPM);
+	// max torque
+	DOREPLIFETIME(UGVehicleMovementComponent, maxTorquePerLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, baseMaxTorque);
+	//idle rpm
+	DOREPLIFETIME(UGVehicleMovementComponent, idleRPMPerLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, baseIdleRPM);
+	// rev
+	DOREPLIFETIME(UGVehicleMovementComponent, revUpPerLevel);
+	DOREPLIFETIME(UGVehicleMovementComponent, baseRevUp);
 }
 
 void UGVehicleMovementComponent::SetWindowDrivingLock(bool bLocked)
@@ -213,6 +231,7 @@ void UGVehicleMovementComponent::SetWindowDrivingLock(bool bLocked)
 
 void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
 {
+
 	if (bWindowDrivingLocked)
 	{
 		ApplyWindowDrivingLock();

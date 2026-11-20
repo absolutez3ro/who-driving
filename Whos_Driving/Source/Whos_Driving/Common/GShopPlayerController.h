@@ -24,5 +24,9 @@ private:
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
 	void RequestLevelEnd();
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
-	void RequestUpgrade(const EGModuleType& type);
+	void RequestHpUpgrade(const EGModuleType& type);
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradeMaxSpeed();
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradeAcceleration();
 };

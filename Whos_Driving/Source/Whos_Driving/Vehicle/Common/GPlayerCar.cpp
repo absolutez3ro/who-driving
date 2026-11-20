@@ -417,6 +417,8 @@ void AGPlayerCar::BeginPlay()
 				}
 				currentCarHealth = gi->GetCarData().currentCarHealth;
 				baseCarHealth = gi->GetCarData().baseCarHealth;
+				movementComponent->currentAccelerationLevel = gi->carUpgradeData.AccelerationLevel;
+				movementComponent->currentMaxSpeedLevel = gi->carUpgradeData.maxSpeedLevel;
 			}
 			else
 			{

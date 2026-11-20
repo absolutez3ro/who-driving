@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GVehicleMovementComponent.h"
 #include "GPlayerCar.h"
 #include "GGIWhosDriving.h"
 #include "Common/GShopDataAsset.h"
@@ -79,16 +80,26 @@ public:
 	TObjectPtr<UGShopDataAsset> dataAsset;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Car")
 	TSubclassOf<AGPlayerCar> carClass;
+
+	// data getters for ui
 	UFUNCTION(BlueprintCallable)
 	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
 	UFUNCTION(BlueprintCallable)
 	void GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices);
-	//UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable)
+	void GetMaxSpeedUpgradePrice(int32& OutPrice);
+	UFUNCTION(BlueprintCallable)
+	void GetAccelerationUpgradePrice(int32& OutPrice);
 	//void GetUpgradeCarData(TMap<EGModuleType, int32>& OutPrices);
 	void SpawnCar();
 	void BeginPlay();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairModule(const FName& ModuleName);
+
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradeMaxSpeed();
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradeAcceleration();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairAll();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)

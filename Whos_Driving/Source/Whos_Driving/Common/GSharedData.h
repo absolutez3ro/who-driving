@@ -25,9 +25,9 @@ struct FCarUpgradeData
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly)
-    TArray<int32> moduleLevels;
+    int32 maxSpeedLevel;
     UPROPERTY(BlueprintReadOnly)
-    int32 generalHelthlevel=0;
+    int32 AccelerationLevel;
 };
 
 USTRUCT(BlueprintType)

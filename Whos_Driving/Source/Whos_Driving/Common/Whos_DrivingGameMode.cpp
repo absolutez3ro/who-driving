@@ -91,7 +91,10 @@ void AWhos_DrivingGameMode::OnLevelEnd()
 	TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
 	if (gi)
 	{
-		gi->moneyStored+= gi->GetMoneyFromTotal();;
+		gi->moneyStored+= gi->GetMoneyFromTotal();
+		UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+		gi->carUpgradeData.AccelerationLevel = movementComponent->currentAccelerationLevel;
+		gi->carUpgradeData.maxSpeedLevel = movementComponent->currentMaxSpeedLevel;
 	}
 	else
 	{

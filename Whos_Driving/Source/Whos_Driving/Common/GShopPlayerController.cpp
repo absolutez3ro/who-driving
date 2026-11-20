@@ -35,11 +35,27 @@ void AGShopPlayerController::RequestLevelEnd_Implementation()
 	}
 	GS->OnLevelEnd();
 }
-void AGShopPlayerController::RequestUpgrade_Implementation(const EGModuleType& type)
+void AGShopPlayerController::RequestHpUpgrade_Implementation(const EGModuleType& type)
 {
 	if (!GS) {
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
 		return;
 	}
 	GS->UpgradeModuleHp(type);
+}
+void AGShopPlayerController::RequestUpgradeMaxSpeed_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradeMaxSpeed();
+}
+void AGShopPlayerController::RequestUpgradeAcceleration_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradeAcceleration();
 }

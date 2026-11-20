@@ -47,6 +47,9 @@ void AGGSShop::SpawnCar()
 		//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT(" mod state in gi %i"), gi->GetCarData().moduleStates.Num()));
 		car->currentCarHealth = gi->GetCarData().currentCarHealth;
 		car->baseCarHealth = gi->GetCarData().baseCarHealth;
+		UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+		movementComponent->currentAccelerationLevel = gi->carUpgradeData.AccelerationLevel;
+		movementComponent->currentMaxSpeedLevel = gi->carUpgradeData.maxSpeedLevel;
 		car->ApplyModuleStates();
 		OnRep_Car();
 	}
@@ -222,6 +225,64 @@ void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices)
 		}
 	}
 }
+
+void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice)
+{
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+	int32 level = movementComponent->currentMaxSpeedLevel;
+	if (level < movementComponent->maxAccelerationLevel)
+	{
+		int32 baseCost = dataAsset->baseUpgradePriceSpeed;
+		OutPrice = baseCost* pow(dataAsset->priceGrowthExpBase, level - 1);
+	}
+	else
+	{
+		OutPrice = -1;
+	}
+}
+void AGGSShop::GetAccelerationUpgradePrice(int32& OutPrice)
+{
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+	int32 level = movementComponent->currentAccelerationLevel;
+	if (level < movementComponent->maxAccelerationLevel)
+	{
+		int32 baseCost = dataAsset->baseUpgradePriceAcceleration;
+		OutPrice = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
+	}
+	else
+	{
+		OutPrice=-1;
+	}
+}
+void AGGSShop::UpgradeMaxSpeed()
+{
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+	int32 level = movementComponent->currentMaxSpeedLevel;
+	int32 maxLevel = movementComponent->maxMaxSpeedLevel;
+	if (level < maxLevel)
+	{
+		movementComponent->currentMaxSpeedLevel++;
+		int32 baseCost = dataAsset->baseUpgradePriceSpeed;
+		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
+		money -= actualCost;
+		OnRep_Money();
+	}
+}
+void AGGSShop::UpgradeAcceleration()
+{
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+	int32 level = movementComponent->currentAccelerationLevel;
+	int32 maxLevel = movementComponent->maxAccelerationLevel;
+	if (level < maxLevel)
+	{
+		movementComponent->currentAccelerationLevel++;
+		int32 baseCost = dataAsset->baseUpgradePriceAcceleration;
+		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
+		money -= actualCost;
+		OnRep_Money();
+	}
+
+}
 // Data Asset
 int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
 {
@@ -272,6 +333,10 @@ void AGGSShop::OnLevelEnd()
 	gi->GetCarData().moduleStates = car->moduleStates;
 	gi->GetCarData().currentCarHealth = car->currentCarHealth;
 	gi->GetCarData().baseCarHealth = car->baseCarHealth;
+
+	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
+	gi->carUpgradeData.AccelerationLevel = movementComponent->currentAccelerationLevel;
+	gi->carUpgradeData.maxSpeedLevel = movementComponent->currentMaxSpeedLevel;
 	for (FGVehicleModuleState state : gi->GetCarData().moduleStates) 
 	{
 		//GEngine->AddOnScreenDebugMessage(-1,15.f, FColor::White, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), *ModuleNames[state.moduleId], state.currentHP, state.maxHP));
