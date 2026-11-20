@@ -210,7 +210,7 @@ void AGGSShop::UpgradeModuleHp(const EGModuleType& type)
 	OnRep_Money();
 
 }
-void AGGSShop::GetUpgradeData(TMap<EGModuleType, int32>& OutPrices)
+void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices)
 {
 	for (TObjectPtr<UGVehicleModule> module : car->GetModuleComponent()->GetModules())
 	{
@@ -222,7 +222,6 @@ void AGGSShop::GetUpgradeData(TMap<EGModuleType, int32>& OutPrices)
 		}
 	}
 }
-
 // Data Asset
 int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
 {

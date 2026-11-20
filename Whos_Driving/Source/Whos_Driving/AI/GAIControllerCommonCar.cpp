@@ -301,7 +301,7 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 	const float DesiredSteer = FMath::Clamp(AngleDeg/ maxSteerAngle, -1.0f, 1.0f);
 
 	currentSteer = FMath::FInterpTo(currentSteer, DesiredSteer, DeltaSeconds, steerInterpSpeed);
-	UE_LOG(LogTemp, Log, TEXT("GetSteeringInput %f"), Movement->GetSteeringInput());
+	//UE_LOG(LogTemp, Log, TEXT("GetSteeringInput %f"), Movement->GetSteeringInput());
 	Movement->SetSteeringInput(DesiredSteer);
 	//if chosing a speed to match
 	float targetSpeed = 0;

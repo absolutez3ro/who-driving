@@ -59,10 +59,44 @@ public:
 		return brokenEngineMaxSpeed;
 	}
 
+	UFUNCTION()
+	void OnRep_MaxSpeedLevel();
+	UFUNCTION()
+	void OnRep_AccelerationLevel();
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
-
+	//speed level
+	UPROPERTY(ReplicatedUsing = OnRep_MaxSpeedLevel, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	int32 currentMaxSpeedLevel = 1;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	int32 maxMaxSpeedLevel = 0;
+	// RPM
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float maxRPMPerLevel = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float baseMaxRPM = 0;
+	//acceleration level
+	UPROPERTY(ReplicatedUsing = OnRep_AccelerationLevel, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	int32 currentAccelerationLevel = 1;
+	UPROPERTY(ReplicatedUsing = OnRep_AccelerationLevel, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	int32 maxAccelerationLevel = 1;
+	//Torque
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float maxTorquePerLevel = 30;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float baseMaxTorque = 300;
+	// idle RPM
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float idleRPMPerLevel = 220;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float baseIdleRPM = 800;
+	// RevUp
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float revUpPerLevel = 4;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Upgrades")
+	float baseRevUp = 2;
 protected:
 	void BeginPlay() override;
 	void UpdateState(float deltaTime) override;

@@ -54,4 +54,13 @@ public:
 	int32 mainHPBaseUpgradePrice = 10.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
 	int32 mainHpUpgradePerLevel = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
+	int32 baseUpgradePriceSpeed = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 SpeedUpgradeRPMPerLevel = 100;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
+	int32 baseUpgradePriceAcceleration = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "effect | upgrade")
+	int32 AccelerationUpgradeIdkPerLevel = 100;
+
 };

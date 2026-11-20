@@ -82,7 +82,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
 	UFUNCTION(BlueprintCallable)
-	void GetUpgradeData(TMap<EGModuleType, int32>& OutPrices);
+	void GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices);
+	//UFUNCTION(BlueprintCallable)
+	//void GetUpgradeCarData(TMap<EGModuleType, int32>& OutPrices);
 	void SpawnCar();
 	void BeginPlay();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)

@@ -31,13 +31,55 @@ UGVehicleMovementComponent::UGVehicleMovementComponent()
 	TransmissionSetup.ReverseGearRatios = { 3.0f };
 }
 
+void UGVehicleMovementComponent::OnRep_MaxSpeedLevel()
+{
+	UE_LOG(LogTemp, Log, TEXT("baseMaxRPM %f maxRPMPerLevel %f FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1 %d"), baseMaxRPM, maxRPMPerLevel, (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1));
+	float maxRPM = baseMaxRPM + maxRPMPerLevel * (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1);
+	EngineSetup.MaxRPM = maxRPM;
+	RecreatePhysicsState();
+}
+
+void UGVehicleMovementComponent::OnRep_AccelerationLevel()
+{
+	UE_LOG(LogTemp, Log, TEXT("baseIdleRPM %f idleRPMPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseIdleRPM, idleRPMPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	float idleRPM = baseIdleRPM + idleRPMPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) -1);
+	UE_LOG(LogTemp, Log, TEXT("baseRevUp %f revUpPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseRevUp, revUpPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	float revUp = baseRevUp + revUpPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
+	UE_LOG(LogTemp, Log, TEXT("baseMaxTorque %f maxTorquePerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseMaxTorque, maxTorquePerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
+	EngineSetup.EngineIdleRPM = idleRPM;
+	EngineSetup.EngineRevUpMOI = revUp;
+	SetMaxEngineTorque(maxTorque);
+	RecreatePhysicsState();
+}
+
+
 void UGVehicleMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
 	if (carData)
 	{
-		SetMaxEngineTorque(carData->MaxTorque);
+		//maxRPM
+		baseMaxRPM = carData->baseMaxRPM;
+		maxRPMPerLevel = carData->maxRPMPerLevel;
+		// Torque
+		baseMaxTorque = carData->baseTorque;
+		maxTorquePerLevel = carData->torquePerLevel;
+		//Idle RPM
+		idleRPMPerLevel = carData->IdleRPMPerLevel;
+		baseIdleRPM = carData->baseIdleRPM;
+		//RevUp
+		baseRevUp = carData->baseRevUp;
+		revUpPerLevel = carData->revUpPerLevel;
+		// max speed level
+		maxMaxSpeedLevel = carData->maxMaxSpeedLevel;
+		currentMaxSpeedLevel = carData->startingMaxSpeedLevel;
+		// acceleration level
+		maxAccelerationLevel = carData->maxMaxSpeedLevel;
+		currentAccelerationLevel = carData->startingMaxSpeedLevel;
+		OnRep_MaxSpeedLevel();
+		OnRep_AccelerationLevel();
 		brokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
 		brokenSteeringWheelAngle = carData->BrokenSteeringWheelAngle;
 		brokenEngineTorqueMultiplier = carData->BrokenEngineTorqueMultiplier;
@@ -97,14 +139,16 @@ void UGVehicleMovementComponent::RepairSteeringWheel()
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
-	SetMaxEngineTorque(carData->MaxTorque * brokenEngineTorqueMultiplier);
+	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
+	SetMaxEngineTorque(maxTorque * brokenEngineTorqueMultiplier);
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
 void UGVehicleMovementComponent::RepairEngine()
 {
 	bEngineBroken = false;
-	SetMaxEngineTorque(carData->MaxTorque);
+	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
+	SetMaxEngineTorque(maxTorque);
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()

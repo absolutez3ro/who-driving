@@ -18,8 +18,48 @@ public:
 	UPROPERTY(EditAnywhere, Category = "General Values", meta = (ToolTip = "Base car health. This is not the total car health!"))
 	float BaseCarHealth;
 
-	UPROPERTY(EditAnywhere, Category = "General Values", meta = (ToolTip = "Maximum engine torque"))
-	float MaxTorque;
+
+
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "base maximum engine torque"))
+	float baseTorque;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "maximum engine torque per level"))
+	float torquePerLevel;
+
+	UPROPERTY(EditAnywhere, Category = "max speed | Upgrades", meta = (ToolTip = "base maximum engine RPM"))
+	float baseMaxRPM;
+
+	UPROPERTY(EditAnywhere, Category = "max speed | Upgrades", meta = (ToolTip = "maximum engine RPM per level"))
+	float maxRPMPerLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "base rev up moi value"))
+	float baseRevUp;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "rev up moi value per level"))
+	float revUpPerLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "base idle engine RPM"))
+	float baseIdleRPM;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "idle engine RPM per level"))
+	float IdleRPMPerLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "starting level of acceleration (affects idle rpm, rev up, torque)"))
+	int32 startingAccelerationLevel;
+
+	UPROPERTY(EditAnywhere, Category = "max speed | Upgrades", meta = (ToolTip = "starting level of acceleration (affects max rpm)"))
+	int32 startingMaxSpeedLevel;
+
+	UPROPERTY(EditAnywhere, Category = "Acceleration | Upgrades", meta = (ToolTip = "maximum level of acceleration (affects idle rpm, rev up, torque)"))
+	int32 maxAccelerationLevel;
+
+	UPROPERTY(EditAnywhere, Category = "max speed | Upgrades", meta = (ToolTip = "maximum level of acceleration (affects max rpm)"))
+	int32 maxMaxSpeedLevel;
+
+
+
+
 
 	UPROPERTY(EditAnywhere, Category = "Modules|Wheels")
 	float WheelBaseMaxHealth;
