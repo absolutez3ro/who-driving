@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/BoxComponent.h"
+#include "Vehicle/Modules/GVehicleModule.h"
 #include "GVehicleSeatComponent.generated.h"
 
 UENUM(BlueprintType)
@@ -26,6 +27,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Seat")
 	EGVehicleSeat seatId = EGVehicleSeat::Driver;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Seat")
+	EGComponentSide side = EGComponentSide::Left;
 
 	// Modules (UGVehicleModule::moduleId) the occupant of this seat may repair. A module missing from every seat cannot be repaired.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Repair", meta = (GetOptions = "GetRepairModuleOptions"))

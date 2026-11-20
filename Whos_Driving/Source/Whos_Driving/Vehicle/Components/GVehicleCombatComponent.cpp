@@ -3,6 +3,8 @@
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleMovementComponent.h"
+#include "GVehicleModuleComponent.h"
+#include "Vehicle/Modules/GVehicleDoorModule.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
 #include "Whos_DrivingCharacter.h"
@@ -15,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Common/GPlayersDataAsset.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVehicleCombat, Log, All);
 
@@ -36,6 +39,7 @@ void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(UGVehicleCombatComponent, health);
 	DOREPLIFETIME(UGVehicleCombatComponent, equipStartTime);
 	DOREPLIFETIME(UGVehicleCombatComponent, confirmedShots);
+	DOREPLIFETIME(UGVehicleCombatComponent, bInKnockout);
 }
 
 AWhos_DrivingCharacter* UGVehicleCombatComponent::GetCharacter() const
@@ -125,9 +129,15 @@ void UGVehicleCombatComponent::BeginPlay()
 	GetCharacter()->GetFirstPersonMesh()->HideBoneByName(TEXT("head"), EPhysBodyOp::PBO_None);
 	if (IsAuthority())
 	{
-		health = maxHealth;
 		SpawnLoadout();
 	}
+	maxHealth = playerData->MaxHealth;
+	health = maxHealth;
+	regenCooldownSeconds = playerData->RegenCooldownSeconds;
+	healthRegenRate = playerData->HealthRegenRate;
+	reviveHealth = playerData->ReviveHealth;
+	reviveTimeSeconds = playerData->ReviveTimeSeconds;
+	OnHealthUpdate.Broadcast(health, maxHealth);
 }
 
 void UGVehicleCombatComponent::SpawnLoadout()
@@ -217,6 +227,22 @@ void UGVehicleCombatComponent::NotifyWeaponStateChanged(const AGVehicleWeapon* w
 	{
 		OnWeaponAmmoChanged.Broadcast();
 	}
+}
+
+UGVehicleDoorModule* UGVehicleCombatComponent::GetDoorModuleForSeat()
+{
+	AGPlayerCar* car = GetVehicle();
+	UGVehicleSeatingComponent* seating = car->GetSeatingComponent();
+	UGVehicleSeatComponent* seat = seating->GetSeatComponent(GetSeatIndex());
+	auto doors = car->GetModuleComponent()->GetModulesOfType<UGVehicleDoorModule>();
+	for (auto& door : doors)
+	{
+		if (door->moduleSide == seat->side)
+		{
+			return door;
+		}
+	}
+	return nullptr;
 }
 
 float UGVehicleCombatComponent::GetWindowAlpha() const
@@ -311,6 +337,11 @@ void UGVehicleCombatComponent::OnRep_Loadout()
 	OnWeaponAmmoChanged.Broadcast();
 }
 
+void UGVehicleCombatComponent::OnRep_Knockout()
+{
+	RefreshPresentation();
+}
+
 void UGVehicleCombatComponent::OnRep_Window()
 {
 	RefreshPresentation();
@@ -318,6 +349,7 @@ void UGVehicleCombatComponent::OnRep_Window()
 
 void UGVehicleCombatComponent::OnRep_Health()
 {
+	OnHealthUpdate.Broadcast(health, maxHealth);
 	RefreshPresentation();
 }
 
@@ -626,6 +658,10 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 											 FActorComponentTickFunction* tickFunction)
 {
 	Super::TickComponent(deltaSeconds, tickType, tickFunction);
+	if (!bInKnockout)
+	{
+		RegenHealth(deltaSeconds);
+	}
 	RefreshPresentation();
 	RefreshDriverLock();
 	if (IsLocallyOwned() && GetPlayerController())
@@ -639,30 +675,93 @@ void UGVehicleCombatComponent::TickComponent(float deltaSeconds, ELevelTick tick
 	}
 }
 
+void UGVehicleCombatComponent::RegenHealth(float deltaSeconds)
+{
+	if (IsAuthority() && health > 0.0f && health < maxHealth &&
+		GetServerTime() - lastDamageTime >= regenCooldownSeconds)
+	{
+		const float previous = health;
+		health = FMath::Min(health + healthRegenRate * deltaSeconds, maxHealth);
+		OnHealthUpdate.Broadcast(health, maxHealth);
+		if (!FMath::IsNearlyEqual(previous, health))
+		{
+			if (GetNetMode() != NM_DedicatedServer)
+			{
+				RefreshPresentation();
+			}
+		}
+	}
+}
+
+void UGVehicleCombatComponent::BindKnockoutDelegate(AGPlayerController* controller)
+{
+	if (!IsValid(controller))
+	{
+		return;
+	}
+	OnZeroHealth.RemoveDynamic(controller, &AGPlayerController::HandleKnockout);
+	OnZeroHealth.AddDynamic(controller, &AGPlayerController::HandleKnockout);
+}
+
+void UGVehicleCombatComponent::BindReviveDelegate(AGPlayerController* controller)
+{
+	if (!IsValid(controller))
+	{
+		return;
+	}
+	OnRevive.RemoveDynamic(controller, &AGPlayerController::HandleRevive);
+	OnRevive.AddDynamic(controller, &AGPlayerController::HandleRevive);
+}
+
+bool UGVehicleCombatComponent::Revive()
+{
+	if (!IsAuthority() || !bInKnockout || health > 0.0f)
+	{
+		return false;
+	}
+
+	bInKnockout = false;
+	health = reviveHealth;
+
+	lastDamageTime = GetServerTime();
+
+	OnHealthUpdate.Broadcast(health, maxHealth);
+	OnRevive.Broadcast();
+
+	OnRep_Loadout();
+
+	GetOwner()->ForceNetUpdate();
+
+	return true;
+}
+
 float UGVehicleCombatComponent::ApplyDamage(float amount, AController* instigatorController)
 {
 	if (!IsAuthority() || !FMath::IsFinite(amount) || amount <= 0.0f || health <= 0.0f)
 	{
 		return 0.0f;
 	}
+
 	const float applied = FMath::Min(amount, health);
-	health -= applied;
-	if (health <= 0.0f)
+	UGVehicleDoorModule* door = GetDoorModuleForSeat();
+	if (!CanBeDamaged())
 	{
-		CancelActions(true);
-		if (AGPlayerController* controller = GetPlayerController())
-		{
-			if (AGPlayerCar* vehicle = GetVehicle())
-			{
-				vehicle->GetSeatingComponent()->RemovePlayer(controller, false);
-				controller->UnPossess();
-				controller->SetVehicleContext(nullptr, GetCharacter());
-			}
-		}
-		GetCharacter()->GetCharacterMovement()->DisableMovement();
-		OnRep_Loadout();
+		GetVehicle()->DamageModule(door->moduleId, applied);
 	}
-	GetOwner()->ForceNetUpdate();
+	else
+	{
+		health -= applied;
+		OnHealthUpdate.Broadcast(health, maxHealth);
+		lastDamageTime = GetServerTime();
+		if (health <= 0.0f)
+		{
+			CancelActions(true);
+			bInKnockout = true;
+			OnZeroHealth.Broadcast();
+			OnRep_Loadout();
+		}
+		GetOwner()->ForceNetUpdate();
+	}
 	return applied;
 }
 
@@ -697,4 +796,10 @@ FVector UGVehicleCombatComponent::GetFirstPersonPoseOffset() const
 										 0.0f, 1.0f);
 	const float reloadLift = weapon->IsReloading() ? definition->ReloadHandLift * liftAlpha : 0.0f;
 	return definition->ViewmodelOffset + FVector(0.0f, 0.0f, reloadLift);
+}
+
+bool UGVehicleCombatComponent::CanBeDamaged()
+{
+	UGVehicleDoorModule* door = GetDoorModuleForSeat();
+	return door->IsDestroyed() || IsOutside();
 }

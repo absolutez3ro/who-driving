@@ -29,6 +29,7 @@
 #include "GVehicleElectricianModule.h"
 #include "GCarDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Common/Whos_DrivingGameMode.h"
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
@@ -124,6 +125,7 @@ void AGPlayerCar::InitSeats()
 		UGVehicleSeatComponent* seat = CreateDefaultSubobject<UGVehicleSeatComponent>(seatNames[seatIndex]);
 		seat->SetupAttachment(GetMesh());
 		seat->seatId = static_cast<EGVehicleSeat>(seatIndex);
+		seat->side = (seatIndex % 2 == 0) ? EGComponentSide::Left : EGComponentSide::Right;
 		const float seatX = seatIndex < 2 ? 22.0f : -110.0f;
 		const float seatY = seatIndex % 2 == 0 ? -59.0f : 59.0f;
 		seat->SetRelativeLocation(FVector(seatX, seatY, 95.0f));
@@ -183,6 +185,7 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 		doorModule->moduleId = moduleId;
 		doorModule->maxHP = 50.0f;
 		doorModule->currentHP = doorModule->maxHP;
+		doorModule->moduleSide = (i % 2 == 0) ? EGComponentSide::Left : EGComponentSide::Right;
 		moduleComponent->RegisterModule(doorModule);
 
 		UGBoxComponent* hitBox = CreateDefaultSubobject<UGBoxComponent>(FName(*FString::Printf(TEXT("CombatDoor%d"), i)));
@@ -269,6 +272,11 @@ void AGPlayerCar::RecalculateCarHealth()
 	for (auto& module : moduleComponent->GetModules())
 	{
 		currentCarHealth += module->currentHP;
+	}
+	if (currentCarHealth <= 0)
+	{
+		AWhos_DrivingGameMode* gameMode = GetWorld()->GetAuthGameMode<AWhos_DrivingGameMode>();
+		gameMode->CheckVehicleDestroyed();
 	}
 }
 
