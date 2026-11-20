@@ -10,10 +10,10 @@ enum class EGArcadeSlideMode : uint8
 	// Normal driving; the grip assists are in charge.
 	Grip,
 
-	// Controlled drift: steering picks the slide angle and how tightly the path bends.
+	// Brake-initiated slide with controlled angle and path.
 	Drift,
 
-	// The handbrake swings the car round towards the steering side, up to a full turn-around.
+	// Handbrake slide; legacy mode also commands a turn-around towards the steering side.
 	HandbrakeTurn
 };
 
@@ -44,9 +44,8 @@ struct FGArcadeDriftInput
 	bool bIsGrounded = false;
 };
 
-// Arcade slide state machine. A brake tap at speed starts a drift towards the steering side; the handbrake
-// with steering swings the car round. While drifting, steering picks both the slide angle and how tightly
-// the path bends, and the controller asks for the yaw and sideways acceleration needed for both.
+// Slide state machine with controlled brake-to-drift and optional physical handbrake slides.
+// Improved tire grip retains the brake drift controls while removing artificial speed hold.
 class WHOS_DRIVING_API FGArcadeDriftController
 {
 public:
@@ -64,7 +63,7 @@ public:
 		return mode;
 	}
 
-	// 0 while gripping, 1 while fully sliding; grip and braking changes follow it.
+	// Fade of normal driving assists; legacy mode also uses this for grip and braking changes.
 	float GetDriftBlend() const
 	{
 		return driftBlend;
@@ -125,8 +124,6 @@ private:
 	void UpdateSpeedHold(const FGArcadeDriftInput& input, const FGArcadeDriftSettings& settings);
 	void UpdateRearGrip(const FGArcadeDriftSettings& settings);
 	void ClearControlOutputs(const FGArcadeDriftInput& input);
-
-	static float ComputeMinimumSlideSpeed(const FGArcadeDriftSettings& settings);
 
 	EGArcadeSlideMode mode = EGArcadeSlideMode::Grip;
 

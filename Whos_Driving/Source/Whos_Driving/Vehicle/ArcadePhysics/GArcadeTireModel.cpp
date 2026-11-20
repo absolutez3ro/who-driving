@@ -114,11 +114,28 @@ FGArcadeTireContactResult FGArcadeTireModel::SolveContact(const FGArcadeTireCont
 	{
 		const float slipRatio = static_cast<float>((radius * angularVelocity - input.spin.longitudinalSpeed) / referenceSpeed);
 		float longitudinalForce = EvaluateCurve(curve, slipRatio) * frictionLimit;
+		float lateralForce = input.lateralForce;
+		if (input.bUseCombinedSlip)
+		{
+			// A locked tire has no preferred rolling direction: its friction opposes the skid.
+			// Blend continuously from the rolling tire curve to sliding friction as slip approaches
+			// full lock. Use solved wheel speed so releasing the brake recovers grip through rotation.
+			const float slidingStart = FMath::Clamp(curve.PeakSlip, UE_KINDA_SMALL_NUMBER, 0.9f);
+			const float slidingAlpha = FMath::Clamp((FMath::Abs(slipRatio) - slidingStart) / (1.0f - slidingStart), 0.0f, 1.0f);
+			const float slidingBlend = FMath::SmoothStep(0.0f, 1.0f, slidingAlpha);
+			const FVector2D slipVelocity(radius * angularVelocity - input.spin.longitudinalSpeed, -input.lateralSpeed);
+			const float slidingGrip = FMath::Clamp(curve.FloorValue, 0.0f, 1.0f) * frictionLimit;
+			const FVector2D slidingForce = slipVelocity.GetSafeNormal() * slidingGrip;
+			longitudinalForce = FMath::Lerp(longitudinalForce, static_cast<float>(slidingForce.X), slidingBlend);
+			lateralForce = FMath::Lerp(lateralForce, static_cast<float>(slidingForce.Y), slidingBlend);
+			const float maxLateralForce = FMath::Max(input.maxLateralForce, 0.0f);
+			lateralForce = FMath::Clamp(lateralForce, -maxLateralForce, maxLateralForce);
+		}
 		if (longitudinalForce * input.spin.longitudinalSpeed < 0.0f)
 		{
 			longitudinalForce = FMath::Clamp(longitudinalForce, -maxBrakingForce, maxBrakingForce);
 		}
-		return FVector2D(longitudinalForce, input.lateralForce);
+		return FVector2D(longitudinalForce, lateralForce);
 	};
 	const auto limitForce = [&](double angularVelocity)
 	{
