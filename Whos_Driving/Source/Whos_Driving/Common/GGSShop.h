@@ -57,6 +57,8 @@ private:
 		{ TEXT("Electrician"), EGModuleType::Electrician }
 	};
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
+	int32 GetRepairCostFromDataAsset(FName moduleName);
+	int32 GetUpgradeCostFromDataAsset(EGModuleType type);
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnCarSpawned OnCarSpawned;
@@ -79,9 +81,10 @@ public:
 	TSubclassOf<AGPlayerCar> carClass;
 	UFUNCTION(BlueprintCallable)
 	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
+	UFUNCTION(BlueprintCallable)
+	void GetUpgradeData(TMap<EGModuleType, int32>& OutPrices);
 	void SpawnCar();
 	void BeginPlay();
-	int32 GetRepairCostFromDataAsset(FName moduleName);
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairModule(const FName& ModuleName);
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)

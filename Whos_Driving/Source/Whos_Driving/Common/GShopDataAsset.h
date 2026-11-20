@@ -14,6 +14,9 @@ class WHOS_DRIVING_API UGShopDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
+	float priceGrowthExpBase = 1.4;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | repair")
 	int32 wheelBaseRepairPrice = 10;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | repair")

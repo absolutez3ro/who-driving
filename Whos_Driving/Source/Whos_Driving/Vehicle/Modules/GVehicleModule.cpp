@@ -72,13 +72,10 @@ void UGVehicleModule::ApplyReplicatedState(float inMaxHP, float inCurrentHp, EGM
 {
 	baseMaxHP = inMaxHP;
 	HPIncreasePerLevel = HpIncreasePerLevel;
-	int32 increase = moduleHpLevel - moduleHPLevel;
+	//GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("[%s] Increasing Level %i -> %i"), NETTAG, moduleHPLevel, moduleHpLevel));
 	moduleHPLevel = moduleHpLevel;
 	maxHP = baseMaxHP+(HPIncreasePerLevel*(moduleHPLevel-1));
-	if(currentHP>0.01 || increase==0)
-	{
-		currentHP = inCurrentHp + increase*HPIncreasePerLevel;
-	}
+	currentHP = inCurrentHp;
 	SetState(state);
 	RecalculateRepairCost();
 }

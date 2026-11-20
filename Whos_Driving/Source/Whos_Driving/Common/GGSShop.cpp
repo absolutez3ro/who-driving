@@ -104,7 +104,6 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("WASN'T ANBLE TO SPAWN OR GET CAR")));
 		return;
 	}
-	float modulesHP = 0;
 	// shouldn't call Gengine in begin play
 	if (GEngine)
 	{
@@ -119,7 +118,7 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 	}
 	brokenModules.Empty();
 	for (TObjectPtr<UGVehicleModule> module : car->GetModuleComponent()->GetModules()) {
-		if (module->currentHP < module->maxHP || true)
+		if (module->currentHP < module->maxHP)
 		{
 			OutNames.Add(module->moduleId);
 			brokenModules.Add(module->moduleId);
@@ -129,7 +128,6 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 			int32 baseRepairCost = GetRepairCostFromDataAsset(module->moduleId);
 			int32 actualRepairCost = baseRepairCost * (2 - module->currentHP / module->maxHP);
 			OutPrices.Add(actualRepairCost);
-			modulesHP += module->currentHP;
 			if (GEngine)
 			{
 				//GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), *ModuleNames[module->moduleId], module->currentHP, module->maxHP));
@@ -138,58 +136,15 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 		else {
 			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), *ModuleNames[module->moduleId], module->currentHP, module->maxHP));
 		}
-	}
-	if (car->currentCarHealth - modulesHP < car->baseCarHealth)
-	{
-		OutDisplayNames.Add(TEXT("main hp"));
-		OutCurrentHp.Add(car->currentCarHealth - modulesHP);
-		OutMaxHp.Add(car->baseCarHealth);
-		int32 baseRepairCost = GetRepairCostFromDataAsset(FName("mainHP"));
-		int32 actualRepairCost = baseRepairCost * (2 - (car->currentCarHealth - modulesHP)/ car->baseCarHealth);
-		OutPrices.Add(actualRepairCost);
-		OutNames.Add(FName("mainHP"));
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), TEXT("main hp"), car->currentCarHealth - modulesHP, car->baseCarHealth));
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("modulesHP %f"), modulesHP));
-		}
-	}
-}
-int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
-{
-	if (moduleName== FName("mainHP"))
-	{
-		return dataAsset->mainHPBaseRepairPrice;
-	}
-	switch (moduleTypes[moduleName])
-	{
-	case EGModuleType::Wheel:
-		return dataAsset->wheelBaseRepairPrice;
-		break;
-	case EGModuleType::Door:
-		return dataAsset->doorBaseRepairPrice;
-		break;
-	case EGModuleType::Engine:
-		return dataAsset->engineBaseRepairPrice;
-		break;
-	case EGModuleType::SteeringWheel:
-		return dataAsset->steerBaseRepairPrice;
-		break;
-	case EGModuleType::Electrician:
-		return dataAsset->electricianBaseRepairPrice;
-		break;
-	default:
-		return dataAsset->mainHPBaseRepairPrice;
-		break;
-	}
+	} 
 }
 void AGGSShop::RepairModule(const FName& ModuleName)
 {
 	int32 baseRepairCost;
-	if (ModuleName!= FName("mainHP"))
+	if (ModuleNames.Contains(ModuleName))
 	{
 		TObjectPtr<UGVehicleModule> moduleToFix = car->GetModuleComponent()->FindModule(ModuleName);
-		baseRepairCost = GetRepairCostFromDataAsset(moduleToFix->moduleId);	
+		baseRepairCost = GetRepairCostFromDataAsset(moduleToFix->moduleId);
 		if(moduleToFix->currentHP== moduleToFix->maxHP)
 		{
 			return;
@@ -205,21 +160,7 @@ void AGGSShop::RepairModule(const FName& ModuleName)
 	}
 	else
 	{
-		baseRepairCost =dataAsset->mainHPBaseRepairPrice;
-		float modulesHP = 0;
-		for(TObjectPtr<UGVehicleModule>module : car->GetModuleComponent()->GetModules())
-		{
-			modulesHP += module->currentHP;
-		}
-		float carHealth = car->currentCarHealth - modulesHP;
-		int32 actualRepairCost = baseRepairCost * (2 - carHealth / car->baseCarHealth);
-		if (money >= actualRepairCost)
-		{
-			car->currentCarHealth = modulesHP + car->baseCarHealth;
-			car->PublishModuleStates();
-			money -= actualRepairCost;
-			OnRep_Money();
-		}
+		return;
 	}
 
 }
@@ -248,18 +189,76 @@ void AGGSShop::RepairAll()
 //UPGRADE
 void AGGSShop::UpgradeModuleHp(const EGModuleType& type)
 {
+	int32 actualPrice;
 	for (FGVehicleModuleState& state : car->moduleStates)
 	{
 		if (moduleTypes[state.moduleId]==type)
 		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("upgrading %s"), *ModuleNames[state.moduleId]));
 			state.moduleHpLevel++;
+			if (state.currentHP>0.01)
+			{
+				state.currentHP += state.HpIncreasePerLevel;
+			}
+			int32 basePrice = GetUpgradeCostFromDataAsset(moduleTypes[state.moduleId]);
+			actualPrice = basePrice * pow(dataAsset->priceGrowthExpBase, state.moduleHpLevel - 1);
 		}
 	}
 	car->ApplyModuleStates();
 	car->PublishModuleStates();
-	money -= 1;
+	money -= actualPrice;
 	OnRep_Money();
 
+}
+void AGGSShop::GetUpgradeData(TMap<EGModuleType, int32>& OutPrices)
+{
+	for (TObjectPtr<UGVehicleModule> module : car->GetModuleComponent()->GetModules())
+	{
+		if (!OutPrices.Contains(moduleTypes[module->moduleId]))
+		{
+			int32 basePrice = GetUpgradeCostFromDataAsset(moduleTypes[module->moduleId]);
+			int32 actualPrice = basePrice * pow(dataAsset->priceGrowthExpBase, module->moduleHPLevel-1);
+			OutPrices.Add(moduleTypes[module->moduleId], actualPrice);
+		}
+	}
+}
+
+// Data Asset
+int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
+{
+	switch (moduleTypes[moduleName])
+	{
+	case EGModuleType::Wheel:
+		return dataAsset->wheelBaseRepairPrice;
+	case EGModuleType::Door:
+		return dataAsset->doorBaseRepairPrice;
+	case EGModuleType::Engine:
+		return dataAsset->engineBaseRepairPrice;
+	case EGModuleType::SteeringWheel:
+		return dataAsset->steerBaseRepairPrice;
+	case EGModuleType::Electrician:
+		return dataAsset->electricianBaseRepairPrice;
+	default:
+		return dataAsset->mainHPBaseRepairPrice;
+	}
+}
+int32 AGGSShop::GetUpgradeCostFromDataAsset(EGModuleType type)
+{
+	switch (type)
+	{
+	case EGModuleType::Wheel:
+		return dataAsset->wheelBaseUpgradePrice;
+	case EGModuleType::Door:
+		return dataAsset->doorBaseUpgradePrice;
+	case EGModuleType::Engine:
+		return dataAsset->engineBaseUpgradePrice;
+	case EGModuleType::SteeringWheel:
+		return dataAsset->steerBaseUpgradePrice;
+	case EGModuleType::Electrician:
+		return dataAsset->electricianBaseUpgradePrice;
+	default:
+		return dataAsset->mainHPBaseUpgradePrice;
+	}
 }
 
 

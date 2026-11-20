@@ -190,7 +190,7 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 		{
 			if (targetGroupIndex == 5)
 			{
-				playerCarRef->TakeDamage(damage, FDamageEvent(), nullptr, this);
+				//playerCarRef->TakeDamage(damage, FDamageEvent(), nullptr, this);
 				UE_LOG(LogTemp, Log, TEXT("hit main hp %f"), damage);
 			}
 			else
