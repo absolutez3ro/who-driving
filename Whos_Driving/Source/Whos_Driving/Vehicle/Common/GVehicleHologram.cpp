@@ -345,7 +345,10 @@ void AGVehicleHologram::PlaySoundImmediately()
 	{
 		return;
 	}
-	PlaySound();
+	FQueuedSound temp;
+	soundQueue.Dequeue(temp);
+	audioComponent->SetSound(temp.sound);
+	audioComponent->Play();
 }
 
 void AGVehicleHologram::StopSound()
