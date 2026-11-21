@@ -2,21 +2,39 @@
 
 #pragma once
 
+DECLARE_DYNAMIC_DELEGATE(FOnSoundAdd);
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GVehicleModule.h"
+#include "Sound/SoundCue.h"
 #include "GVehicleHologram.generated.h"
 
 class AGPlayerCar;
 class UStaticMeshComponent;
 struct FGVehicleModuleState;
+class UAudioComponent;
 
-/**
- * Dashboard hologram of the player car.
- * Every breakable module has its own mesh; its colour goes from green (full health) to red (destroyed).
- * The hologram material reads the damage from custom primitive data, so no dynamic material instances are needed.
- * The hologram is purely cosmetic: it is not replicated, every machine follows the replicated module states of its car.
- */
+USTRUCT()
+struct FModuleSounds
+{
+	GENERATED_BODY();
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USoundCue> DamageSound = nullptr;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<USoundCue> DestroyedSound = nullptr;
+};
+
+struct FQueuedSound
+{
+	TObjectPtr<USoundCue> sound = nullptr;
+	FName moduleId = NAME_None;
+	EGModuleState targetState = EGModuleState::Full;
+};
+
+
 UCLASS()
 class WHOS_DRIVING_API AGVehicleHologram : public AActor
 {
@@ -44,15 +62,38 @@ protected:
 	void ApplyGlitchTick();
 	void ApplyRandomModuleColors();
 
-	TArray<FGVehicleModuleState> cachedModuleStates;
+	void AddSoundInQueue(const FName& moduleId, const EGModuleState moduleState);
+	void TryToPlaySound();
+	void PlayFirstSoundImmediately();
+	void PlaySoundAfterDelay();
+	void PlaySoundImmediately();
+	void StopSound();
+	void ResetSoundQueue();
+
+	UPROPERTY()
+	FOnSoundAdd OnSoundAdd;
+
+	UFUNCTION()
+	void HandleNewSoundInQueue();
+
 private:
 	UStaticMeshComponent* CreatePartMesh(const FName& componentName);
 	void BindToOwnerCar();
 	void SetModuleDamage(const FName& moduleId, float damage);
 
+	void PlaySound();
+	bool TryToGetValidSound(USoundCue*& outSound);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hologram")
 	TObjectPtr<USceneComponent> hologramRoot;
+
+	TArray<FGVehicleModuleState> cachedModuleStates;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hologram")
+	TObjectPtr<UAudioComponent> audioComponent;
+
+	TQueue<FQueuedSound> soundQueue;
 
 	// Body silhouette. It is never damaged and glows dimmer than the module meshes.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hologram")
@@ -95,10 +136,17 @@ protected:
 	float glitchIntervalSeconds = 0.5f;
 	float glitchTimer = 0.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hologram|Sound", meta = (ClampMin = "0.1"))
+	float soundsIntervalSeconds = 5.0f;
+	float soundsTimer = 0.0f;
+	float firstSoundTimer = 5.0f;
+	bool bHaveSoundsInQueue = false;
+	bool bIsFirstSoundInTime = true;
 private:
 	// Module id (see AGPlayerCar::Init*) -> mesh that shows this module.
 	// Filled by the constructor of every instance; the meshes are kept alive by the UPROPERTY members above.
 	TMap<FName, UStaticMeshComponent*> moduleMeshes;
+	TMap<FName, EGModuleState> previousModuleState;
 
 	TWeakObjectPtr<AGPlayerCar> ownerCar;
 

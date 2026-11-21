@@ -8,6 +8,9 @@
 #include "Engine/CollisionProfile.h"
 #include "GVehicleElectricianModule.h"
 #include "GVehicleModuleComponent.h"
+#include "Audio.h"
+#include "Components/AudioComponent.h"
+#include "Sound/SoundCue.h"
 
 namespace
 {
@@ -35,7 +38,6 @@ AGVehicleHologram::AGVehicleHologram()
 	wheelRearLeftMesh = CreatePartMesh(TEXT("WheelRearLeftMesh"));
 	wheelRearRightMesh = CreatePartMesh(TEXT("WheelRearRightMesh"));
 
-	// Module ids match AGPlayerCar::Init*: wheel 0 is front left, door 0 is on the left side (-Y).
 	moduleMeshes.Add(TEXT("Steering_Wheel"), steeringWheelMesh);
 	moduleMeshes.Add(TEXT("partDoor0"), doorLeftMesh);
 	moduleMeshes.Add(TEXT("partDoor1"), doorRightMesh);
@@ -45,6 +47,11 @@ AGVehicleHologram::AGVehicleHologram()
 	moduleMeshes.Add(TEXT("Wheel_1"), wheelFrontRightMesh);
 	moduleMeshes.Add(TEXT("Wheel_2"), wheelRearLeftMesh);
 	moduleMeshes.Add(TEXT("Wheel_3"), wheelRearRightMesh);
+
+	audioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
+	audioComponent->SetupAttachment(hologramRoot);
+
+	OnSoundAdd.BindDynamic(this, &AGVehicleHologram::HandleNewSoundInQueue);
 }
 
 void AGVehicleHologram::OnConstruction(const FTransform& transform)
@@ -68,10 +75,17 @@ void AGVehicleHologram::Tick(float deltaTime)
 	FRotator currentRotation = GetActorRotation();
 	currentRotation.Add(0.0f, modelRotationSpeedDegrees, 0.0f);
 	SetActorRotation(currentRotation);
-
 	if (bGlitchActive)
 	{
 		ApplyGlitchTick();
+	}
+	if (bHaveSoundsInQueue)
+	{
+		TryToPlaySound();
+	}
+	else
+	{
+		firstSoundTimer += GetWorld()->GetDeltaSeconds();
 	}
 }
 
@@ -106,6 +120,10 @@ void AGVehicleHologram::StartGlitch()
 	bGlitchActive = true;
 	glitchTimer = 0.0f;
 	ApplyRandomModuleColors();
+	StopSound();
+	ResetSoundQueue();
+	AddSoundInQueue(TEXT("Electrician"), EGModuleState::Destroyed);
+	PlaySoundImmediately();
 }
 
 void AGVehicleHologram::StopGlitch()
@@ -158,7 +176,191 @@ void AGVehicleHologram::ApplyModuleStates(const TArray<FGVehicleModuleState>& mo
 		const bool bHasHealth = state.maxHP > 0.0f;
 		const float healthFraction = bHasHealth ? FMath::Clamp(state.currentHP / state.maxHP, 0.0f, 1.0f) : 0.0f;
 		SetModuleDamage(state.moduleId, 1.0f - healthFraction);
+
+		const EGModuleState* prev = previousModuleState.Find(state.moduleId);
+		const bool bStateChanged = !prev || *prev != state.moduleState;
+		if (bStateChanged)
+		{
+			AddSoundInQueue(state.moduleId, state.moduleState);
+			previousModuleState.Add(state.moduleId, state.moduleState);
+		}
 	}
+}
+
+void AGVehicleHologram::AddSoundInQueue(const FName& moduleId, const EGModuleState moduleState)
+{
+	static TMap<FName, FModuleSounds> runtimeSoundMap;
+	static bool bInitialized = false;
+
+	if (!bInitialized)
+	{
+		bInitialized = true;
+		USoundCue* soundCue = nullptr;
+		FModuleSounds* sounds = nullptr;
+
+		// --- Steering Wheel ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_SteeringDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Steering_Wheel")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_SteeringDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Steering_Wheel")); sounds->DestroyedSound = soundCue; }
+
+		// --- Electrician ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_ElectricianDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Electrician")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_ElectricianDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Electrician")); sounds->DestroyedSound = soundCue; }
+
+		// --- Engine ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_EngineDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Engine")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_EngineDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Engine")); sounds->DestroyedSound = soundCue; }
+
+		// --- Front Left Wheel (Wheel_0) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_FrontLeftWheelDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_0")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_FrontLeftWheelDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_0")); sounds->DestroyedSound = soundCue; }
+
+		// --- Front Right Wheel (Wheel_1) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_FrontRightWheelDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_1")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_FrontRightWheelDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_1")); sounds->DestroyedSound = soundCue; }
+
+		// --- Rear Left Wheel (Wheel_2) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RearLeftWheelDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_2")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RearLeftWheelDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_2")); sounds->DestroyedSound = soundCue; }
+
+		// --- Rear Right Wheel (Wheel_3) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RearRightWheelDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_3")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RearRightWheelDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("Wheel_3")); sounds->DestroyedSound = soundCue; }
+
+		// --- Left Door (partDoor0) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_LeftDoorDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("partDoor0")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_LeftDoorDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("partDoor0")); sounds->DestroyedSound = soundCue; }
+
+		// --- Right Door (partDoor1) ---
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RightDoorDamaged"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("partDoor1")); sounds->DamageSound = soundCue; }
+		soundCue = LoadObject<USoundCue>(nullptr, TEXT("/Game/Audio/sounds/Hologram/SC_RightDoorDestroyed"));
+		if (soundCue) { sounds = &runtimeSoundMap.FindOrAdd(TEXT("partDoor1")); sounds->DestroyedSound = soundCue; }
+	}
+
+
+	const FModuleSounds* moduleSounds = runtimeSoundMap.Find(moduleId);
+	USoundCue* soundCue = nullptr;
+	switch (moduleState)
+	{
+		case EGModuleState::Repair:
+			soundCue = moduleSounds->DamageSound;
+			break;
+		case EGModuleState::Destroyed:
+			soundCue = moduleSounds->DestroyedSound;
+			break;
+		default:
+			break;
+	}
+	if (soundCue != nullptr)
+	{
+		FQueuedSound sound;
+		sound.sound = soundCue;
+		sound.moduleId = moduleId;
+		sound.targetState = moduleState;
+		soundQueue.Enqueue(sound);
+		OnSoundAdd.Execute();
+	}
+}
+
+
+void AGVehicleHologram::TryToPlaySound()
+{
+	if (soundQueue.IsEmpty())
+	{
+		soundsTimer = 0.0f;
+		bHaveSoundsInQueue = false;
+		return;
+	}
+
+	if (firstSoundTimer >= soundsIntervalSeconds)
+	{
+		PlayFirstSoundImmediately();
+		return;
+	}
+
+	soundsTimer += GetWorld()->GetDeltaSeconds();
+	if (soundsTimer >= soundsIntervalSeconds)
+	{
+		PlaySoundAfterDelay();
+	}
+}
+
+void AGVehicleHologram::PlayFirstSoundImmediately()
+{
+	firstSoundTimer = 0.0f;
+	PlaySound();
+}
+
+void AGVehicleHologram::PlaySoundAfterDelay()
+{
+	soundsTimer = 0.0f;
+	firstSoundTimer = 0.0f;
+	PlaySound();
+}
+
+void AGVehicleHologram::PlaySound()
+{
+	USoundCue* sound = nullptr;
+	if (TryToGetValidSound(sound))
+	{
+		audioComponent->SetSound(sound);
+		audioComponent->Play();
+	}
+}
+
+bool AGVehicleHologram::TryToGetValidSound(USoundCue*& outSound)
+{
+	FQueuedSound queuedSound;
+	while (soundQueue.Dequeue(queuedSound))
+	{
+		const EGModuleState* currentState = previousModuleState.Find(queuedSound.moduleId);
+		if (!currentState || *currentState == queuedSound.targetState)
+		{
+			outSound = queuedSound.sound;
+			return true;
+		}
+	}
+	return false;
+}
+
+void AGVehicleHologram::PlaySoundImmediately()
+{
+	if (soundQueue.IsEmpty())
+	{
+		return;
+	}
+	PlaySound();
+}
+
+void AGVehicleHologram::StopSound()
+{
+	audioComponent->Stop();
+}
+
+void AGVehicleHologram::ResetSoundQueue()
+{
+	soundQueue.Empty();
+}
+
+void AGVehicleHologram::HandleNewSoundInQueue()
+{
+	bHaveSoundsInQueue = true;
 }
 
 UStaticMeshComponent* AGVehicleHologram::CreatePartMesh(const FName& componentName)
