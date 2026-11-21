@@ -136,7 +136,10 @@ void AGVehicleHologram::ApplyRandomModuleColors()
 	constexpr int32 paletteSize = UE_ARRAY_COUNT(glitchPalette);
 	for (const TPair<FName, UStaticMeshComponent*>& pair : moduleMeshes)
 	{
-		if (!pair.Value) continue;
+		if (!pair.Value)
+		{
+			continue;
+		}
 		const float randomValue = glitchPalette[FMath::RandRange(0, paletteSize - 1)];
 		pair.Value->SetCustomPrimitiveDataFloat(damageDataIndex, randomValue);
 	}
