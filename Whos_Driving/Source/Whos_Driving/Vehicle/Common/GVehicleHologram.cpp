@@ -16,7 +16,7 @@ namespace
 
 AGVehicleHologram::AGVehicleHologram()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = false;
 
 	hologramRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HologramRoot"));
@@ -57,6 +57,15 @@ void AGVehicleHologram::BeginPlay()
 	Super::BeginPlay();
 
 	BindToOwnerCar();
+}
+
+void AGVehicleHologram::Tick(float deltaTime)
+{
+	Super::Tick(deltaTime);
+
+	FRotator currentRotation = GetActorRotation();
+	currentRotation.Add(0.0f, modelRotationSpeed, 0.0f);
+	SetActorRotation(currentRotation);
 }
 
 void AGVehicleHologram::EndPlay(const EEndPlayReason::Type endPlayReason)
