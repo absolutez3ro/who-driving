@@ -33,7 +33,7 @@ UGVehicleMovementComponent::UGVehicleMovementComponent()
 
 void UGVehicleMovementComponent::OnRep_MaxSpeedLevel()
 {
-	UE_LOG(LogTemp, Log, TEXT("baseMaxRPM %f maxRPMPerLevel %f FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1 %d"), baseMaxRPM, maxRPMPerLevel, (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1));
+	//UE_LOG(LogTemp, Log, TEXT("baseMaxRPM %f maxRPMPerLevel %f FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1 %d"), baseMaxRPM, maxRPMPerLevel, (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1));
 	float maxRPM = baseMaxRPM + maxRPMPerLevel * (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1);
 	EngineSetup.MaxRPM = maxRPM;
 	RecreatePhysicsState();
@@ -41,11 +41,11 @@ void UGVehicleMovementComponent::OnRep_MaxSpeedLevel()
 
 void UGVehicleMovementComponent::OnRep_AccelerationLevel()
 {
-	UE_LOG(LogTemp, Log, TEXT("baseIdleRPM %f idleRPMPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseIdleRPM, idleRPMPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	//UE_LOG(LogTemp, Log, TEXT("baseIdleRPM %f idleRPMPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseIdleRPM, idleRPMPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
 	float idleRPM = baseIdleRPM + idleRPMPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) -1);
-	UE_LOG(LogTemp, Log, TEXT("baseRevUp %f revUpPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseRevUp, revUpPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	//UE_LOG(LogTemp, Log, TEXT("baseRevUp %f revUpPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseRevUp, revUpPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
 	float revUp = baseRevUp + revUpPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
-	UE_LOG(LogTemp, Log, TEXT("baseMaxTorque %f maxTorquePerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseMaxTorque, maxTorquePerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
+	//UE_LOG(LogTemp, Log, TEXT("baseMaxTorque %f maxTorquePerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseMaxTorque, maxTorquePerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
 	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
 	EngineSetup.EngineIdleRPM = idleRPM;
 	EngineSetup.EngineRevUpMOI = revUp;

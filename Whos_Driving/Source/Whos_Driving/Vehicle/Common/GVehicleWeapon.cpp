@@ -46,9 +46,38 @@ void AGVehicleWeapon::Initialize(UGWeaponDefinition* newDefinition)
 	if (!HasAuthority() || !newDefinition)
 	{
 		return;
+
 	}
 	definition = newDefinition;
-	MagazineSize = FMath::Max(1, definition->MagazineSize);
+	TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
+	if (gi)
+	{
+		//if usable is pistol, if not is rifle
+		if (definition->bUsableByDriverInCabin)
+		{
+			magazineSizeLevel = gi->characterUpgradeData.ammoLevelPistol;
+			damageLevel = gi->characterUpgradeData.damageLevelPistol;
+		}
+		else
+		{
+			magazineSizeLevel = gi->characterUpgradeData.ammoLevelRifle;
+			damageLevel = gi->characterUpgradeData.damageLevelRifle;
+		}
+		magazineSizeLevel = FMath::Max(magazineSizeLevel, definition->magazineSizeLevel);
+		damageLevel = FMath::Max(damageLevel, definition->damageLevel);
+		int32 actualMagazineSize = definition->baseMagazineSize + definition->magazineSizePerLevel * (magazineSizeLevel - 1);
+		int32 actualDamage = definition->baseDamage + definition->damageIncreasePerLevel * (damageLevel - 1);
+		MagazineSize = FMath::Max(1, actualMagazineSize);
+		damage = FMath::Max(1, actualDamage);
+	}
+	else
+	{
+		int32 actualMagazineSize = definition->baseMagazineSize + definition->magazineSizePerLevel * (definition->magazineSizeLevel - 1);
+		int32 actualDamage = definition->baseDamage + definition->damageIncreasePerLevel * (definition->damageLevel - 1);
+		MagazineSize = FMath::Max(1, actualMagazineSize);
+		damage = FMath::Max(1, actualDamage);
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GI IN GVEHICLEWEAPON")));
+	}
 	CurrentBullets = MagazineSize;
 	reserveAmmo = FMath::Max(0, definition->InitialReserve);
 	fireMode = definition->FireModes.IsEmpty() ? EGWeaponFireMode::Single : definition->FireModes[0];
@@ -64,6 +93,7 @@ AWhos_DrivingCharacter* AGVehicleWeapon::GetCharacter() const
 void AGVehicleWeapon::BeginPlay()
 {
 	Super::BeginPlay();
+
 	ConfigureMeshes();
 }
 
@@ -79,7 +109,6 @@ void AGVehicleWeapon::ConfigureMeshes()
 	{
 		return;
 	}
-	MagazineSize = FMath::Max(1, definition->MagazineSize);
 	GetFirstPersonMesh()->SetSkeletalMeshAsset(definition->Mesh);
 	GetThirdPersonMesh()->SetSkeletalMeshAsset(definition->Mesh);
 	for (USkeletalMeshComponent* mesh : {GetFirstPersonMesh(), GetThirdPersonMesh()})

@@ -36,7 +36,12 @@ struct FCharacterUpgradeData
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly)
-    int32 damageLevel=0;
+    int32 damageLevelPistol=0;
     UPROPERTY(BlueprintReadOnly)
-    int32 ammoLevel=0;
+    int32 ammoLevelPistol=0;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 damageLevelRifle = 0;
+    UPROPERTY(BlueprintReadOnly)
+    int32 ammoLevelRifle = 0;
 };

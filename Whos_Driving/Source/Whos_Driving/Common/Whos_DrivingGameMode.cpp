@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Common/GGIWhosDriving.h"
 #include "GPlayerController.h"
+#include "GVehicleWeapon.h"
 #include "Whos_DrivingCharacter.h"
 #include "Vehicle/Components/GVehicleCombatComponent.h"
 #include "GGameState.h"
@@ -101,6 +102,21 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 		UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 		gi->carUpgradeData.AccelerationLevel = movementComponent->currentAccelerationLevel;
 		gi->carUpgradeData.maxSpeedLevel = movementComponent->currentMaxSpeedLevel;
+		//idgaf which they have same upgrades
+		TObjectPtr<AWhos_DrivingCharacter> character = Cast<AWhos_DrivingCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), AWhos_DrivingCharacter::StaticClass()));
+		for(TObjectPtr<AGVehicleWeapon> weapon : character->GetCombatComponent()->GetWeapons())
+		{
+			if (weapon->GetDefinition()->bUsableByDriverInCabin) {
+				gi->characterUpgradeData.ammoLevelPistol = weapon->GetMagazineSizeLevel();
+				gi->characterUpgradeData.damageLevelPistol = weapon->GetDamageLevel();
+
+			}
+			else
+			{
+				gi->characterUpgradeData.ammoLevelRifle = weapon->GetMagazineSizeLevel();
+				gi->characterUpgradeData.damageLevelRifle = weapon->GetDamageLevel();
+			}
+		}
 	}
 	else
 	{

@@ -174,7 +174,6 @@ protected:
 
 	void BreakDoor(FName moduleId);
 	void RepairDoor(FName moduleId);
-
 	UFUNCTION()
 	void HandleDoorState(FName moduleId, EGModuleState newState);
 protected:

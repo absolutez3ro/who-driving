@@ -39,6 +39,7 @@ class WHOS_DRIVING_API UGVehicleCombatComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	TArray<TObjectPtr<AGVehicleWeapon>>& GetWeapons();
 	UGVehicleCombatComponent();
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void TickComponent(float deltaSeconds, ELevelTick tickType, FActorComponentTickFunction* tickFunction) override;

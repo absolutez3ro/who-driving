@@ -59,3 +59,36 @@ void AGShopPlayerController::RequestUpgradeAcceleration_Implementation()
 	}
 	GS->UpgradeAcceleration();
 }
+
+void AGShopPlayerController::RequestUpgradePistolDamage_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradePistolDamage();
+}
+void AGShopPlayerController::RequestUpgradeRifleMagazineCapacity_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradeRifleMagazineCapacity();
+}
+void AGShopPlayerController::RequestUpgradeRifleDamage_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradeRifleDamage();
+}
+void AGShopPlayerController::RequestUpgradePistolMagazineCapacity_Implementation()
+{
+	if (!GS) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("NO GS")));
+		return;
+	}
+	GS->UpgradePistolMagazineCapacity();
+}

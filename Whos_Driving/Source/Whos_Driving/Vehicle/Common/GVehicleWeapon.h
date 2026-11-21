@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/NetSerialization.h"
+#include "GGIWhosDriving.h"
 #include "ShooterWeapon.h"
 #include "GWeaponDefinition.h"
 #include "GVehicleWeapon.generated.h"
@@ -17,6 +18,9 @@ class WHOS_DRIVING_API AGVehicleWeapon : public AShooterWeapon
 	GENERATED_BODY()
 
 public:
+	float GetDamage() { return damage; }
+	int32 GetDamageLevel() { return damageLevel; }
+	int32 GetMagazineSizeLevel() { return magazineSizeLevel; }
 	AGVehicleWeapon();
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void Initialize(UGWeaponDefinition* newDefinition);
@@ -103,6 +107,12 @@ protected:
 	float actionStartTime = 0.0f;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	float reloadEndTime = 0.0f;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	int32 damageLevel = 0;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	float damage = 0.0f;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	float magazineSizeLevel = 0.0f;
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> firstMagazine;
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")

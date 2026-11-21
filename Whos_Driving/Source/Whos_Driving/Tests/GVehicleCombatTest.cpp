@@ -100,11 +100,11 @@ bool FGWeaponAmmoTest::RunTest(const FString& parameters)
 	{
 		return false;
 	}
-	const int32 pistolMagazine = pistol->GetDefinition()->MagazineSize;
+	const int32 pistolMagazine = pistol->GetDefinition()->baseMagazineSize;
 	const int32 pistolReserve = pistol->GetDefinition()->InitialReserve;
-	TestEqual(TEXT("Magazine comes from the data asset"), pistol->GetBulletCount(), pistolMagazine);
+	TestEqual(TEXT("Magazine comes from the data asset (base size)"), pistol->GetBulletCount(), pistolMagazine);
 	TestEqual(TEXT("Reserve comes from the data asset"), pistol->GetReserveAmmo(), pistolReserve);
-	TestEqual(TEXT("Rifle has its own magazine"), rifle->GetBulletCount(), rifle->GetDefinition()->MagazineSize);
+	TestEqual(TEXT("Rifle has its own magazine (base size)"), rifle->GetBulletCount(), rifle->GetDefinition()->baseMagazineSize);
 	TestEqual(TEXT("Rifle has its own reserve"), rifle->GetReserveAmmo(), rifle->GetDefinition()->InitialReserve);
 
 	TestFalse(TEXT("Malformed shot direction rejected"), scene.combat->SetTrigger(true, FVector(100.0f)));
@@ -132,7 +132,8 @@ bool FGWeaponAmmoTest::RunTest(const FString& parameters)
 
 	UGWeaponDefinition* lowReserveDefinition = NewObject<UGWeaponDefinition>();
 	lowReserveDefinition->Mesh = pistol->GetDefinition()->Mesh;
-	lowReserveDefinition->MagazineSize = 10;
+	/// MAY BE DEPRICATED CAUSE MAGAZINE SIZE WAS REPLACED WITH LEVELING
+	lowReserveDefinition->baseMagazineSize = 10;
 	lowReserveDefinition->InitialReserve = 3;
 	AGVehicleWeapon* lowReserveWeapon = scene.world->SpawnActorDeferred<AGVehicleWeapon>(
 		AGVehicleWeapon::StaticClass(), FTransform::Identity, scene.avatar, scene.avatar,
@@ -218,10 +219,10 @@ bool FGWeaponAmmoDataTest::RunTest(const FString& parameters)
 		const bool bHasWeapon = scene.driver->GetCurrentWeaponAmmo(magazineAmmo, reserveAmmo);
 		return bHasWeapon ? FString::Printf(TEXT("%d/%d"), magazineAmmo, reserveAmmo) : FString(TEXT("hidden"));
 	};
-	const int32 magazine = pistol->GetDefinition()->MagazineSize;
+	const int32 magazine = pistol->GetDefinition()->baseMagazineSize;
 	const int32 reserve = pistol->GetDefinition()->InitialReserve;
 	const FString rifleAmmo =
-		FString::Printf(TEXT("%d/%d"), rifle->GetDefinition()->MagazineSize, rifle->GetDefinition()->InitialReserve);
+		FString::Printf(TEXT("base size: %d/%d"), rifle->GetDefinition()->baseMagazineSize, rifle->GetDefinition()->InitialReserve);
 	TestTrue(TEXT("The controller listens to its character"), scene.combat->OnWeaponAmmoChanged.IsBound());
 	TestEqual(TEXT("Shows magazine/reserve"), hudAmmo(), FString::Printf(TEXT("%d/%d"), magazine, reserve));
 

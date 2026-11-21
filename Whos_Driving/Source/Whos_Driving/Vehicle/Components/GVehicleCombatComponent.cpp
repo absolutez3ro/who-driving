@@ -28,6 +28,13 @@ UGVehicleCombatComponent::UGVehicleCombatComponent()
 	bWantsInitializeComponent = true;
 }
 
+
+TArray<TObjectPtr<AGVehicleWeapon>>& UGVehicleCombatComponent::GetWeapons()
+{
+	return weapons;
+}
+
+
 void UGVehicleCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -524,7 +531,7 @@ void UGVehicleCombatComponent::TryFire()
 		   *GetNameSafe(hit.GetComponent()));
 	if (bHit && hit.GetActor())
 	{
-		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, definition->Damage),
+		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, weapon->GetDamage()),
 										   (target - muzzle).GetSafeNormal(), hit, GetPlayerController(), weapon,
 										   definition->DamageType);
 	}

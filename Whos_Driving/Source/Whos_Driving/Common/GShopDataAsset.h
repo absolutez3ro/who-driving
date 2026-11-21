@@ -58,4 +58,13 @@ public:
 	int32 baseUpgradePriceSpeed = 10.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade")
 	int32 baseUpgradePriceAcceleration = 10.f;
+	// guns
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade | characters")
+	int32 baseUpgradePricePistolDamage = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade | characters")
+	int32 baseUpgradePriceRifleDamage = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade | characters")
+	int32 baseUpgradePricePistolMagazineCapacity = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "economy | upgrade | characters")
+	int32 baseUpgradePriceRifleMagazineCapacity = 10.f;
 };

@@ -81,7 +81,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Sockets")
 	FName RightHandMagazineSocket = TEXT("M8_Magazine_R");
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0"))
-	float Damage = 20.0f;
+	float baseDamage = 20.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0"))
+	float damageIncreasePerLevel = 10.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "1"))
+	int32 damageLevel = 1;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
 	TSubclassOf<UDamageType> DamageType;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "1"))
@@ -99,7 +103,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
 	TArray<EGWeaponFireMode> FireModes;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "1"))
-	int32 MagazineSize = 40;
+	int32 baseMagazineSize = 40;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "1"))
+	int32 magazineSizePerLevel = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "1"))
+	int32 magazineSizeLevel = 1;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
 	int32 InitialReserve = 120;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0.1"))

@@ -29,4 +29,12 @@ private:
 	void RequestUpgradeMaxSpeed();
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
 	void RequestUpgradeAcceleration();
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradePistolDamage();
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradeRifleDamage();
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradePistolMagazineCapacity();
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestUpgradeRifleMagazineCapacity();
 };

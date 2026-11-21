@@ -50,6 +50,8 @@ void AGGSShop::SpawnCar()
 		UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 		movementComponent->currentAccelerationLevel = gi->carUpgradeData.AccelerationLevel;
 		movementComponent->currentMaxSpeedLevel = gi->carUpgradeData.maxSpeedLevel;
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT(" ammo level pistol %i"), gi->characterUpgradeData.ammoLevelPistol));
+		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT(" ammo level rifle %i"), gi->characterUpgradeData.ammoLevelRifle));
 		car->ApplyModuleStates();
 		OnRep_Car();
 	}
@@ -80,6 +82,10 @@ void AGGSShop::BeginPlay()
 	if (HasAuthority())
 	{
 		money = gi->moneyStored;
+		magazineLevelPistol = gi->characterUpgradeData.ammoLevelPistol;
+		magazineLevelRifle = gi->characterUpgradeData.ammoLevelRifle;
+		damageLevelPistol = gi->characterUpgradeData.damageLevelPistol;
+		damageLevelRifle = gi->characterUpgradeData.damageLevelRifle;
 	}
 	SpawnCar();
 	Super::BeginPlay();
@@ -226,6 +232,8 @@ void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices)
 	}
 }
 
+
+
 void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice)
 {
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
@@ -254,6 +262,7 @@ void AGGSShop::GetAccelerationUpgradePrice(int32& OutPrice)
 		OutPrice=-1;
 	}
 }
+// car performance upgrade
 void AGGSShop::UpgradeMaxSpeed()
 {
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
@@ -282,6 +291,40 @@ void AGGSShop::UpgradeAcceleration()
 		OnRep_Money();
 	}
 
+}
+
+//char upgrade
+void AGGSShop::UpgradePistolDamage()
+{
+	int32 basePricePistolDmg = dataAsset->baseUpgradePricePistolDamage;
+	int32 actualPricePistolDmg = basePricePistolDmg * pow(dataAsset->priceGrowthExpBase, damageLevelPistol - 1);
+	damageLevelPistol++;
+	money -= actualPricePistolDmg;
+	OnRep_Money();
+}
+void AGGSShop::UpgradePistolMagazineCapacity()
+{
+	int32 basePricePistolMag = dataAsset->baseUpgradePricePistolMagazineCapacity;
+	int32 actualPricePistolMag = basePricePistolMag * pow(dataAsset->priceGrowthExpBase, magazineLevelPistol - 1);
+	magazineLevelPistol++;
+	money -= actualPricePistolMag;
+	OnRep_Money();
+}
+void AGGSShop::UpgradeRifleDamage()
+{
+	int32 basePriceRifleDmg = dataAsset->baseUpgradePriceRifleDamage;
+	int32 actualPriceRifleDmg = basePriceRifleDmg * pow(dataAsset->priceGrowthExpBase, damageLevelRifle - 1);
+	damageLevelRifle++;
+	money -= actualPriceRifleDmg;
+	OnRep_Money();
+}
+void AGGSShop::UpgradeRifleMagazineCapacity()
+{
+	int32 basePriceRifleMag = dataAsset->baseUpgradePriceRifleMagazineCapacity;
+	int32 actualPriceRifleMag = basePriceRifleMag * pow(dataAsset->priceGrowthExpBase, magazineLevelRifle - 1);
+	magazineLevelRifle++;
+	money -= actualPriceRifleMag;
+	OnRep_Money();
 }
 // Data Asset
 int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
@@ -320,6 +363,22 @@ int32 AGGSShop::GetUpgradeCostFromDataAsset(EGModuleType type)
 		return dataAsset->mainHPBaseUpgradePrice;
 	}
 }
+void AGGSShop::GetCharUpgradeData(TArray<int32>& OutPrices)
+{
+	int32 basePricePistolDmg = dataAsset->baseUpgradePricePistolDamage;
+	int32 basePricePistolMag = dataAsset->baseUpgradePricePistolMagazineCapacity;
+	int32 basePriceRifleDmg = dataAsset->baseUpgradePriceRifleDamage;
+	int32 basePriceRifleMag = dataAsset->baseUpgradePriceRifleMagazineCapacity;
+
+	int32 actualPricePistolDmg = basePricePistolDmg * pow(dataAsset->priceGrowthExpBase, damageLevelPistol - 1);
+	int32 actualPricePistolMag = basePricePistolMag * pow(dataAsset->priceGrowthExpBase, magazineLevelPistol - 1);
+	int32 actualPriceRifleDmg = basePriceRifleDmg * pow(dataAsset->priceGrowthExpBase, damageLevelRifle - 1);
+	int32 actualPriceRifleMag = basePriceRifleMag * pow(dataAsset->priceGrowthExpBase, magazineLevelRifle - 1);
+	OutPrices.Add(actualPricePistolDmg);
+	OutPrices.Add(actualPricePistolMag);
+	OutPrices.Add(actualPriceRifleDmg);
+	OutPrices.Add(actualPriceRifleMag);
+}
 
 
 void AGGSShop::OnLevelEnd()
@@ -337,6 +396,10 @@ void AGGSShop::OnLevelEnd()
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 	gi->carUpgradeData.AccelerationLevel = movementComponent->currentAccelerationLevel;
 	gi->carUpgradeData.maxSpeedLevel = movementComponent->currentMaxSpeedLevel;
+	gi->characterUpgradeData.ammoLevelPistol = magazineLevelPistol;
+	gi->characterUpgradeData.ammoLevelRifle = magazineLevelRifle;
+	gi->characterUpgradeData.damageLevelPistol = damageLevelPistol;
+	gi->characterUpgradeData.damageLevelRifle = damageLevelRifle;
 	for (FGVehicleModuleState state : gi->GetCarData().moduleStates) 
 	{
 		//GEngine->AddOnScreenDebugMessage(-1,15.f, FColor::White, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), *ModuleNames[state.moduleId], state.currentHP, state.maxHP));

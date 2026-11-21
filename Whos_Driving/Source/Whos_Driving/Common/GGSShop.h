@@ -71,6 +71,15 @@ public:
 	void OnRep_Car();
 	UPROPERTY(Replicated)
 	TArray<FName> brokenModules;
+	// char data
+	UPROPERTY(Replicated)
+	int32 magazineLevelPistol;
+	UPROPERTY(Replicated)
+	int32 magazineLevelRifle;
+	UPROPERTY(Replicated)
+	int32 damageLevelPistol;
+	UPROPERTY(Replicated)
+	int32 damageLevelRifle;
 	TObjectPtr<UGGIWhosDriving> gi;
 	UPROPERTY(ReplicatedUsing = OnRep_Money, BlueprintReadOnly, Category = "economy")
 	int32 money;
@@ -86,6 +95,8 @@ public:
 	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
 	UFUNCTION(BlueprintCallable)
 	void GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices);
+	UFUNCTION(BlueprintCallable)
+	void GetCharUpgradeData(TArray<int32>& OutPrices);
 	UFUNCTION(BlueprintCallable)
 	void GetMaxSpeedUpgradePrice(int32& OutPrice);
 	UFUNCTION(BlueprintCallable)
@@ -104,6 +115,16 @@ public:
 	void RepairAll();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void UpgradeModuleHp(const EGModuleType& type);
+	
+	//char upgrades
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradePistolDamage();
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradePistolMagazineCapacity();
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradeRifleDamage();
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
+	void UpgradeRifleMagazineCapacity();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void OnLevelEnd();
 };
