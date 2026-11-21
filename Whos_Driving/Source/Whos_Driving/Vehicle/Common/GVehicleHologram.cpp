@@ -66,7 +66,7 @@ void AGVehicleHologram::Tick(float deltaTime)
 	Super::Tick(deltaTime);
 
 	FRotator currentRotation = GetActorRotation();
-	currentRotation.Add(0.0f, modelRotationSpeed, 0.0f);
+	currentRotation.Add(0.0f, modelRotationSpeedDegrees, 0.0f);
 	SetActorRotation(currentRotation);
 
 	if (bGlitchActive)
@@ -123,7 +123,7 @@ void AGVehicleHologram::StopGlitch()
 void AGVehicleHologram::ApplyGlitchTick()
 {
 	glitchTimer += GetWorld()->GetDeltaSeconds();
-	if (glitchTimer >= glitchInterval)
+	if (glitchTimer >= glitchIntervalSeconds)
 	{
 		glitchTimer = 0.0f;
 		ApplyRandomModuleColors();

@@ -89,10 +89,10 @@ protected:
 	float bodyBrightness = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hologram", meta = (ClampMin = "0.0"))
-	float modelRotationSpeed = 0.5f;
+	float modelRotationSpeedDegrees = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hologram", meta = (ClampMin = "0.1"))
-	float glitchInterval = 0.5f;
+	float glitchIntervalSeconds = 0.5f;
 	float glitchTimer = 0.0f;
 
 private:
