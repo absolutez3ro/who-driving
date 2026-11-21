@@ -6,6 +6,8 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "GVehicleElectricianModule.h"
+#include "GVehicleModuleComponent.h"
 
 namespace
 {
@@ -56,7 +58,7 @@ void AGVehicleHologram::BeginPlay()
 {
 	Super::BeginPlay();
 
-	BindToOwnerCar();
+	GetWorld()->OnWorldBeginPlay.AddUObject(this, &AGVehicleHologram::BindToOwnerCar);
 }
 
 void AGVehicleHologram::Tick(float deltaTime)
@@ -66,6 +68,11 @@ void AGVehicleHologram::Tick(float deltaTime)
 	FRotator currentRotation = GetActorRotation();
 	currentRotation.Add(0.0f, modelRotationSpeed, 0.0f);
 	SetActorRotation(currentRotation);
+
+	if (bGlitchActive)
+	{
+		ApplyGlitchTick();
+	}
 }
 
 void AGVehicleHologram::EndPlay(const EEndPlayReason::Type endPlayReason)
@@ -79,8 +86,70 @@ void AGVehicleHologram::EndPlay(const EEndPlayReason::Type endPlayReason)
 	Super::EndPlay(endPlayReason);
 }
 
+void AGVehicleHologram::HandleElectricianChangeState(EGModuleState newState)
+{
+	switch (newState)
+	{
+		case EGModuleState::Destroyed:
+			StartGlitch();
+			break;
+		case EGModuleState::Full:
+			StopGlitch();
+			break;
+		default:
+			break;
+	}
+}
+
+void AGVehicleHologram::StartGlitch()
+{
+	bGlitchActive = true;
+	glitchTimer = 0.0f;
+	ApplyRandomModuleColors();
+}
+
+void AGVehicleHologram::StopGlitch()
+{
+	bGlitchActive = false;
+	glitchTimer = 0.0f;
+	for (const FGVehicleModuleState& state : cachedModuleStates)
+	{
+		const bool bHasHealth = state.maxHP > 0.0f;
+		const float healthFraction = bHasHealth ? FMath::Clamp(state.currentHP / state.maxHP, 0.0f, 1.0f) : 0.0f;
+		SetModuleDamage(state.moduleId, 1.0f - healthFraction);
+	}
+}
+
+void AGVehicleHologram::ApplyGlitchTick()
+{
+	glitchTimer += GetWorld()->GetDeltaSeconds();
+	if (glitchTimer >= glitchInterval)
+	{
+		glitchTimer = 0.0f;
+		ApplyRandomModuleColors();
+	}
+}
+
+void AGVehicleHologram::ApplyRandomModuleColors()
+{
+	static const float glitchPalette[] = {0.0f, 0.5f, 1.0f};
+	constexpr int32 paletteSize = UE_ARRAY_COUNT(glitchPalette);
+	for (const TPair<FName, UStaticMeshComponent*>& pair : moduleMeshes)
+	{
+		if (!pair.Value) continue;
+		const float randomValue = glitchPalette[FMath::RandRange(0, paletteSize - 1)];
+		pair.Value->SetCustomPrimitiveDataFloat(damageDataIndex, randomValue);
+	}
+}
+
 void AGVehicleHologram::ApplyModuleStates(const TArray<FGVehicleModuleState>& moduleStates)
 {
+	cachedModuleStates = moduleStates;
+	if (bGlitchActive)
+	{
+		return;
+	}
+
 	for (const FGVehicleModuleState& state : moduleStates)
 	{
 		const bool bHasHealth = state.maxHP > 0.0f;
@@ -120,6 +189,13 @@ void AGVehicleHologram::BindToOwnerCar()
 	ownerCar = car;
 	moduleStatesAppliedHandle = car->onModuleStatesApplied.AddUObject(this, &AGVehicleHologram::ApplyModuleStates);
 	ApplyModuleStates(car->moduleStates);
+
+	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
+	auto electrician = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
+	for (auto& elec : electrician)
+	{
+		elec->OnElectricianChangeState.AddDynamic(this, &AGVehicleHologram::HandleElectricianChangeState);
+	}
 }
 
 void AGVehicleHologram::SetModuleDamage(const FName& moduleId, float damage)

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GVehicleModule.h"
 #include "GVehicleHologram.generated.h"
 
 class AGPlayerCar;
@@ -34,6 +35,16 @@ protected:
 	void Tick(float deltaTime) override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 
+	UFUNCTION()
+	void HandleElectricianChangeState(EGModuleState newState);
+
+	bool bGlitchActive = false;
+	void StartGlitch();
+	void StopGlitch();
+	void ApplyGlitchTick();
+	void ApplyRandomModuleColors();
+
+	TArray<FGVehicleModuleState> cachedModuleStates;
 private:
 	UStaticMeshComponent* CreatePartMesh(const FName& componentName);
 	void BindToOwnerCar();
@@ -79,6 +90,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hologram", meta = (ClampMin = "0.0"))
 	float modelRotationSpeed = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hologram", meta = (ClampMin = "0.1"))
+	float glitchInterval = 0.5f;
+	float glitchTimer = 0.0f;
 
 private:
 	// Module id (see AGPlayerCar::Init*) -> mesh that shows this module.

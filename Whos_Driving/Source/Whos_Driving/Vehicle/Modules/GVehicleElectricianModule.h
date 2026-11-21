@@ -19,4 +19,6 @@ public:
 	FOnElectricianChangeState OnElectricianChangeState;
 protected:
 	void OnDestroyed() override;
+	void OnStateChanged(EGModuleState oldState, EGModuleState newState) override;
 };
+
