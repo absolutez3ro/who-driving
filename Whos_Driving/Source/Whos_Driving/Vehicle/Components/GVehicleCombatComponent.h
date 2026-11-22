@@ -67,6 +67,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;
+	AGVehicleWeapon* GetAmmoResupplyWeapon() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetWeapon(int32 weaponIndex) const;
 	UFUNCTION(BlueprintPure, Category = "Combat")

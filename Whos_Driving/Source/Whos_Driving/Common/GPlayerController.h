@@ -12,6 +12,7 @@ struct FInputActionValue;
 class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
+class AGVehicleWeapon;
 class UGVehicleCombatComponent;
 class UInputMappingContext;
 class UGSkillCheckDataAsset;
@@ -183,6 +184,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRadioCommand(AGPlayerCar* vehicle, EGVehicleRadioCommand command,
 		FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
+	UFUNCTION(Server, Reliable)
+	void ServerRequestAmmoRefill(AGPlayerCar* vehicle, FVector_NetQuantize localViewOrigin,
+		FVector_NetQuantizeNormal localViewDirection);
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext)
 	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
@@ -270,6 +274,7 @@ private:
 	void RequestWindowToggle();
 	void RefreshSeatedCombatInput(UEnhancedInputLocalPlayerSubsystem& input);
 	bool TraceSeatOrRadio(FHitResult& hit, const FVector& origin, const FVector& direction) const;
+	AGVehicleWeapon* FindWeaponForAmmoRefill(const FVector& origin, const FVector& direction) const;
 	UGBoxComponent* FindLookedAtModule() const;
 	bool GetModuleInfo(const UGBoxComponent* hitBox, FName& moduleId, float& healthPercent,
 		EGModuleState& state, int32& repairCost) const;
@@ -283,6 +288,7 @@ private:
 	UFUNCTION()
 	void HandleHealthChanged(float health, float maxHealth);
 	float lastRadioRequestTime = -1.0f;
+	float lastAmmoRefillRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
 	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;

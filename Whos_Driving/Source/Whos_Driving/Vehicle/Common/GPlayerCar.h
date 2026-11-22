@@ -12,7 +12,10 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class AWhos_DrivingCharacter;
+class UMeshComponent;
+class USkeletalMeshComponent;
 class UStaticMesh;
+class UStaticMeshComponent;
 class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
 class UBoxComponent;
@@ -104,6 +107,13 @@ public:
 		return radioComponent;
 	}
 
+	UStaticMeshComponent* GetAmmoBox() const
+	{
+		return ammoBox;
+	}
+
+	UMeshComponent* GetAmmoResupplyMesh() const;
+
 	void OnConstruction(const FTransform& transform) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
@@ -138,6 +148,12 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Ammo")
+	TObjectPtr<UStaticMeshComponent> ammoBox;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USkeletalMeshComponent> ammoTray;
 
 	// Spawns the dashboard damage hologram (AGVehicleHologram). Class and placement are set in the Blueprint.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Hologram")

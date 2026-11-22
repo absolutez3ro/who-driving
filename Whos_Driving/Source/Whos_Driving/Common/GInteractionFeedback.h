@@ -5,6 +5,7 @@
 #include "GInteractionFeedback.generated.h"
 
 class STextBlock;
+class SBorder;
 class SWidget;
 class UBoxComponent;
 class UMaterialInterface;
@@ -44,6 +45,7 @@ private:
 	bool bPreviouslyRenderedCustomDepth = false;
 
 	TSharedPtr<SWidget> prompt;
+	TSharedPtr<SBorder> keyBadge;
 	TSharedPtr<STextBlock> keyText;
 	TSharedPtr<STextBlock> actionText;
 };

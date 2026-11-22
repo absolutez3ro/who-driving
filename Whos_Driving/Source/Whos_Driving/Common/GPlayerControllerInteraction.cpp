@@ -6,11 +6,14 @@
 #include "GVehicleCombatComponent.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
+#include "GVehicleWeapon.h"
 #include "Whos_DrivingCharacter.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EnhancedInputSubsystems.h"
 
@@ -47,6 +50,18 @@ namespace
 			return *meshName;
 		}
 		return moduleId;
+	}
+
+	FName GetSeatMeshName(EGVehicleSeat seatId)
+	{
+		switch (seatId)
+		{
+		case EGVehicleSeat::Driver: return TEXT("partLeftSeat");
+		case EGVehicleSeat::FrontPassenger: return TEXT("partRightSeat");
+		case EGVehicleSeat::RearLeft: return TEXT("partRearLeftSeat");
+		case EGVehicleSeat::RearRight: return TEXT("partRearRightSeat");
+		default: return NAME_None;
+		}
 	}
 }
 
@@ -143,6 +158,52 @@ bool AGPlayerController::TraceSeatOrRadio(FHitResult& hit, const FVector& origin
 	return !GetWorld()->LineTraceTestByChannel(origin, hit.ImpactPoint, ECC_Visibility, visibility);
 }
 
+AGVehicleWeapon* AGPlayerController::FindWeaponForAmmoRefill(const FVector& origin, const FVector& direction) const
+{
+	if (bSkillCheckActive || bKnockedOut || !IsValid(seatedVehicle) || !IsValid(driverCharacter) ||
+		origin.ContainsNaN() || direction.ContainsNaN() || !direction.IsNormalized() ||
+		FVector::DistSquared(origin, driverCharacter->GetActorLocation()) > FMath::Square(150.0f))
+	{
+		return nullptr;
+	}
+	const UGVehicleCombatComponent* combat = GetOwnedCombat();
+	AGVehicleWeapon* weapon = combat ? combat->GetAmmoResupplyWeapon() : nullptr;
+	const UMeshComponent* mesh = seatedVehicle->GetAmmoResupplyMesh();
+	if (!weapon || !IsValid(mesh) || !mesh->IsVisible() || mesh->bHiddenInGame)
+	{
+		return nullptr;
+	}
+	FBox bounds(ForceInit);
+	if (const USkeletalMeshComponent* tray = Cast<USkeletalMeshComponent>(mesh))
+	{
+		if (const USkeletalMesh* trayAsset = tray->GetSkeletalMeshAsset())
+		{
+			bounds = trayAsset->GetImportedBounds().GetBox();
+			// Only the drawer front is exposed inside the cabin.
+			bounds.Min.X = FMath::Max(bounds.Min.X, bounds.Max.X - 15.0);
+		}
+	}
+	else if (const UStaticMeshComponent* box = Cast<UStaticMeshComponent>(mesh); box && box->GetStaticMesh())
+	{
+		FVector min, max;
+		box->GetLocalBounds(min, max);
+		bounds = FBox(min, max);
+	}
+	// Keep the resupply target off the vehicle's other trace channels.
+	const FTransform& transform = mesh->GetComponentTransform();
+	FVector localHit, hitNormal;
+	float hitTime;
+	if (!bounds.IsValid || !FMath::LineExtentBoxIntersection(bounds, transform.InverseTransformPosition(origin),
+		transform.InverseTransformPosition(origin + direction * 160.0f), FVector::ZeroVector, localHit, hitNormal, hitTime))
+	{
+		return nullptr;
+	}
+	FCollisionQueryParams visibility(SCENE_QUERY_STAT(AmmoBoxVisibility), false, driverCharacter);
+	visibility.AddIgnoredActor(seatedVehicle);
+	return GetWorld()->LineTraceTestByChannel(origin, transform.TransformPosition(localHit),
+		ECC_Visibility, visibility) ? nullptr : weapon;
+}
+
 AWhos_DrivingCharacter* AGPlayerController::FindReviveTarget() const
 {
 	if (!IsLocalController() || bSkillCheckActive || bKnockedOut || !IsValid(driverCharacter) || !IsValid(seatedVehicle))
@@ -226,19 +287,28 @@ void AGPlayerController::UpdateInteractionFeedback()
 	FVector origin;
 	FRotator rotation;
 	GetPlayerViewPoint(origin, rotation);
+	if (const AGVehicleWeapon* weapon = FindWeaponForAmmoRefill(origin, rotation.Vector()))
+	{
+		UMeshComponent* mesh = seatedVehicle->GetAmmoResupplyMesh();
+		if (!weapon->CanRefillAmmo())
+		{
+			interactionFeedback->Show(mesh, nullptr, FText::GetEmpty(), LOCTEXT("AmmoFull", "Боезапас полон"));
+			return;
+		}
+		if (showPrompt(mesh, nullptr, interactAction, LOCTEXT("RefillAmmo", "Пополнить патроны")))
+		{
+			return;
+		}
+	}
 	FHitResult hit;
 	if (TraceSeatOrRadio(hit, origin, rotation.Vector()))
 	{
 		AGPlayerCar* vehicle = CastChecked<AGPlayerCar>(hit.GetActor());
 		if (UGVehicleSeatComponent* seat = Cast<UGVehicleSeatComponent>(hit.GetComponent()))
 		{
-			UMeshComponent* mesh = nullptr;
-			if (seat->seatId == EGVehicleSeat::Driver || seat->seatId == EGVehicleSeat::FrontPassenger)
-			{
-				const FName seatMesh = seat->seatId == EGVehicleSeat::Driver ? TEXT("partLeftSeat") : TEXT("partRightSeat");
-				mesh = FindInteractionMesh(*vehicle, seatMesh);
-			}
-			if (showPrompt(mesh, seat, interactAction, LOCTEXT("Sit", "Сесть")))
+			UMeshComponent* mesh = FindInteractionMesh(*vehicle, GetSeatMeshName(seat->seatId));
+			const bool bFrontSeat = seat->seatId == EGVehicleSeat::Driver || seat->seatId == EGVehicleSeat::FrontPassenger;
+			if (showPrompt(mesh, bFrontSeat ? seat : nullptr, interactAction, LOCTEXT("Sit", "Сесть")))
 			{
 				return;
 			}

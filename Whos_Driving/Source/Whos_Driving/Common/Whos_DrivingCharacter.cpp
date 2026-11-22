@@ -66,6 +66,16 @@ AWhos_DrivingCharacter::AWhos_DrivingCharacter()
 	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 }
 
+void AWhos_DrivingCharacter::PreInitializeComponents()
+{
+	Super::PreInitializeComponents();
+
+	// Fold any Blueprint camera offset into the pivot so pitch and yaw cannot move the eye.
+	const FVector cameraOffset = firstPersonCameraComponent->GetRelativeLocation();
+	cameraRoot->SetRelativeLocation(cameraRoot->GetRelativeTransform().TransformPosition(cameraOffset));
+	firstPersonCameraComponent->SetRelativeLocation(FVector::ZeroVector);
+}
+
 float AWhos_DrivingCharacter::TakeDamage(float damageAmount, const FDamageEvent& damageEvent,
 	AController* eventInstigator, AActor* damageCauser)
 {

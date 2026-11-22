@@ -43,6 +43,7 @@ void UGInteractionFeedback::Show(UPrimitiveComponent* mesh, UBoxComponent* inter
 	}
 	if (prompt)
 	{
+		keyBadge->SetVisibility(key.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
 		if (!keyText->GetText().EqualTo(key))
 		{
 			keyText->SetText(key);
@@ -79,6 +80,7 @@ void UGInteractionFeedback::RemovePrompt()
 		}
 	}
 	prompt.Reset();
+	keyBadge.Reset();
 	keyText.Reset();
 	actionText.Reset();
 }
@@ -168,7 +170,7 @@ void UGInteractionFeedback::CreatePrompt()
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.0f, 0.0f, 8.0f, 0.0f)
 				[
-					SNew(SBorder)
+					SAssignNew(keyBadge, SBorder)
 					.BorderImage(whiteBrush)
 					.BorderBackgroundColor(FLinearColor(0.68f, 0.92f, 0.96f))
 					.Padding(FMargin(7.0f, 2.0f))

@@ -62,6 +62,8 @@ public:
 	USkeletalMeshComponent* GetWeaponAttachMesh(bool bFirstPerson, FName socket) const;
 
 protected:
+	void PreInitializeComponents() override;
+
 	/** Set up input action bindings */
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
 

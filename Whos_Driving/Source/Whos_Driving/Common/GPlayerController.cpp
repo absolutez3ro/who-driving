@@ -2,6 +2,7 @@
 #include "GInteractionFeedback.h"
 #include "GPlayerCar.h"
 #include "GVehicleSeatComponent.h"
+#include "GVehicleWeapon.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleCombatComponent.h"
 #include "EnhancedInputComponent.h"
@@ -545,6 +546,16 @@ void AGPlayerController::RequestLookedAtSeat()
 	FVector origin;
 	FRotator rotation;
 	GetPlayerViewPoint(origin, rotation);
+	if (const AGVehicleWeapon* weapon = FindWeaponForAmmoRefill(origin, rotation.Vector()))
+	{
+		if (weapon->CanRefillAmmo())
+		{
+			const FTransform& vehicleTransform = seatedVehicle->GetActorTransform();
+			ServerRequestAmmoRefill(seatedVehicle, vehicleTransform.InverseTransformPosition(origin),
+				vehicleTransform.InverseTransformVectorNoScale(rotation.Vector()));
+		}
+		return;
+	}
 	FHitResult hit;
 	if (TraceSeatOrRadio(hit, origin, rotation.Vector()))
 	{
@@ -560,6 +571,25 @@ void AGPlayerController::RequestLookedAtSeat()
 		{
 			ServerRequestVehicleSeat(vehicle, static_cast<int32>(seat->seatId), origin, rotation.Vector());
 		}
+	}
+}
+
+void AGPlayerController::ServerRequestAmmoRefill_Implementation(AGPlayerCar* vehicle,
+	FVector_NetQuantize localViewOrigin, FVector_NetQuantizeNormal localViewDirection)
+{
+	const float now = GetWorld()->GetTimeSeconds();
+	if (!IsValid(vehicle) || vehicle != seatedVehicle || !IsVehicleOccupant() ||
+		now - lastAmmoRefillRequestTime < 0.15f)
+	{
+		return;
+	}
+	lastAmmoRefillRequestTime = now;
+	// Trace in the server's current car transform even if the car moved while the request was in flight.
+	const FTransform& vehicleTransform = vehicle->GetActorTransform();
+	if (AGVehicleWeapon* weapon = FindWeaponForAmmoRefill(vehicleTransform.TransformPosition(localViewOrigin),
+		vehicleTransform.TransformVectorNoScale(localViewDirection)))
+	{
+		weapon->RefillAmmo();
 	}
 }
 
