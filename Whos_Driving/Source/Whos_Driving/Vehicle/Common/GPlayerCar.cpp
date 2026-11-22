@@ -443,16 +443,37 @@ void AGPlayerCar::BeginPlay()
 		}
 	}
 	ApplyModuleStates();
-	if (HasAuthority())
-	{
-		PublishModuleStates();
-	}
+	PublishModuleStates();
 	RecalculateCarHealth();
 	for (auto& module : moduleComponent->GetModules())
 	{
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
+	AGPlayerController* playerController = Cast<AGPlayerController>(driverCharacter->GetController());
+}
+
+void AGPlayerCar::Tick(float deltaTime)
+{
+	Super::Tick(deltaTime);
+	const double absRoll = FMath::Abs(GetActorRotation().Roll);
+	if (absRoll > 60.0f)
+	{
+		flipTimer += GetWorld()->GetDeltaSeconds();
+		if (flipTimer >= flipTimeSeconds)
+		{
+			flipTimer = 0.0f;
+			if (!bIsFlipped)
+			{
+				bIsFlipped = true;
+				GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("CAR IS FLIPPED"));
+			}
+		}
+	}
+	else
+	{
+		flipTimer = 0.0f;
+	}
 }
 
 void AGPlayerCar::LoadCarData()
@@ -720,7 +741,45 @@ void AGPlayerCar::InputSteering(const FInputActionValue& value)
 		return; 
 	}
 	const float steering = value.Get<float>();
+	if (bIsFlipped)
+	{
+		ApplyFlipInput(steering);
+		return;
+	}
+
 	GetVehicleMovementComponent()->SetSteeringInput(steering);
+}
+
+void AGPlayerCar::ApplyFlipInput(float inputValue)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	FVector forwardAxis = GetMesh()->GetForwardVector();
+	FVector torque = forwardAxis * inputValue * flipTorqueStrength;
+	GetMesh()->AddTorqueInRadians(torque, NAME_None, true);
+
+	if (!GetWorldTimerManager().IsTimerActive(flipRecoveryTimer))
+	{
+		GetWorldTimerManager().SetTimer(flipRecoveryTimer, [this]()
+			{
+				bIsRecoveringFromFlip = false;
+				const float absRoll = FMath::Abs(GetActorRotation().Roll);
+				if (absRoll < 30.0f)
+				{
+					bIsFlipped = false;
+					flipTimer = 0.0f;
+					GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Green, TEXT("CAR HAS NORMAL ROLL"));
+				}
+			}, flipRecoveryTime, false);
+	}
+}
+
+void AGPlayerCar::ExecFlipCar()
+{
+	SetActorRelativeRotation(FRotator(180.0f, 0.0f, 0.0f));
 }
 
 void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value)

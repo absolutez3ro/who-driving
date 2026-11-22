@@ -117,6 +117,10 @@ public:
 	UGVehicleSeatingComponent* GetSeatingComponent() const;
 	
 	UGVehicleModuleComponent* GetModuleComponent() const;
+	void ApplyModuleStates();
+
+	UFUNCTION(Exec)
+	void ExecFlipCar();
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;
@@ -133,8 +137,6 @@ public:
 
 	FGOnModuleStatesApplied onModuleStatesApplied;
 
-
-	void ApplyModuleStates();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
@@ -145,6 +147,7 @@ protected:
 
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
 	void BeginPlay() override;
+	void Tick(float deltaTime) override;
 	void UnPossessed() override;
 
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
@@ -176,6 +179,8 @@ protected:
 	void RepairDoor(FName moduleId);
 	UFUNCTION()
 	void HandleDoorState(FName moduleId, EGModuleState newState);
+
+	void ApplyFlipInput(float inputValue);
 protected:
 
 
@@ -219,4 +224,16 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
 	TArray<TObjectPtr<UGVehicleSeatComponent>> seatComponents;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Flip")
+	float flipTimeSeconds = 2.0f;
+	float flipTimer = 0.0f;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Flip")
+	float flipTorqueStrength = 500.0f;
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Flip")
+	float flipRecoveryTime = 1.0f;
+	bool bIsFlipped = false;
+	bool bIsRecoveringFromFlip = false;
+	FTimerHandle flipRecoveryTimer;
+
 };
