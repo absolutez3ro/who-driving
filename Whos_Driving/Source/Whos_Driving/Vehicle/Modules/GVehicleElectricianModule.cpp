@@ -5,5 +5,9 @@
 
 void UGVehicleElectricianModule::OnDestroyed()
 {
-	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("Electrician is broken"));
+}
+
+void UGVehicleElectricianModule::OnStateChanged(EGModuleState oldState, EGModuleState newState)
+{
+	OnElectricianChangeState.Broadcast(newState);
 }
