@@ -1,4 +1,5 @@
 #include "GPlayerController.h"
+#include "GInteractionFeedback.h"
 #include "GPlayerCar.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
@@ -8,18 +9,30 @@
 #include "Whos_DrivingCharacter.h"
 #include "InputActionValue.h"
 #include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GBoxComponent.h"
+#include "GGameState.h"
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicle/Components/GVehicleModuleComponent.h"
 #include "GSkillCheckDataAsset.h"
 #include "Whos_DrivingGameMode.h"
+#include "UObject/ConstructorHelpers.h"
 
 AGPlayerController::AGPlayerController()
 {
 	bAutoManageActiveCameraTarget = false;
+	static ConstructorHelpers::FObjectFinder<UInputAction> windowToggle(
+		TEXT("/Game/Input/Gameplay/IA_WindowToggle"));
+	static ConstructorHelpers::FObjectFinder<UInputMappingContext> seatedCombat(
+		TEXT("/Game/Input/Gameplay/IMC_SeatedCombat"));
+	windowToggleAction = windowToggle.Object;
+	seatedCombatMappingContext = seatedCombat.Object;
 }
 
 void AGPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -54,6 +67,10 @@ void AGPlayerController::BeginPlay()
 
 void AGPlayerController::EndPlay(const EEndPlayReason::Type endPlayReason)
 {
+	if (interactionFeedback)
+	{
+		interactionFeedback->RemovePrompt();
+	}
 	if (HasAuthority() && IsValid(seatedVehicle))
 	{
 		seatedVehicle->GetSeatingComponent()->RemovePlayer(this, true);
@@ -66,22 +83,28 @@ void AGPlayerController::EndPlay(const EEndPlayReason::Type endPlayReason)
 void AGPlayerController::Tick(float deltaTime)
 {
 	Super::Tick(deltaTime);
+	if (!IsLocalController())
+	{
+		return;
+	}
 
 	FName moduleId = NAME_None;
 	float currentHpInPercentage = 0.0f;
 	EGModuleState moduleState = EGModuleState::Full;
 	int32 actualRepairCost = 0;
-	const bool bFoundModule = TraceVehicleModule(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
+	lookedAtModule = !bSkillCheckActive && !bKnockedOut ? FindLookedAtModule() : nullptr;
+	const bool bFoundModule = GetModuleInfo(lookedAtModule.Get(), moduleId, currentHpInPercentage, moduleState, actualRepairCost);
+	currentModule = moduleId;
 	if (bFoundModule)
 	{
 		OnModuleInfoUpdated.Broadcast(moduleId, currentHpInPercentage, moduleState, actualRepairCost);
-		currentModule = moduleId;
 	}
 	if (bIsLookingOnModule != bFoundModule)
 	{
 		bIsLookingOnModule = bFoundModule;
 		OnLookingModuleChanged(bFoundModule);
 	}
+	UpdateInteractionFeedback();
 }
 
 void AGPlayerController::SetupInputComponent()
@@ -91,11 +114,14 @@ void AGPlayerController::SetupInputComponent()
 	if (enhancedInput)
 	{
 		enhancedInput->BindAction(lookAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::LookInput);
-		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerController::TryToCallSkillcheck);
 	}
 	if (!enhancedInput)
 	{
 		return;
+	}
+	if (repairAction)
+	{
+		enhancedInput->BindAction(repairAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::TryToCallSkillcheck);
 	}
 	if (interactAction)
 	{
@@ -112,13 +138,9 @@ void AGPlayerController::SetupInputComponent()
 			enhancedInput->BindAction(weaponSelectActions[weaponIndex].Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWeapon, weaponIndex);
 		}
 	}
-	if (windowLeftAction)
+	if (windowToggleAction)
 	{
-		enhancedInput->BindAction(windowLeftAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWindowLeft);
-	}
-	if (windowRightAction)
-	{
-		enhancedInput->BindAction(windowRightAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWindowRight);
+		enhancedInput->BindAction(windowToggleAction.Get(), ETriggerEvent::Started, this, &AGPlayerController::RequestWindowToggle);
 	}
 	if (fireAction)
 	{
@@ -164,7 +186,7 @@ void AGPlayerController::SetupInputComponent()
 
 void AGPlayerController::TryToCallSkillcheck()
 {
-	if (!CanRepairCurrentModule())
+	if (!CanRepairCurrentModule() || FindLookedAtModule() != lookedAtModule.Get())
 	{
 		return;
 	}
@@ -195,12 +217,18 @@ void AGPlayerController::LookInput(const FInputActionValue& value)
 }
 bool AGPlayerController::CanRepairCurrentModule() const
 {
-	if (!bIsLookingOnModule || currentModule.IsNone())
+	const UGBoxComponent* hitBox = lookedAtModule.Get();
+	if (bSkillCheckActive || bKnockedOut || !skillCheckData || !hitBox
+		|| hitBox->GetOwner() != seatedVehicle || currentModule.IsNone())
 	{
 		return false;
 	}
 
 	if (!CanRepairModuleFromCurrentSeat(currentModule))
+	{
+		return false;
+	}
+	if (!GetWorld()->GetGameState<AGGameState>())
 	{
 		return false;
 	}
@@ -221,33 +249,64 @@ bool AGPlayerController::CanRepairCurrentModule() const
 void AGPlayerController::StartSkillCheck()
 {
 	ULocalPlayer* localPlayer = GetLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer ? localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+	if (!subsystem || bSkillCheckActive || !CanRepairCurrentModule())
+	{
+		return;
+	}
+	bSkillCheckActive = true;
+	skillCheckVehicle = seatedVehicle;
+	skillCheckModule = currentModule;
+	if (interactionFeedback)
+	{
+		interactionFeedback->Clear();
+	}
 	subsystem->AddMappingContext(skillcheckMappingContext, 10);
 	subsystem->RemoveMappingContext(vehicleMappingContext);
 	subsystem->RemoveMappingContext(mouseLookMappingContext);
 	subsystem->RemoveMappingContext(gameplayMappingContext);
+	RefreshSeatedCombatInput(*subsystem);
 }
 
 void AGPlayerController::EndSkillCheck(bool bSuccess)
 {
-	ULocalPlayer* localPlayer = GetLocalPlayer();
-	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-	subsystem->RemoveMappingContext(skillcheckMappingContext);
-	subsystem->AddMappingContext(vehicleMappingContext, 0);
-	subsystem->AddMappingContext(mouseLookMappingContext, 1);
-	subsystem->AddMappingContext(gameplayMappingContext, 2);
-	if (bSuccess && IsLocalController())
+	if (!bSkillCheckActive)
 	{
-		ServerRequestRepair(currentModule);
+		return;
 	}
-	else
+	bSkillCheckActive = false;
+	ULocalPlayer* localPlayer = GetLocalPlayer();
+	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer ? localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+	if (!subsystem)
 	{
-		FailSkillCheck(currentModule);
+		return;
+	}
+	subsystem->RemoveMappingContext(skillcheckMappingContext);
+	if (!bKnockedOut)
+	{
+		subsystem->AddMappingContext(mouseLookMappingContext, 1);
+		RefreshVehicleView();
+	}
+	const FName repairModule = skillCheckModule;
+	skillCheckModule = NAME_None;
+	const bool bCanFinish = !bKnockedOut && skillCheckVehicle.IsValid() && skillCheckVehicle.Get() == seatedVehicle;
+	skillCheckVehicle.Reset();
+	if (bCanFinish && bSuccess)
+	{
+		ServerRequestRepair(repairModule);
+	}
+	else if (bCanFinish)
+	{
+		FailSkillCheck(repairModule);
 	}
 }
  
 void AGPlayerController::ServerRequestRepair_Implementation(const FName& moduleId)
 {
+	if (!CanRepairModuleFromCurrentSeat(moduleId))
+	{
+		return;
+	}
 	AGPlayerCar* car = GetSeatedVehicle();
 	UGVehicleModuleComponent* moduleComp = car->GetModuleComponent();
 	if (UGVehicleModule* module = moduleComp->FindModule(moduleId))
@@ -369,19 +428,23 @@ void AGPlayerController::RefreshVehicleView()
 		{
 			if (UEnhancedInputLocalPlayerSubsystem* input = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 			{
-				if (gameplayMappingContext && !input->HasMappingContext(gameplayMappingContext))
+				RefreshSeatedCombatInput(*input);
+				if (!bSkillCheckActive && !bKnockedOut)
 				{
-					input->AddMappingContext(gameplayMappingContext, 2);
-				}
-				UInputMappingContext* activeContext = seatedVehicle ? vehicleMappingContext.Get() : walkingMappingContext.Get();
-				UInputMappingContext* inactiveContext = seatedVehicle ? walkingMappingContext.Get() : vehicleMappingContext.Get();
-				if (inactiveContext)
-				{
-					input->RemoveMappingContext(inactiveContext);
-				}
-				if (activeContext)
-				{
-					input->AddMappingContext(activeContext, 0);
+					if (gameplayMappingContext && !input->HasMappingContext(gameplayMappingContext))
+					{
+						input->AddMappingContext(gameplayMappingContext, 2);
+					}
+					UInputMappingContext* activeContext = seatedVehicle ? vehicleMappingContext.Get() : walkingMappingContext.Get();
+					UInputMappingContext* inactiveContext = seatedVehicle ? walkingMappingContext.Get() : vehicleMappingContext.Get();
+					if (inactiveContext)
+					{
+						input->RemoveMappingContext(inactiveContext);
+					}
+					if (activeContext)
+					{
+						input->AddMappingContext(activeContext, 0);
+					}
 				}
 			}
 		}
@@ -393,6 +456,24 @@ void AGPlayerController::RefreshVehicleView()
 	}
 	// Tracked on every controller, so the HUD getters also answer on the server.
 	RefreshCombatSource();
+}
+
+void AGPlayerController::RefreshSeatedCombatInput(UEnhancedInputLocalPlayerSubsystem& input)
+{
+	if (!seatedCombatMappingContext)
+	{
+		return;
+	}
+	const bool bShouldMap = IsValid(seatedVehicle) && !bSkillCheckActive && !bKnockedOut;
+	const bool bIsMapped = input.HasMappingContext(seatedCombatMappingContext);
+	if (bShouldMap && !bIsMapped)
+	{
+		input.AddMappingContext(seatedCombatMappingContext, 3);
+	}
+	else if (!bShouldMap && bIsMapped)
+	{
+		input.RemoveMappingContext(seatedCombatMappingContext);
+	}
 }
 
 void AGPlayerController::RefreshCombatSource()
@@ -457,36 +538,25 @@ bool AGPlayerController::GetCurrentHealth(float& outHealth, float& outMaxHealth)
 
 void AGPlayerController::RequestLookedAtSeat()
 {
-	if (!IsLocalController() || !GetWorld())
+	if (!IsLocalController() || bSkillCheckActive || bKnockedOut || FindReviveTarget())
 	{
 		return;
 	}
 	FVector origin;
 	FRotator rotation;
 	GetPlayerViewPoint(origin, rotation);
-	FCollisionQueryParams query(SCENE_QUERY_STAT(VehicleSeatLook), false);
-	query.AddIgnoredActor(driverCharacter);
-	if (GetPawn() != seatedVehicle)
-	{
-		query.AddIgnoredActor(GetPawn());
-	}
-	if (seatedVehicle && driverCharacter)
-	{
-		UGVehicleSeatingComponent* seating = seatedVehicle->GetSeatingComponent();
-		query.AddIgnoredComponent(seating->GetSeatComponent(seating->GetCharacterSeat(driverCharacter)));
-	}
 	FHitResult hit;
-	if (GetWorld()->LineTraceSingleByChannel(hit, origin, origin + rotation.Vector() * 500.0f, ECC_GameTraceChannel1, query))
+	if (TraceSeatOrRadio(hit, origin, rotation.Vector()))
 	{
 		UGVehicleSeatComponent* seat = Cast<UGVehicleSeatComponent>(hit.GetComponent());
 		AGPlayerCar* vehicle = Cast<AGPlayerCar>(hit.GetActor());
-		if (vehicle && hit.GetComponent() == vehicle->GetRadioComponent())
+		if (hit.GetComponent() == vehicle->GetRadioComponent())
 		{
 			ServerRadioCommand(vehicle, EGVehicleRadioCommand::Toggle, origin, rotation.Vector());
 			return;
 		}
 		UE_LOG(LogTemp, Display, TEXT("Seat selection hit: actor=%s component=%s"), *GetNameSafe(hit.GetActor()), *GetNameSafe(hit.GetComponent()));
-		if (seat && vehicle)
+		if (seat)
 		{
 			ServerRequestVehicleSeat(vehicle, static_cast<int32>(seat->seatId), origin, rotation.Vector());
 		}
@@ -557,11 +627,17 @@ void AGPlayerController::ClientHandleKnockout_Implementation()
 	{
 		return;
 	}
+	bKnockedOut = true;
+	if (interactionFeedback)
+	{
+		interactionFeedback->Clear();
+	}
 	ULocalPlayer* localPlayer = GetLocalPlayer();
 	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	subsystem->RemoveMappingContext(gameplayMappingContext);
 	subsystem->RemoveMappingContext(vehicleMappingContext);
 	subsystem->RemoveMappingContext(skillcheckMappingContext);
+	RefreshSeatedCombatInput(*subsystem);
 }
 
 void AGPlayerController::ClientHandleRevive_Implementation()
@@ -570,10 +646,18 @@ void AGPlayerController::ClientHandleRevive_Implementation()
 	{
 		return;
 	}
+	bKnockedOut = false;
 	ULocalPlayer* localPlayer = GetLocalPlayer();
 	UEnhancedInputLocalPlayerSubsystem* subsystem = localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-	subsystem->AddMappingContext(gameplayMappingContext, 2);
-	subsystem->AddMappingContext(vehicleMappingContext, 0);
+	if (bSkillCheckActive)
+	{
+		subsystem->AddMappingContext(skillcheckMappingContext, 10);
+	}
+	else
+	{
+		subsystem->AddMappingContext(mouseLookMappingContext, 1);
+	}
+	RefreshVehicleView();
 }
 
 void AGPlayerController::ExecDamageSelf(float amount)
@@ -714,7 +798,6 @@ void AGPlayerController::RequestWindowLeft()
 	{
 		if (UGVehicleCombatComponent* combat = GetOwnedCombat())
 		{
-			// Q/E are camera-relative, so the server needs the current view direction.
 			ServerCombatAction(EGCombatAction::WindowLeft, combat->GetAimDirection());
 		}
 	}
@@ -729,6 +812,15 @@ void AGPlayerController::RequestWindowRight()
 		}
 	}
 }
+
+void AGPlayerController::RequestWindowToggle()
+{
+	if (IsLocalController() && IsValid(seatedVehicle) && !bSkillCheckActive && !bKnockedOut)
+	{
+		ServerCombatAction(EGCombatAction::WindowToggle, FVector::ForwardVector);
+	}
+}
+
 void AGPlayerController::RequestFireStart()
 {
 	if (IsLocalController())
@@ -779,31 +871,7 @@ void AGPlayerController::RequestFireMode()
 
 void AGPlayerController::RequestRevive()
 {
-	FVector origin;
-	FRotator rotation;
-	GetPlayerViewPoint(origin, rotation);
-	const FVector end = origin + rotation.Vector() * 3000.0f;
-	FCollisionQueryParams query(SCENE_QUERY_STAT(PlayerLook), false);
-	query.AddIgnoredActor(seatedVehicle);
-	query.AddIgnoredActor(GetPawn());
-	FHitResult hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel4, query);
-
-	if (!bHit)
-	{
-		return;
-	}
-
-	AWhos_DrivingCharacter* targetPlayer = Cast<AWhos_DrivingCharacter>(hit.GetActor());
-	if (!IsValid(targetPlayer))
-	{
-		return;
-	}
-	UGVehicleCombatComponent* combat = targetPlayer->GetCombatComponent();
-	int32 targetSeatIndex = combat->GetSeatIndex();
-	int32 reviverSeatIndex = driverCharacter->GetCombatComponent()->GetSeatIndex();
-	bool bSameSeatRow = (reviverSeatIndex < 2) == (targetSeatIndex < 2);
-	if (bSameSeatRow)
+	if (AWhos_DrivingCharacter* targetPlayer = FindReviveTarget())
 	{
 		ServerRequestRevive(targetPlayer);
 	}
@@ -872,6 +940,9 @@ void AGPlayerController::ServerCombatAction_Implementation(EGCombatAction action
 	case EGCombatAction::WindowRight:
 		combat->RequestWindowSide(false, direction);
 		break;
+	case EGCombatAction::WindowToggle:
+		combat->RequestWindow(!combat->IsOutside());
+		break;
 	case EGCombatAction::FireStart:
 		combat->SetTrigger(true, direction);
 		break;
@@ -921,75 +992,4 @@ void AGPlayerController::ClientSetupLobbyInput_Implementation()
 	FInputModeGameOnly inputMode;
 	this->bShowMouseCursor = false;
 	this->SetInputMode(inputMode);
-}
-
-bool AGPlayerController::TraceVehicleModule(FName& outModuleId, float& outCurrentHPInPercentage, EGModuleState& outModuleState, int32& outRepairCost)
-{
-	outModuleId = NAME_None;
-	outCurrentHPInPercentage = 0.0f;
-
-	if (!GetWorld())
-	{
-		return false;
-	}
-
-	FVector origin;
-	FRotator rotation;
-	GetPlayerViewPoint(origin, rotation);
-
-	const FVector end = origin + rotation.Vector() * 3000.0f;
-
-	FCollisionQueryParams query(
-		SCENE_QUERY_STAT(VehicleModuleLook),
-		false);
-
-	if (IsValid(driverCharacter))
-	{
-		query.AddIgnoredActor(driverCharacter);
-	}
-
-	if (IsValid(seatedVehicle))
-	{
-		if (USkeletalMeshComponent* vehicleMesh = seatedVehicle->GetMesh())
-		{
-			query.AddIgnoredComponent(vehicleMesh);
-		}
-	}
-
-	FHitResult hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel3, query);
-
-	if (!bHit)
-	{
-		return false;
-	}
-
-	const UGBoxComponent* hitBox = Cast<UGBoxComponent>(hit.GetComponent());
-
-	if (!IsValid(hitBox) || hitBox->moduleId.IsNone())
-	{
-		return false;
-	}
-
-	AGPlayerCar* vehicle = Cast<AGPlayerCar>(hitBox->GetOwner());
-
-	if (!IsValid(vehicle))
-	{
-		return false;
-	}
-
-	const FGVehicleModuleState state =
-		vehicle->GetModuleDamageState(hitBox->moduleId);
-
-	if (state.moduleId.IsNone())
-	{
-		return false;
-	}
-
-	outModuleId = state.moduleId;
-	outCurrentHPInPercentage = state.currentHP / state.maxHP * 100.0f;
-	outModuleState = state.moduleState;
-	outRepairCost = state.actualRepairCost;
-
-	return true;
 }
