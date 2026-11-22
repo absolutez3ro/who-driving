@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Whos_DrivingGameMode.h"
+#include "Engine/TargetPoint.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Common/GGIWhosDriving.h"
@@ -8,6 +10,7 @@
 #include "Whos_DrivingCharacter.h"
 #include "Vehicle/Components/GVehicleCombatComponent.h"
 #include "GGameState.h"
+#include "GRaceFinish.h"
 #include "Kismet/GameplayStatics.h"
 
 AWhos_DrivingGameMode::AWhos_DrivingGameMode()
@@ -24,7 +27,16 @@ void AWhos_DrivingGameMode::SpawnCar()
 		parameters.Owner = this;
 		parameters.Instigator = GetInstigator();
 		parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		static const FName carSpawnTag(TEXT("RaceCarSpawn"));
 		FTransform transform = FTransform::Identity;
+		for (TActorIterator<ATargetPoint> marker(GetWorld()); marker; ++marker)
+		{
+			if (marker->ActorHasTag(carSpawnTag))
+			{
+				transform = FTransform(marker->GetActorQuat(), marker->GetActorLocation());
+				break;
+			}
+		}
 		car = GetWorld()->SpawnActor<AGPlayerCar>(carClass, transform, parameters);
 	}
 	else
@@ -71,13 +83,19 @@ void AWhos_DrivingGameMode::BeginPlay()
 	SpawnCar();
 	if (car)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Successfully spawned %s at World Center."), *car->GetName());
+		UE_LOG(LogTemp, Log, TEXT("Successfully spawned %s at %s."), *car->GetName(), *car->GetActorLocation().ToString());
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Car spawned"));
 	}
-	AGGameState* gameState = GetGameState<AGGameState>();
-	if (gameState)
+	if (GS)
 	{
-		gameState->StartRaceTimer();
+		for (TActorIterator<AGRaceFinish> line(GetWorld()); line; ++line)
+		{
+			if (line->ActorHasTag(AGRaceFinish::StartLineTag))
+			{
+				return;
+			}
+		}
+		GS->StartRaceTimer();
 	}
 }
 
