@@ -113,8 +113,10 @@ public:
 	}
 
 	UMeshComponent* GetAmmoResupplyMesh() const;
+	FBox GetAmmoResupplyBounds() const;
 
 	void OnConstruction(const FTransform& transform) override;
+	void Tick(float deltaSeconds) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
 	void SpawnDriver(APlayerController* playerController);
@@ -236,4 +238,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Seats")
 	TArray<TObjectPtr<UGVehicleSeatComponent>> seatComponents;
+
+private:
+	float GetAmmoTrayExtension() const;
+
+	FVector ammoTrayClosedLocation = FVector::ZeroVector;
+	float ammoTrayProgress = 0.0f;
 };

@@ -10,10 +10,8 @@
 #include "Whos_DrivingCharacter.h"
 
 #include "Camera/PlayerCameraManager.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/MeshComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EnhancedInputSubsystems.h"
 
@@ -173,22 +171,7 @@ AGVehicleWeapon* AGPlayerController::FindWeaponForAmmoRefill(const FVector& orig
 	{
 		return nullptr;
 	}
-	FBox bounds(ForceInit);
-	if (const USkeletalMeshComponent* tray = Cast<USkeletalMeshComponent>(mesh))
-	{
-		if (const USkeletalMesh* trayAsset = tray->GetSkeletalMeshAsset())
-		{
-			bounds = trayAsset->GetImportedBounds().GetBox();
-			// Only the drawer front is exposed inside the cabin.
-			bounds.Min.X = FMath::Max(bounds.Min.X, bounds.Max.X - 15.0);
-		}
-	}
-	else if (const UStaticMeshComponent* box = Cast<UStaticMeshComponent>(mesh); box && box->GetStaticMesh())
-	{
-		FVector min, max;
-		box->GetLocalBounds(min, max);
-		bounds = FBox(min, max);
-	}
+	const FBox bounds = seatedVehicle->GetAmmoResupplyBounds();
 	// Keep the resupply target off the vehicle's other trace channels.
 	const FTransform& transform = mesh->GetComponentTransform();
 	FVector localHit, hitNormal;

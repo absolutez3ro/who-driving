@@ -20,7 +20,9 @@
 #include "GPlayerController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "GVehicleModuleComponent.h"
 #include "GBoxComponent.h"
@@ -32,6 +34,13 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Common/Whos_DrivingGameMode.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	// The source rig slides Printer_Drawer 53 cm over 24 frames at 30 fps.
+	constexpr float ammoTrayTravel = 53.0f;
+	constexpr float ammoTrayDuration = 0.8f;
+}
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
@@ -422,6 +431,7 @@ void AGPlayerCar::BeginPlay()
 		if (mesh->GetFName() == TEXT("partPrinterDrawer") && mesh->GetSkeletalMeshAsset())
 		{
 			ammoTray = mesh;
+			ammoTrayClosedLocation = mesh->GetRelativeLocation();
 			ammoBox->SetHiddenInGame(true);
 			break;
 		}
@@ -587,6 +597,54 @@ UGVehicleModuleComponent* AGPlayerCar::GetModuleComponent() const
 UMeshComponent* AGPlayerCar::GetAmmoResupplyMesh() const
 {
 	return IsValid(ammoTray) ? static_cast<UMeshComponent*>(ammoTray.Get()) : ammoBox.Get();
+}
+
+FBox AGPlayerCar::GetAmmoResupplyBounds() const
+{
+	if (IsValid(ammoTray))
+	{
+		if (const USkeletalMesh* mesh = ammoTray->GetSkeletalMeshAsset())
+		{
+			FBox bounds = mesh->GetImportedBounds().GetBox();
+			// The front of the drawer is exposed at rest. The rest slides out of the housing as it opens.
+			bounds.Min.X = FMath::Max(bounds.Min.X, bounds.Max.X - 15.0 - GetAmmoTrayExtension());
+			return bounds;
+		}
+	}
+	else if (ammoBox->GetStaticMesh())
+	{
+		FVector min, max;
+		ammoBox->GetLocalBounds(min, max);
+		return FBox(min, max);
+	}
+	return FBox(ForceInit);
+}
+
+float AGPlayerCar::GetAmmoTrayExtension() const
+{
+	return ammoTrayTravel * FMath::SmoothStep(0.0f, 1.0f, ammoTrayProgress);
+}
+
+void AGPlayerCar::Tick(float deltaSeconds)
+{
+	Super::Tick(deltaSeconds);
+	if (!IsValid(ammoTray))
+	{
+		return;
+	}
+
+	// Both the server and clients use the replicated occupants for the shared drawer.
+	const auto hasOccupant = [this](EGVehicleSeat seat)
+	{
+		const FGVehicleSeatState state = seatingComponent->GetSeatState(static_cast<int32>(seat));
+		return IsValid(state.occupant) || IsValid(state.playerState);
+	};
+	const float target = hasOccupant(EGVehicleSeat::RearLeft) || hasOccupant(EGVehicleSeat::RearRight) ? 1.0f : 0.0f;
+	if (ammoTrayProgress != target)
+	{
+		ammoTrayProgress = FMath::FInterpConstantTo(ammoTrayProgress, target, deltaSeconds, 1.0f / ammoTrayDuration);
+		ammoTray->SetRelativeLocation(ammoTrayClosedLocation + FVector(GetAmmoTrayExtension(), 0.0, 0.0));
+	}
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)

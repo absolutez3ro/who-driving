@@ -194,6 +194,14 @@ bool FGAmmoResupplyTest::RunTest(const FString& parameters)
 		return false;
 	}
 	TestTrue(TEXT("The replacement drawer hides the old ammo cube"), scene.car->GetAmmoBox()->bHiddenInGame);
+	const FVector closedDrawer = tray->GetRelativeLocation();
+	scene.car->Tick(0.4f);
+	TestTrue(TEXT("The tray is halfway out after half the animation"),
+		tray->GetRelativeLocation().Equals(closedDrawer + FVector(26.5, 0.0, 0.0), 0.01));
+	scene.car->Tick(0.4f);
+	const FVector openDrawer = tray->GetRelativeLocation();
+	TestTrue(TEXT("The tray opens by the amount authored in the rig"),
+		openDrawer.Equals(closedDrawer + FVector(53.0, 0.0, 0.0), 0.01));
 	const int32 magazine = weapon->GetDefinition()->MagazineSize;
 	const int32 reserve = weapon->GetDefinition()->InitialReserve;
 	TestEqual(TEXT("The box can refill the equipped weapon"), scene.combat->GetAmmoResupplyWeapon(), weapon);
@@ -215,9 +223,7 @@ bool FGAmmoResupplyTest::RunTest(const FString& parameters)
 	FMinimalViewInfo view;
 	view.Location = scene.avatar->GetActorLocation() + FVector(0.0f, 0.0f, 24.0f);
 	const FBox drawerBounds = tray->GetSkeletalMeshAsset()->GetImportedBounds().GetBox();
-	FVector drawerFront = drawerBounds.GetCenter();
-	drawerFront.X = drawerBounds.Max.X;
-	const FVector toTray = tray->GetComponentTransform().TransformPosition(drawerFront) - view.Location;
+	const FVector toTray = tray->GetComponentTransform().TransformPosition(drawerBounds.GetCenter()) - view.Location;
 	view.Rotation = (-toTray).Rotation();
 	scene.driver->PlayerCameraManager->FillCameraCache(view);
 	scene.driver->RequestLookedAtSeat();
@@ -237,6 +243,15 @@ bool FGAmmoResupplyTest::RunTest(const FString& parameters)
 	TestFalse(TEXT("The server rejects refilling a full weapon"), weapon->RefillAmmo());
 	TestEqual(TEXT("Second player's magazine is independent"), otherWeapon->GetBulletCount(), otherMagazine);
 	TestEqual(TEXT("Second player's reserve is independent"), otherWeapon->GetReserveAmmo(), otherReserve);
+
+	scene.car->GetSeatingComponent()->RemovePlayer(otherPlayer, false);
+	scene.car->Tick(0.8f);
+	TestTrue(TEXT("The tray stays open for the remaining rear passenger"),
+		tray->GetRelativeLocation().Equals(openDrawer, 0.01));
+	scene.car->GetSeatingComponent()->RemovePlayer(scene.driver, false);
+	scene.car->Tick(0.8f);
+	TestTrue(TEXT("The tray closes when the last rear passenger leaves"),
+		tray->GetRelativeLocation().Equals(closedDrawer, 0.01));
 	return true;
 }
 
