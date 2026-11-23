@@ -40,6 +40,7 @@ private:
 	void StartShootDelay();
 	void SetPlayerRef();
 	bool TraceShot();
+	float allowedDistanceFromPlayer;
 
 	float fireRate = 1;
 	float hitChance = 1;

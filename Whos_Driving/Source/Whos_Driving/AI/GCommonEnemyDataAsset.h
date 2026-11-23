@@ -45,6 +45,8 @@ public:
 	bool followPlayer = false;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float playerSpeedThershhold = 10.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
+	float allowedDistanceFromPlayer;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")
 	float hitRange = 500000.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "combat")

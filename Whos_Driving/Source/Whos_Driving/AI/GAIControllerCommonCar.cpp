@@ -17,10 +17,10 @@ void AGAIControllerCommonCar::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Log, TEXT("YES ROAD SPLINE ON MAP"));
 	splineOwnerRef = Cast<AAGSplineActor>(UGameplayStatics::GetActorOfClass(GetWorld(), AAGSplineActor::StaticClass()));
 	if (splineOwnerRef)
 	{
+		UE_LOG(LogTemp, Log, TEXT("YES ROAD SPLINE ON MAP"));
 		splineComponent = splineOwnerRef->FindComponentByClass<USplineComponent>();
 		if (!splineComponent) {
 			UE_LOG(LogTemp, Error, TEXT("NO SPLINE FOUND IN ROAD SPLINE"));
@@ -50,6 +50,7 @@ void AGAIControllerCommonCar::BeginPlay()
 		roadWidth = commonCarData->roadWidth;
 		catchUpModificator = commonCarData->catchUpModificator;
 		playerSpeedThershhold = commonCarData->playerSpeedThershhold;
+		allowedDistanceFromPlayer = commonCarData->allowedDistanceFromPlayer;
 		//combat
 		fireRate = commonCarData->FireRate;
 		hitChance = commonCarData->HitChance;
@@ -370,8 +371,9 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 	const float playerDist = splineComponent->GetDistanceAlongSplineAtSplineInputKey(inputKey);
 	const float playerSpeed = playerMovement->GetForwardSpeed();
 	bool aheadOfStoppedPlayer = (currentDist - playerDist > 0.0f) && (playerMovement->GetForwardSpeed() <= playerSpeedThershhold);
+	bool TooFarAhead = (currentDist - playerDist > allowedDistanceFromPlayer);
 	// 2. End of an open path: or ahead of a stopped player - stop
-	if (endOfPath || (aheadOfStoppedPlayer && followPlayer))
+	if (endOfPath || ((aheadOfStoppedPlayer || TooFarAhead) && followPlayer))
 	{
 		Movement->SetThrottleInput(0.f);
 		Movement->SetSteeringInput(0.f);
