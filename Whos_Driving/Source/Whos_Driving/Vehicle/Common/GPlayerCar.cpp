@@ -483,9 +483,9 @@ void AGPlayerCar::BeginPlay()
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
 }
 
-void AGPlayerCar::Tick(float deltaTime)
+void AGPlayerCar::Tick(float deltaSeconds)
 {
-	Super::Tick(deltaTime);
+	Super::Tick(deltaSeconds);
 	const double absRoll = FMath::Abs(GetActorRotation().Roll);
 	if (absRoll > 60.0f)
 	{
@@ -503,6 +503,24 @@ void AGPlayerCar::Tick(float deltaTime)
 	else
 	{
 		flipTimer = 0.0f;
+	}
+
+	if (!IsValid(ammoTray))
+	{
+		return;
+	}
+
+	// Both the server and clients use the replicated occupants for the shared drawer.
+	const auto hasOccupant = [this](EGVehicleSeat seat)
+		{
+			const FGVehicleSeatState state = seatingComponent->GetSeatState(static_cast<int32>(seat));
+			return IsValid(state.occupant) || IsValid(state.playerState);
+		};
+	const float target = hasOccupant(EGVehicleSeat::RearLeft) || hasOccupant(EGVehicleSeat::RearRight) ? 1.0f : 0.0f;
+	if (ammoTrayProgress != target)
+	{
+		ammoTrayProgress = FMath::FInterpConstantTo(ammoTrayProgress, target, deltaSeconds, 1.0f / ammoTrayDuration);
+		ammoTray->SetRelativeLocation(ammoTrayClosedLocation + FVector(GetAmmoTrayExtension(), 0.0, 0.0));
 	}
 }
 
@@ -643,28 +661,6 @@ FBox AGPlayerCar::GetAmmoResupplyBounds() const
 float AGPlayerCar::GetAmmoTrayExtension() const
 {
 	return ammoTrayTravel * FMath::SmoothStep(0.0f, 1.0f, ammoTrayProgress);
-}
-
-void AGPlayerCar::Tick(float deltaSeconds)
-{
-	Super::Tick(deltaSeconds);
-	if (!IsValid(ammoTray))
-	{
-		return;
-	}
-
-	// Both the server and clients use the replicated occupants for the shared drawer.
-	const auto hasOccupant = [this](EGVehicleSeat seat)
-	{
-		const FGVehicleSeatState state = seatingComponent->GetSeatState(static_cast<int32>(seat));
-		return IsValid(state.occupant) || IsValid(state.playerState);
-	};
-	const float target = hasOccupant(EGVehicleSeat::RearLeft) || hasOccupant(EGVehicleSeat::RearRight) ? 1.0f : 0.0f;
-	if (ammoTrayProgress != target)
-	{
-		ammoTrayProgress = FMath::FInterpConstantTo(ammoTrayProgress, target, deltaSeconds, 1.0f / ammoTrayDuration);
-		ammoTray->SetRelativeLocation(ammoTrayClosedLocation + FVector(GetAmmoTrayExtension(), 0.0, 0.0));
-	}
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)

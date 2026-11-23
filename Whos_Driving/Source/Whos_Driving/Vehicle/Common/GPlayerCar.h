@@ -165,7 +165,6 @@ protected:
 
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
 	void BeginPlay() override;
-	void Tick(float deltaTime) override;
 	void UnPossessed() override;
 
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
