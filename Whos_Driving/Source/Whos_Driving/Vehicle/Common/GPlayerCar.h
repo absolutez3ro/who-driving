@@ -12,7 +12,10 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class AWhos_DrivingCharacter;
+class UMeshComponent;
+class USkeletalMeshComponent;
 class UStaticMesh;
+class UStaticMeshComponent;
 class UGVehicleSeatComponent;
 class UGVehicleSeatingComponent;
 class UBoxComponent;
@@ -104,7 +107,16 @@ public:
 		return radioComponent;
 	}
 
+	UStaticMeshComponent* GetAmmoBox() const
+	{
+		return ammoBox;
+	}
+
+	UMeshComponent* GetAmmoResupplyMesh() const;
+	FBox GetAmmoResupplyBounds() const;
+
 	void OnConstruction(const FTransform& transform) override;
+	void Tick(float deltaSeconds) override;
 	TSubclassOf<AWhos_DrivingCharacter> GetSeatCharacterClass() const;
 	UFUNCTION(Server, Reliable)
 	void SpawnDriver(APlayerController* playerController);
@@ -140,6 +152,12 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Ammo")
+	TObjectPtr<UStaticMeshComponent> ammoBox;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USkeletalMeshComponent> ammoTray;
 
 	// Spawns the dashboard damage hologram (AGVehicleHologram). Class and placement are set in the Blueprint.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Hologram")
@@ -235,5 +253,9 @@ protected:
 	bool bIsFlipped = false;
 	bool bIsRecoveringFromFlip = false;
 	FTimerHandle flipRecoveryTimer;
+private:
+	float GetAmmoTrayExtension() const;
 
+	FVector ammoTrayClosedLocation = FVector::ZeroVector;
+	float ammoTrayProgress = 0.0f;
 };

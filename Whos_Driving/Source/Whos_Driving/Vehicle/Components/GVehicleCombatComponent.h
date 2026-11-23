@@ -44,7 +44,7 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& outLifetimeProps) const override;
 	void TickComponent(float deltaSeconds, ELevelTick tickType, FActorComponentTickFunction* tickFunction) override;
 	bool RequestWindow(bool bOutside);
-	// Q/E: leans towards the given side of the camera view, so the keys swap when looking backward.
+	// Resolves a camera-relative side for the explicit left and right Blueprint commands.
 	bool RequestWindowSide(bool bLeftSide, const FVector& viewDirection);
 	bool SelectWeapon(int32 weaponIndex);
 	bool SetTrigger(bool bPressed, const FVector& direction);
@@ -68,6 +68,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetCurrentWeapon() const;
+	AGVehicleWeapon* GetAmmoResupplyWeapon() const;
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	AGVehicleWeapon* GetWeapon(int32 weaponIndex) const;
 	UFUNCTION(BlueprintPure, Category = "Combat")

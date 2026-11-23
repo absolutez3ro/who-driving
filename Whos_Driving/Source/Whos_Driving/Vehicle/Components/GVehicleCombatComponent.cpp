@@ -219,6 +219,19 @@ AGVehicleWeapon* UGVehicleCombatComponent::GetCurrentWeapon() const
 	return GetWeapon(selectedWeaponIndex);
 }
 
+AGVehicleWeapon* UGVehicleCombatComponent::GetAmmoResupplyWeapon() const
+{
+	const int32 seatIndex = GetSeatIndex();
+	if ((seatIndex != static_cast<int32>(EGVehicleSeat::RearLeft) &&
+		 seatIndex != static_cast<int32>(EGVehicleSeat::RearRight)) ||
+		IsOutside() || GetWindowAlpha() > 0.01f || !IsPlayerValid())
+	{
+		return nullptr;
+	}
+	AGVehicleWeapon* weapon = GetCurrentWeapon();
+	return weapon && weapon->IsEquipped() ? weapon : nullptr;
+}
+
 bool UGVehicleCombatComponent::GetCurrentWeaponAmmo(int32& outMagazineAmmo, int32& outReserveAmmo) const
 {
 	const AGVehicleWeapon* weapon = GetCurrentWeapon();

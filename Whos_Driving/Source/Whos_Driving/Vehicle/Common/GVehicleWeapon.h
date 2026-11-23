@@ -26,6 +26,8 @@ public:
 	void Initialize(UGWeaponDefinition* newDefinition);
 	void SetEquipped(bool bNewEquipped);
 	bool ConsumeRound();
+	bool CanRefillAmmo() const;
+	bool RefillAmmo();
 	bool BeginReload();
 	void CancelReload();
 	bool CycleFireMode();

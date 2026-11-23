@@ -232,6 +232,29 @@ bool AGVehicleWeapon::ConsumeRound()
 	return true;
 }
 
+bool AGVehicleWeapon::CanRefillAmmo() const
+{
+	return definition && bEquipped &&
+		(CurrentBullets < MagazineSize || reserveAmmo < FMath::Max(0, definition->InitialReserve));
+}
+
+bool AGVehicleWeapon::RefillAmmo()
+{
+	if (!HasAuthority() || !CanRefillAmmo())
+	{
+		return false;
+	}
+	if (bReloading)
+	{
+		CancelReload();
+	}
+	CurrentBullets = MagazineSize;
+	reserveAmmo = FMath::Max(0, definition->InitialReserve);
+	NotifyStateChanged();
+	ForceNetUpdate();
+	return true;
+}
+
 bool AGVehicleWeapon::BeginReload()
 {
 	if (!HasAuthority() || !definition || !bEquipped || bReloading || reserveAmmo <= 0 ||

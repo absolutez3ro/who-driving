@@ -12,9 +12,13 @@ struct FInputActionValue;
 class UInputAction;
 class AWhos_DrivingCharacter;
 class AGPlayerCar;
+class AGVehicleWeapon;
 class UGVehicleCombatComponent;
 class UInputMappingContext;
 class UGSkillCheckDataAsset;
+class UGInteractionFeedback;
+class UGBoxComponent;
+class UEnhancedInputLocalPlayerSubsystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FGOnModuleInfoUpdated, FName, moduleId, float, currentHpInPercentage, EGModuleState, moduleState, int32, actualRepairCost);
 UENUM()
@@ -28,7 +32,8 @@ enum class EGCombatAction : uint8
 	AimStop,
 	Reload,
 	ChangeFireMode,
-	Revive
+	Revive,
+	WindowToggle
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSkillCheck, FName, moduleId);
@@ -179,6 +184,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRadioCommand(AGPlayerCar* vehicle, EGVehicleRadioCommand command,
 		FVector_NetQuantize viewOrigin, FVector_NetQuantizeNormal viewDirection);
+	UFUNCTION(Server, Reliable)
+	void ServerRequestAmmoRefill(AGPlayerCar* vehicle, FVector_NetQuantize localViewOrigin,
+		FVector_NetQuantizeNormal localViewDirection);
 
 	UPROPERTY(ReplicatedUsing = OnRep_VehicleContext)
 	TObjectPtr<AWhos_DrivingCharacter> driverCharacter;
@@ -263,6 +271,16 @@ protected:
 	TObjectPtr<UGSkillCheckDataAsset> skillCheckData;
 
 private:
+	void RequestWindowToggle();
+	void RefreshSeatedCombatInput(UEnhancedInputLocalPlayerSubsystem& input);
+	bool TraceSeatOrRadio(FHitResult& hit, const FVector& origin, const FVector& direction) const;
+	AGVehicleWeapon* FindWeaponForAmmoRefill(const FVector& origin, const FVector& direction) const;
+	UGBoxComponent* FindLookedAtModule() const;
+	bool GetModuleInfo(const UGBoxComponent* hitBox, FName& moduleId, float& healthPercent,
+		EGModuleState& state, int32& repairCost) const;
+	AWhos_DrivingCharacter* FindReviveTarget() const;
+	void UpdateInteractionFeedback();
+	FText GetInteractionKey(const UInputAction* action) const;
 	bool IsRadioTargetValid(AGPlayerCar* vehicle, const FVector& origin, const FVector& direction) const;
 	bool IsVehicleOccupant() const;
 	UFUNCTION()
@@ -270,9 +288,21 @@ private:
 	UFUNCTION()
 	void HandleHealthChanged(float health, float maxHealth);
 	float lastRadioRequestTime = -1.0f;
+	float lastAmmoRefillRequestTime = -1.0f;
 	float lastSeatRequestTime = -1.0f;
 	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
+	UPROPERTY()
+	TObjectPtr<UInputAction> windowToggleAction;
+	UPROPERTY()
+	TObjectPtr<UInputMappingContext> seatedCombatMappingContext;
+	UPROPERTY(Transient)
+	TObjectPtr<UGInteractionFeedback> interactionFeedback;
+	TWeakObjectPtr<UGBoxComponent> lookedAtModule;
+	TWeakObjectPtr<AGPlayerCar> skillCheckVehicle;
+	FName skillCheckModule = NAME_None;
+	bool bSkillCheckActive = false;
+	bool bKnockedOut = false;
 	// The character whose ammunition and health OnWeaponAmmoChanged and OnHealthChanged report.
 	TWeakObjectPtr<UGVehicleCombatComponent> combatSource;
 	UGVehicleCombatComponent* GetOwnedCombat() const;

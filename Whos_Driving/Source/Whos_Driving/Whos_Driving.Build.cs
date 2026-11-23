@@ -25,7 +25,7 @@ public class Whos_Driving : ModuleRules
 			"OnlineSubsystemUtils"
         });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AssetRegistry", "PhysicsCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AssetRegistry", "PhysicsCore", "SlateCore" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Whos_Driving",

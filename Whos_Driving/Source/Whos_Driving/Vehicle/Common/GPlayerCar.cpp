@@ -9,6 +9,7 @@
 #include "Components/BoxComponent.h"
 #include "GGIWhosDriving.h"
 #include "Components/ChildActorComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/DamageEvents.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GVehicleMovementComponent.h"
@@ -19,7 +20,9 @@
 #include "GPlayerController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "GVehicleModuleComponent.h"
 #include "GBoxComponent.h"
@@ -30,6 +33,14 @@
 #include "GCarDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Common/Whos_DrivingGameMode.h"
+#include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	// The source rig slides Printer_Drawer 53 cm over 24 frames at 30 fps.
+	constexpr float ammoTrayTravel = 53.0f;
+	constexpr float ammoTrayDuration = 0.8f;
+}
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
@@ -42,6 +53,14 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	bReplicates = true;
 	SetReplicateMovement(true);
 	InitSeats();
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ammoBoxMesh(TEXT("/Engine/BasicShapes/Cube"));
+	ammoBox = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VehicleAmmoBox"));
+	ammoBox->SetupAttachment(GetMesh());
+	ammoBox->SetStaticMesh(ammoBoxMesh.Object);
+	ammoBox->SetRelativeLocation(FVector(-77.0f, 0.0f, 78.0f));
+	ammoBox->SetRelativeScale3D(FVector(0.22f));
+	ammoBox->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	ammoBox->SetCanEverAffectNavigation(false);
 	InitWheels(objectInitializer);
 	InitDoors(objectInitializer);
 	InitSteeringWheel(objectInitializer);
@@ -406,6 +425,18 @@ void AGPlayerCar::BeginPlay()
 {
 	Super::BeginPlay();
 
+	TInlineComponentArray<USkeletalMeshComponent*> meshes(this);
+	for (USkeletalMeshComponent* mesh : meshes)
+	{
+		if (mesh->GetFName() == TEXT("partPrinterDrawer") && mesh->GetSkeletalMeshAsset())
+		{
+			ammoTray = mesh;
+			ammoTrayClosedLocation = mesh->GetRelativeLocation();
+			ammoBox->SetHiddenInGame(true);
+			break;
+		}
+	}
+
 	moduleComponent->RebuildModuleRegistry(this);
 	LoadCarData();
 	if (HasAuthority())
@@ -581,6 +612,59 @@ UGVehicleSeatingComponent* AGPlayerCar::GetSeatingComponent() const
 UGVehicleModuleComponent* AGPlayerCar::GetModuleComponent() const
 {
 	return moduleComponent;
+}
+
+UMeshComponent* AGPlayerCar::GetAmmoResupplyMesh() const
+{
+	return IsValid(ammoTray) ? static_cast<UMeshComponent*>(ammoTray.Get()) : ammoBox.Get();
+}
+
+FBox AGPlayerCar::GetAmmoResupplyBounds() const
+{
+	if (IsValid(ammoTray))
+	{
+		if (const USkeletalMesh* mesh = ammoTray->GetSkeletalMeshAsset())
+		{
+			FBox bounds = mesh->GetImportedBounds().GetBox();
+			// The front of the drawer is exposed at rest. The rest slides out of the housing as it opens.
+			bounds.Min.X = FMath::Max(bounds.Min.X, bounds.Max.X - 15.0 - GetAmmoTrayExtension());
+			return bounds;
+		}
+	}
+	else if (ammoBox->GetStaticMesh())
+	{
+		FVector min, max;
+		ammoBox->GetLocalBounds(min, max);
+		return FBox(min, max);
+	}
+	return FBox(ForceInit);
+}
+
+float AGPlayerCar::GetAmmoTrayExtension() const
+{
+	return ammoTrayTravel * FMath::SmoothStep(0.0f, 1.0f, ammoTrayProgress);
+}
+
+void AGPlayerCar::Tick(float deltaSeconds)
+{
+	Super::Tick(deltaSeconds);
+	if (!IsValid(ammoTray))
+	{
+		return;
+	}
+
+	// Both the server and clients use the replicated occupants for the shared drawer.
+	const auto hasOccupant = [this](EGVehicleSeat seat)
+	{
+		const FGVehicleSeatState state = seatingComponent->GetSeatState(static_cast<int32>(seat));
+		return IsValid(state.occupant) || IsValid(state.playerState);
+	};
+	const float target = hasOccupant(EGVehicleSeat::RearLeft) || hasOccupant(EGVehicleSeat::RearRight) ? 1.0f : 0.0f;
+	if (ammoTrayProgress != target)
+	{
+		ammoTrayProgress = FMath::FInterpConstantTo(ammoTrayProgress, target, deltaSeconds, 1.0f / ammoTrayDuration);
+		ammoTray->SetRelativeLocation(ammoTrayClosedLocation + FVector(GetAmmoTrayExtension(), 0.0, 0.0));
+	}
 }
 
 void AGPlayerCar::OnConstruction(const FTransform& transform)

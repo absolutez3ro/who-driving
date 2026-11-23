@@ -3,11 +3,17 @@
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
 #include "GVehicleCombatComponent.h"
+#include "GVehicleSeatComponent.h"
 #include "GVehicleSeatingComponent.h"
 #include "GVehicleWeapon.h"
 #include "GWeaponDefinition.h"
 #include "Whos_DrivingCharacter.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,7 +27,7 @@ namespace
 	constexpr int32 rifleIndex = 0;
 	constexpr int32 pistolIndex = 1;
 
-	// An isolated world with one player seated as the driver of a car.
+	// An isolated world with a car and one seated player by default.
 	struct FGCombatTestScene
 	{
 		UWorld* world = nullptr;
@@ -38,7 +44,7 @@ namespace
 			}
 		}
 
-		bool Create(FAutomationTestBase& test)
+		bool Create(FAutomationTestBase& test, EGVehicleSeat seat = EGVehicleSeat::Driver)
 		{
 			const UWorld::InitializationValues initialization = UWorld::InitializationValues()
 																	.AllowAudioPlayback(false)
@@ -69,7 +75,8 @@ namespace
 			spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			avatar = world->SpawnActor<AWhos_DrivingCharacter>(characterClass, FTransform::Identity, spawn);
 			combat = avatar->GetCombatComponent();
-			return test.TestTrue(TEXT("Driver seated"), car->GetSeatingComponent()->InitializeOccupant(driver, avatar, 0));
+			return test.TestTrue(TEXT("Player seated"),
+				car->GetSeatingComponent()->InitializeOccupant(driver, avatar, static_cast<int32>(seat)));
 		}
 
 		void AdvanceTime(float seconds)
@@ -150,6 +157,122 @@ bool FGWeaponAmmoTest::RunTest(const FString& parameters)
 	TestEqual(TEXT("Reload moves only what the reserve holds"), lowReserveWeapon->GetBulletCount(), 8);
 	TestEqual(TEXT("Reload empties the small reserve"), lowReserveWeapon->GetReserveAmmo(), 0);
 	TestFalse(TEXT("No reload without a reserve"), lowReserveWeapon->BeginReload());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGAmmoResupplyTest, "WhosDriving.Combat.AmmoResupply",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGAmmoResupplyTest::RunTest(const FString& parameters)
+{
+	FGCombatTestScene scene;
+	if (!scene.Create(*this, EGVehicleSeat::RearLeft))
+	{
+		return false;
+	}
+	scene.driver->SetAsLocalPlayerController();
+	AGPlayerController* otherPlayer = scene.world->SpawnActor<AGPlayerController>();
+	otherPlayer->PlayerState = scene.world->SpawnActor<APlayerState>();
+	FActorSpawnParameters spawn;
+	spawn.Owner = otherPlayer;
+	spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AWhos_DrivingCharacter* otherAvatar = scene.world->SpawnActor<AWhos_DrivingCharacter>(
+		scene.avatar->GetClass(), FTransform::Identity, spawn);
+	if (!TestTrue(TEXT("Second player seated"), scene.car->GetSeatingComponent()->InitializeOccupant(
+		otherPlayer, otherAvatar, static_cast<int32>(EGVehicleSeat::RearRight))))
+	{
+		return false;
+	}
+
+	AGVehicleWeapon* weapon = scene.combat->GetCurrentWeapon();
+	AGVehicleWeapon* otherWeapon = otherAvatar->GetCombatComponent()->GetCurrentWeapon();
+	const USkeletalMeshComponent* tray = Cast<USkeletalMeshComponent>(scene.car->GetAmmoResupplyMesh());
+	if (!TestNotNull(TEXT("Equipped weapon"), weapon) ||
+		!TestNotNull(TEXT("Other player's equipped weapon"), otherWeapon) ||
+		!TestNotNull(TEXT("Printer drawer is the resupply target"), tray) ||
+		!TestNotNull(TEXT("Camera manager"), scene.driver->PlayerCameraManager.Get()))
+	{
+		return false;
+	}
+	TestTrue(TEXT("The replacement drawer hides the old ammo cube"), scene.car->GetAmmoBox()->bHiddenInGame);
+	const FVector closedDrawer = tray->GetRelativeLocation();
+	scene.car->Tick(0.4f);
+	TestTrue(TEXT("The tray is halfway out after half the animation"),
+		tray->GetRelativeLocation().Equals(closedDrawer + FVector(26.5, 0.0, 0.0), 0.01));
+	scene.car->Tick(0.4f);
+	const FVector openDrawer = tray->GetRelativeLocation();
+	TestTrue(TEXT("The tray opens by the amount authored in the rig"),
+		openDrawer.Equals(closedDrawer + FVector(53.0, 0.0, 0.0), 0.01));
+	const int32 magazine = weapon->GetDefinition()->MagazineSize;
+	const int32 reserve = weapon->GetDefinition()->InitialReserve;
+	TestEqual(TEXT("The box can refill the equipped weapon"), scene.combat->GetAmmoResupplyWeapon(), weapon);
+	TestFalse(TEXT("Full magazine and reserve block refilling"), weapon->CanRefillAmmo());
+	TestTrue(TEXT("Second player spends a round"), otherWeapon->ConsumeRound());
+	const int32 otherMagazine = otherWeapon->GetBulletCount();
+	const int32 otherReserve = otherWeapon->GetReserveAmmo();
+
+	scene.AdvanceTime(weapon->GetDefinition()->EquipTime + 0.1f);
+	TestTrue(TEXT("Player fires a shot"), scene.combat->SetTrigger(true, FVector::ForwardVector));
+	scene.combat->SetTrigger(false, FVector::ForwardVector);
+	TestTrue(TEXT("Player starts reload"), scene.combat->RequestReload());
+	scene.AdvanceTime(weapon->GetDefinition()->ReloadTime + 0.1f);
+	TestEqual(TEXT("Reload spends reserve"), weapon->GetReserveAmmo(), reserve - 1);
+	TestTrue(TEXT("Low reserve can be refilled with a full magazine"), weapon->CanRefillAmmo());
+	TestTrue(TEXT("Player spends another round"), weapon->ConsumeRound());
+	TestTrue(TEXT("Player begins a reload before using the box"), scene.combat->RequestReload());
+
+	FMinimalViewInfo view;
+	view.Location = scene.avatar->GetActorLocation() + FVector(0.0f, 0.0f, 24.0f);
+	const FBox drawerBounds = tray->GetSkeletalMeshAsset()->GetImportedBounds().GetBox();
+	const FVector toTray = tray->GetComponentTransform().TransformPosition(drawerBounds.GetCenter()) - view.Location;
+	view.Rotation = (-toTray).Rotation();
+	scene.driver->PlayerCameraManager->FillCameraCache(view);
+	scene.driver->RequestLookedAtSeat();
+	TestEqual(TEXT("Looking away does not refill"), weapon->GetBulletCount(), magazine - 1);
+
+	view.Rotation = toTray.Rotation();
+	scene.driver->PlayerCameraManager->FillCameraCache(view);
+	FVector viewOrigin;
+	FRotator viewRotation;
+	scene.driver->GetPlayerViewPoint(viewOrigin, viewRotation);
+	TestTrue(TEXT("The player view is aimed at the drawer"),
+		viewOrigin.Equals(view.Location) && viewRotation.Equals(view.Rotation));
+	scene.driver->RequestLookedAtSeat();
+	TestEqual(TEXT("Interaction immediately fills the magazine"), weapon->GetBulletCount(), magazine);
+	TestEqual(TEXT("Interaction immediately fills the reserve"), weapon->GetReserveAmmo(), reserve);
+	TestFalse(TEXT("Refill cancels the pending reload"), weapon->IsReloading());
+	TestFalse(TEXT("The server rejects refilling a full weapon"), weapon->RefillAmmo());
+	TestEqual(TEXT("Second player's magazine is independent"), otherWeapon->GetBulletCount(), otherMagazine);
+	TestEqual(TEXT("Second player's reserve is independent"), otherWeapon->GetReserveAmmo(), otherReserve);
+
+	scene.car->GetSeatingComponent()->RemovePlayer(otherPlayer, false);
+	scene.car->Tick(0.8f);
+	TestTrue(TEXT("The tray stays open for the remaining rear passenger"),
+		tray->GetRelativeLocation().Equals(openDrawer, 0.01));
+	scene.car->GetSeatingComponent()->RemovePlayer(scene.driver, false);
+	scene.car->Tick(0.8f);
+	TestTrue(TEXT("The tray closes when the last rear passenger leaves"),
+		tray->GetRelativeLocation().Equals(closedDrawer, 0.01));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGSeatedCameraPivotTest, "WhosDriving.Combat.SeatedCameraPivot",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGSeatedCameraPivotTest::RunTest(const FString& parameters)
+{
+	FGCombatTestScene scene;
+	if (!scene.Create(*this, EGVehicleSeat::RearLeft))
+	{
+		return false;
+	}
+	const UCameraComponent* camera = scene.avatar->GetFirstPersonCameraComponent();
+	const FVector eyePosition = camera->GetComponentLocation();
+	const FVector viewDirection = camera->GetForwardVector();
+	scene.avatar->DoAim(38.0f, -79.0f);
+	TestTrue(TEXT("Looking down and sideways keeps the camera at the seat pivot"),
+		camera->GetComponentLocation().Equals(eyePosition, 0.01));
+	TestFalse(TEXT("Look input still rotates the view"), camera->GetForwardVector().Equals(viewDirection));
 	return true;
 }
 
