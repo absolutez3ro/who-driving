@@ -450,7 +450,6 @@ void AGPlayerCar::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.0f, FColor::Blue, module->moduleId.ToString(), true);
 	}
 	GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor::Red, FString::FromInt(currentCarHealth), true);
-	AGPlayerController* playerController = Cast<AGPlayerController>(driverCharacter->GetController());
 }
 
 void AGPlayerCar::Tick(float deltaTime)
