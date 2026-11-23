@@ -405,6 +405,6 @@ void AGGSShop::OnLevelEnd()
 	}
 	if (UWorld* World = GetWorld())
 	{
-		World->ServerTravel(TEXT("/Game/Greybox/Lvl_CoastalRoute?listen"));
+		World->ServerTravel(TEXT("/Game/Maps/CoastalRoute/Lvl_CoastalRoute?listen"));
 	}
 }
