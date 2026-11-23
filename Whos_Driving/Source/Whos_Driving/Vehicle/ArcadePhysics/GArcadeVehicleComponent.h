@@ -125,6 +125,7 @@ public:
 	// Falls back to the class defaults when no tuning asset is assigned.
 	const UGArcadeVehicleTuning& GetTuningData() const;
 	bool UsesPlayerCarControls() const { return bUsePlayerCarControls; }
+	float GetSteeringAngle() const { return currentSteerAngle; }
 
 protected:
 	void BeginPlay() override;

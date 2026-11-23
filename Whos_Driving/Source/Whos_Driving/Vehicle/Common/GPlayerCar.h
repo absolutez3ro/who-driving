@@ -24,6 +24,7 @@ class UGBoxComponent;
 class UGCarDataAsset;
 class UGVehicleRadioComponent;
 class UChildActorComponent;
+class UGArcadeVehicleComponent;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -97,6 +98,7 @@ public:
 
 	void PublishModuleStates();
 	bool TryApplyFlipInput(float steering);
+	float GetSteeringWheelAngle() const { return steeringWheelAngle; }
 	float GetSpeed();
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Radio")
@@ -166,6 +168,13 @@ protected:
 
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
 	void UpdateHologram(AActor* childActor);
+	void UpdateSteeringWheelAngle();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGArcadeVehicleComponent> arcadeSteeringSource;
+
+	UPROPERTY(Replicated)
+	int16 steeringWheelAngle = 0;
 
 	UFUNCTION()
 	void OnRep_ModuleStates();

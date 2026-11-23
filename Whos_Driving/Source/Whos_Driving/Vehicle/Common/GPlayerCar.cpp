@@ -3,6 +3,8 @@
 
 #include "GPlayerCar.h"
 #include "GVehicleHologram.h"
+#include "GSteeringWheelAnimInstance.h"
+#include "Vehicle/ArcadePhysics/GArcadeVehicleComponent.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleRadioComponent.h"
 #include "GVehicleSeatingComponent.h"
@@ -41,6 +43,7 @@ namespace
 	// The source rig slides Printer_Drawer 53 cm over 24 frames at 30 fps.
 	constexpr float ammoTrayTravel = 53.0f;
 	constexpr float ammoTrayDuration = 0.8f;
+	constexpr float steeringWheelRatio = 6.0f;
 }
 
 AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(objectInitializer.SetDefaultSubobjectClass<UGVehicleMovementComponent>
@@ -305,6 +308,7 @@ void AGPlayerCar::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AGPlayerCar, currentCarHealth);
 	DOREPLIFETIME(AGPlayerCar, moduleStates);
+	DOREPLIFETIME(AGPlayerCar, steeringWheelAngle);
 }
 
 FGVehicleModuleState AGPlayerCar::GetModuleDamageState(const FName& moduleId) const
@@ -442,6 +446,7 @@ void AGPlayerCar::PostInitializeComponents()
 void AGPlayerCar::BeginPlay()
 {
 	Super::BeginPlay();
+	arcadeSteeringSource = FindComponentByClass<UGArcadeVehicleComponent>();
 
 	TInlineComponentArray<USkeletalMeshComponent*> meshes(this);
 	for (USkeletalMeshComponent* mesh : meshes)
@@ -451,7 +456,12 @@ void AGPlayerCar::BeginPlay()
 			ammoTray = mesh;
 			ammoTrayClosedLocation = mesh->GetRelativeLocation();
 			ammoBox->SetHiddenInGame(true);
-			break;
+		}
+		else if (mesh->GetFName() == TEXT("partSteeringWheel") && mesh->GetBoneIndex(UGSteeringWheelAnimInstance::SteeringBoneName) != INDEX_NONE)
+		{
+			// The other modular parts still follow the chassis pose. The wheel has its own animated joint.
+			mesh->SetLeaderPoseComponent(nullptr, true);
+			mesh->SetAnimInstanceClass(UGSteeringWheelAnimInstance::StaticClass());
 		}
 	}
 
@@ -503,6 +513,10 @@ void AGPlayerCar::BeginPlay()
 void AGPlayerCar::Tick(float deltaSeconds)
 {
 	Super::Tick(deltaSeconds);
+	if (HasAuthority())
+	{
+		UpdateSteeringWheelAngle();
+	}
 	const double absRoll = FMath::Abs(GetActorRotation().Roll);
 	if (absRoll > 60.0f)
 	{
@@ -539,6 +553,21 @@ void AGPlayerCar::Tick(float deltaSeconds)
 		ammoTrayProgress = FMath::FInterpConstantTo(ammoTrayProgress, target, deltaSeconds, 1.0f / ammoTrayDuration);
 		ammoTray->SetRelativeLocation(ammoTrayClosedLocation + FVector(GetAmmoTrayExtension(), 0.0, 0.0));
 	}
+}
+
+void AGPlayerCar::UpdateSteeringWheelAngle()
+{
+	float roadWheelAngle = 0.0f;
+	if (arcadeSteeringSource && arcadeSteeringSource->UsesPlayerCarControls())
+	{
+		roadWheelAngle = arcadeSteeringSource->GetSteeringAngle();
+	}
+	else if (const UChaosWheeledVehicleMovementComponent* movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+		movement && movement->HasValidPhysicsState() && movement->Wheels.IsValidIndex(0) && movement->Wheels[0])
+	{
+		roadWheelAngle = movement->Wheels[0]->GetSteerAngle();
+	}
+	steeringWheelAngle = static_cast<int16>(FMath::RoundToInt(roadWheelAngle * steeringWheelRatio));
 }
 
 void AGPlayerCar::LoadCarData()
