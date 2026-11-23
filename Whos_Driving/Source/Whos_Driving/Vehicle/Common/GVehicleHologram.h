@@ -2,15 +2,12 @@
 
 #pragma once
 
-DECLARE_DYNAMIC_DELEGATE(FOnSoundAdd);
-
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GVehicleModule.h"
 #include "Sound/SoundCue.h"
 #include "GVehicleHologram.generated.h"
 
-class AGPlayerCar;
 class UStaticMeshComponent;
 struct FGVehicleModuleState;
 class UAudioComponent;
@@ -49,12 +46,7 @@ public:
 	void ApplyModuleStates(const TArray<FGVehicleModuleState>& moduleStates);
 
 protected:
-	void BeginPlay() override;
 	void Tick(float deltaTime) override;
-	void EndPlay(const EEndPlayReason::Type endPlayReason) override;
-
-	UFUNCTION()
-	void HandleElectricianChangeState(EGModuleState newState);
 
 	bool bGlitchActive = false;
 	void StartGlitch();
@@ -70,15 +62,8 @@ protected:
 	void StopSound();
 	void ResetSoundQueue();
 
-	UPROPERTY()
-	FOnSoundAdd OnSoundAdd;
-
-	UFUNCTION()
-	void HandleNewSoundInQueue();
-
 private:
 	UStaticMeshComponent* CreatePartMesh(const FName& componentName);
-	void BindToOwnerCar();
 	void SetModuleDamage(const FName& moduleId, float damage);
 
 	void PlaySound();
@@ -87,8 +72,6 @@ private:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hologram")
 	TObjectPtr<USceneComponent> hologramRoot;
-
-	TArray<FGVehicleModuleState> cachedModuleStates;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hologram")
 	TObjectPtr<UAudioComponent> audioComponent;
@@ -147,8 +130,4 @@ private:
 	// Filled by the constructor of every instance; the meshes are kept alive by the UPROPERTY members above.
 	TMap<FName, UStaticMeshComponent*> moduleMeshes;
 	TMap<FName, EGModuleState> previousModuleState;
-
-	TWeakObjectPtr<AGPlayerCar> ownerCar;
-
-	FDelegateHandle moduleStatesAppliedHandle;
 };

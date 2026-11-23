@@ -20,6 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInvitationAccepted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
 
 class UGEconomicDataAsset;
+class IInputProcessor;
 struct FGVehicleModuleState;
 
 UENUM(BlueprintType)
@@ -35,6 +36,7 @@ class WHOS_DRIVING_API UGGIWhosDriving : public UGameInstance
 
 public:
 	void Init() override;
+	void ReturnToMainMenu() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void HostSessionLAN(FString sessionName);
@@ -123,6 +125,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Economic")
 	int32 moneyFromTotal = 0;
 private:
+	TSharedPtr<IInputProcessor> returnToMenuInput;
+
 	//destroy func needs to know if player destroy while joining by invitation or on his own
 	bool currentlyJoining = false;
 	bool openUIAfterHosting = false;

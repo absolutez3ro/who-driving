@@ -6,9 +6,6 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
-#include "GVehicleElectricianModule.h"
-#include "GVehicleModuleComponent.h"
-#include "Audio.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundCue.h"
 
@@ -17,6 +14,7 @@ namespace
 	// Custom primitive data slots read by M_Hologram.
 	const int32 damageDataIndex = 0;
 	const int32 brightnessDataIndex = 1;
+	const FName electricianModuleId(TEXT("Electrician"));
 }
 
 AGVehicleHologram::AGVehicleHologram()
@@ -42,7 +40,7 @@ AGVehicleHologram::AGVehicleHologram()
 	moduleMeshes.Add(TEXT("partDoor0"), doorLeftMesh);
 	moduleMeshes.Add(TEXT("partDoor1"), doorRightMesh);
 	moduleMeshes.Add(TEXT("Engine"), engineMesh);
-	moduleMeshes.Add(TEXT("Electrician"), electronicsMesh);
+	moduleMeshes.Add(electricianModuleId, electronicsMesh);
 	moduleMeshes.Add(TEXT("Wheel_0"), wheelFrontLeftMesh);
 	moduleMeshes.Add(TEXT("Wheel_1"), wheelFrontRightMesh);
 	moduleMeshes.Add(TEXT("Wheel_2"), wheelRearLeftMesh);
@@ -50,8 +48,6 @@ AGVehicleHologram::AGVehicleHologram()
 
 	audioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
 	audioComponent->SetupAttachment(hologramRoot);
-
-	OnSoundAdd.BindDynamic(this, &AGVehicleHologram::HandleNewSoundInQueue);
 }
 
 void AGVehicleHologram::OnConstruction(const FTransform& transform)
@@ -59,13 +55,6 @@ void AGVehicleHologram::OnConstruction(const FTransform& transform)
 	Super::OnConstruction(transform);
 
 	bodyMesh->SetDefaultCustomPrimitiveDataFloat(brightnessDataIndex, bodyBrightness);
-}
-
-void AGVehicleHologram::BeginPlay()
-{
-	Super::BeginPlay();
-
-	GetWorld()->OnWorldBeginPlay.AddUObject(this, &AGVehicleHologram::BindToOwnerCar);
 }
 
 void AGVehicleHologram::Tick(float deltaTime)
@@ -89,32 +78,6 @@ void AGVehicleHologram::Tick(float deltaTime)
 	}
 }
 
-void AGVehicleHologram::EndPlay(const EEndPlayReason::Type endPlayReason)
-{
-	if (ownerCar.IsValid())
-	{
-		ownerCar->onModuleStatesApplied.Remove(moduleStatesAppliedHandle);
-	}
-	moduleStatesAppliedHandle.Reset();
-
-	Super::EndPlay(endPlayReason);
-}
-
-void AGVehicleHologram::HandleElectricianChangeState(EGModuleState newState)
-{
-	switch (newState)
-	{
-		case EGModuleState::Destroyed:
-			StartGlitch();
-			break;
-		case EGModuleState::Full:
-			StopGlitch();
-			break;
-		default:
-			break;
-	}
-}
-
 void AGVehicleHologram::StartGlitch()
 {
 	bGlitchActive = true;
@@ -122,7 +85,7 @@ void AGVehicleHologram::StartGlitch()
 	ApplyRandomModuleColors();
 	StopSound();
 	ResetSoundQueue();
-	AddSoundInQueue(TEXT("Electrician"), EGModuleState::Destroyed);
+	AddSoundInQueue(electricianModuleId, EGModuleState::Destroyed);
 	PlaySoundImmediately();
 }
 
@@ -130,12 +93,6 @@ void AGVehicleHologram::StopGlitch()
 {
 	bGlitchActive = false;
 	glitchTimer = 0.0f;
-	for (const FGVehicleModuleState& state : cachedModuleStates)
-	{
-		const bool bHasHealth = state.maxHP > 0.0f;
-		const float healthFraction = bHasHealth ? FMath::Clamp(state.currentHP / state.maxHP, 0.0f, 1.0f) : 0.0f;
-		SetModuleDamage(state.moduleId, 1.0f - healthFraction);
-	}
 }
 
 void AGVehicleHologram::ApplyGlitchTick()
@@ -165,7 +122,21 @@ void AGVehicleHologram::ApplyRandomModuleColors()
 
 void AGVehicleHologram::ApplyModuleStates(const TArray<FGVehicleModuleState>& moduleStates)
 {
-	cachedModuleStates = moduleStates;
+	const FGVehicleModuleState* electricianState = moduleStates.FindByPredicate([](const FGVehicleModuleState& state)
+	{
+		return state.moduleId == electricianModuleId;
+	});
+	if (electricianState)
+	{
+		if (!bGlitchActive && electricianState->moduleState == EGModuleState::Destroyed)
+		{
+			StartGlitch();
+		}
+		else if (bGlitchActive && electricianState->moduleState == EGModuleState::Full)
+		{
+			StopGlitch();
+		}
+	}
 	if (bGlitchActive)
 	{
 		return;
@@ -189,6 +160,11 @@ void AGVehicleHologram::ApplyModuleStates(const TArray<FGVehicleModuleState>& mo
 
 void AGVehicleHologram::AddSoundInQueue(const FName& moduleId, const EGModuleState moduleState)
 {
+	if (moduleState == EGModuleState::Full)
+	{
+		return;
+	}
+
 	static TMap<FName, FModuleSounds> runtimeSoundMap;
 	static bool bInitialized = false;
 
@@ -255,6 +231,11 @@ void AGVehicleHologram::AddSoundInQueue(const FName& moduleId, const EGModuleSta
 
 
 	const FModuleSounds* moduleSounds = runtimeSoundMap.Find(moduleId);
+	if (!moduleSounds)
+	{
+		return;
+	}
+
 	USoundCue* soundCue = nullptr;
 	switch (moduleState)
 	{
@@ -274,7 +255,7 @@ void AGVehicleHologram::AddSoundInQueue(const FName& moduleId, const EGModuleSta
 		sound.moduleId = moduleId;
 		sound.targetState = moduleState;
 		soundQueue.Enqueue(sound);
-		OnSoundAdd.Execute();
+		bHaveSoundsInQueue = true;
 	}
 }
 
@@ -361,11 +342,6 @@ void AGVehicleHologram::ResetSoundQueue()
 	soundQueue.Empty();
 }
 
-void AGVehicleHologram::HandleNewSoundInQueue()
-{
-	bHaveSoundsInQueue = true;
-}
-
 UStaticMeshComponent* AGVehicleHologram::CreatePartMesh(const FName& componentName)
 {
 	UStaticMeshComponent* partMesh = CreateDefaultSubobject<UStaticMeshComponent>(componentName);
@@ -378,32 +354,6 @@ UStaticMeshComponent* AGVehicleHologram::CreatePartMesh(const FName& componentNa
 	partMesh->SetDefaultCustomPrimitiveDataFloat(damageDataIndex, 0.0f);
 	partMesh->SetDefaultCustomPrimitiveDataFloat(brightnessDataIndex, 1.0f);
 	return partMesh;
-}
-
-void AGVehicleHologram::BindToOwnerCar()
-{
-	AGPlayerCar* car = Cast<AGPlayerCar>(GetParentActor());
-	if (!car)
-	{
-		car = Cast<AGPlayerCar>(GetAttachParentActor());
-	}
-
-	if (!car)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s: hologram is not attached to an AGPlayerCar, damage colours will not update"), *GetName());
-		return;
-	}
-
-	ownerCar = car;
-	moduleStatesAppliedHandle = car->onModuleStatesApplied.AddUObject(this, &AGVehicleHologram::ApplyModuleStates);
-	ApplyModuleStates(car->moduleStates);
-
-	UGVehicleModuleComponent* moduleComponent = car->GetModuleComponent();
-	auto electrician = moduleComponent->GetModulesOfType<UGVehicleElectricianModule>();
-	for (auto& elec : electrician)
-	{
-		elec->OnElectricianChangeState.AddDynamic(this, &AGVehicleHologram::HandleElectricianChangeState);
-	}
 }
 
 void AGVehicleHologram::SetModuleDamage(const FName& moduleId, float damage)

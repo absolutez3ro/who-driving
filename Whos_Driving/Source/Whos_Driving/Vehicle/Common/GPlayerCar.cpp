@@ -2,6 +2,7 @@
 
 
 #include "GPlayerCar.h"
+#include "GVehicleHologram.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleRadioComponent.h"
 #include "GVehicleSeatingComponent.h"
@@ -390,7 +391,15 @@ void AGPlayerCar::ApplyModuleStates()
 			state.moduleHpLevel
 		);
 	}
-	onModuleStatesApplied.Broadcast(moduleStates);
+	UpdateHologram(hologramComponent->GetChildActor());
+}
+
+void AGPlayerCar::UpdateHologram(AActor* childActor)
+{
+	if (AGVehicleHologram* hologram = Cast<AGVehicleHologram>(childActor))
+	{
+		hologram->ApplyModuleStates(moduleStates);
+	}
 }
 
 void AGPlayerCar::ApplyWheelVisual(int32 wheelIndex, bool bDestroyed)
@@ -419,6 +428,15 @@ void AGPlayerCar::ApplyWheelVisual(int32 wheelIndex, bool bDestroyed)
 			}
 		}
 	}
+}
+
+void AGPlayerCar::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	// The hologram can be recreated after the module states have already arrived.
+	hologramComponent->OnChildActorCreated().AddUObject(this, &AGPlayerCar::UpdateHologram);
+	UpdateHologram(hologramComponent->GetChildActor());
 }
 
 void AGPlayerCar::BeginPlay()

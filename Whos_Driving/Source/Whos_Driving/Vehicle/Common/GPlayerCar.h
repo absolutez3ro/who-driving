@@ -71,9 +71,6 @@ struct FGVehicleWheelVisual
 	TObjectPtr<UStaticMesh> destroyedMesh;
 };
 
-// Fired on the server and on every client after the replicated module states were applied.
-DECLARE_MULTICAST_DELEGATE_OneParam(FGOnModuleStatesApplied, const TArray<FGVehicleModuleState>&);
-
 /**
  * 
  */
@@ -147,8 +144,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
 
-	FGOnModuleStatesApplied onModuleStatesApplied;
-
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
 	TObjectPtr<UGVehicleRadioComponent> radioComponent;
@@ -164,10 +159,12 @@ protected:
 	TObjectPtr<UChildActorComponent> hologramComponent;
 
 	void SetupPlayerInputComponent(UInputComponent* playerInputComponent) override;
+	void PostInitializeComponents() override;
 	void BeginPlay() override;
 	void UnPossessed() override;
 
 	void ApplyWheelVisual(int32 wheelIndex, bool bDestroyed);
+	void UpdateHologram(AActor* childActor);
 
 	UFUNCTION()
 	void OnRep_ModuleStates();

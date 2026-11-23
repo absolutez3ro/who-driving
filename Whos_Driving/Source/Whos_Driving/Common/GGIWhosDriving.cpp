@@ -7,13 +7,73 @@
 #include "GEconomicDataAsset.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/NetDriver.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 #include "GVehicleModuleComponent.h"
+#include "Widgets/SViewport.h"
+
+namespace
+{
+	const FName mainMenuLevel(TEXT("/Game/FirstPerson/levels/Lvl_MainMenu"));
+
+	class FReturnToMenuInputProcessor final : public IInputProcessor
+	{
+	public:
+		explicit FReturnToMenuInputProcessor(UGGIWhosDriving* gameInstance)
+			: gameInstance(gameInstance)
+		{
+		}
+
+		void Tick(float, FSlateApplication&, TSharedRef<ICursor>) override {}
+
+		bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& event) override
+		{
+			UGGIWhosDriving* instance = gameInstance.Get();
+			if (!instance || event.GetKey() != EKeys::Escape)
+			{
+				return false;
+			}
+
+			const UGameViewportClient* viewport = instance->GetGameViewportClient();
+			const TSharedPtr<SViewport> viewportWidget = viewport ? viewport->GetGameViewportWidget() : nullptr;
+			const int32 userIndex = event.GetUserIndex();
+			if (!viewportWidget || (!viewportWidget->HasUserFocus(userIndex).IsSet() && !viewportWidget->HasUserFocusedDescendants(userIndex)))
+			{
+				return false;
+			}
+
+			const FString levelName = UGameplayStatics::GetCurrentLevelName(instance);
+			if (levelName.IsEmpty() || levelName == TEXT("Lvl_MainMenu") || levelName == TEXT("Lvl_MainMenuHelper"))
+			{
+				return false;
+			}
+
+			if (!event.IsRepeat())
+			{
+				instance->ReturnToMainMenu();
+			}
+			return true;
+		}
+
+	private:
+		TWeakObjectPtr<UGGIWhosDriving> gameInstance;
+	};
+}
+
 void UGGIWhosDriving::Init()
 {
 	Super::Init();
 	LoadEconomicData();
+
+	// Handle Escape when a game widget has keyboard focus, including UI-only input mode.
+	if (FSlateApplication::IsInitialized())
+	{
+		returnToMenuInput = MakeShared<FReturnToMenuInputProcessor>(this);
+		FSlateApplication::Get().RegisterInputPreProcessor(returnToMenuInput, 0);
+	}
 
 	if (GEngine)
 	{
@@ -40,6 +100,12 @@ void UGGIWhosDriving::Init()
 
 void UGGIWhosDriving::Shutdown()
 {
+	if (returnToMenuInput && FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().UnregisterInputPreProcessor(returnToMenuInput);
+	}
+	returnToMenuInput.Reset();
+
 	if (IOnlineSubsystem* steamSubsystem = IOnlineSubsystem::Get(FName(TEXT("Steam"))))
 	{
 		IOnlineSessionPtr sessionInterface = steamSubsystem->GetSessionInterface();
@@ -50,6 +116,23 @@ void UGGIWhosDriving::Shutdown()
 	}
 
 	Super::Shutdown();
+}
+
+void UGGIWhosDriving::ReturnToMainMenu()
+{
+	if (IOnlineSubsystem* subsystem = IOnlineSubsystem::Get(mySessionSystem))
+	{
+		const IOnlineSessionPtr sessionInterface = subsystem->GetSessionInterface();
+		if (sessionInterface && sessionInterface->GetNamedSession(NAME_GameSession)
+			&& sessionInterface->GetSessionState(NAME_GameSession) != EOnlineSessionState::Destroying)
+		{
+			DestroySession();
+		}
+	}
+
+	// Steam uses the menu as a listen server. The offline menu can load without a net driver.
+	const bool bSteamAvailable = IOnlineSubsystem::Get(FName(TEXT("Steam"))) != nullptr;
+	UGameplayStatics::OpenLevel(this, mainMenuLevel, true, bSteamAvailable ? TEXT("listen") : TEXT(""));
 }
 
 
