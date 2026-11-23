@@ -188,7 +188,7 @@ void AGPlayerCar::InitWheels(const FObjectInitializer& objectInitializer)
 		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
 		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
 
 		moduleHitBoxes.Add(hitBox);
@@ -217,7 +217,7 @@ void AGPlayerCar::InitDoors(const FObjectInitializer& objectInitializer)
 		hitBox->InitBoxExtent(FVector(40.0f, 20.0f, 40.0f));
 		hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+		hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 		hitBox->SetGenerateOverlapEvents(false);
 
 		moduleHitBoxes.Add(hitBox);
@@ -239,7 +239,7 @@ void AGPlayerCar::InitSteeringWheel(const FObjectInitializer& objectInitializer)
 	hitBox->InitBoxExtent(FVector(20.0f, 20.0f, 25.0f));
 	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 	hitBox->SetGenerateOverlapEvents(false);
 	hitBox->SetRelativeLocation(FVector(70.0f, -59.0f, 105.0f));
 
@@ -262,7 +262,7 @@ void AGPlayerCar::InitEngine(const FObjectInitializer& objectInitializer)
 	hitBox->SetRelativeLocation(FVector(205.0f, -4.0f, 110.0f));
 	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 	hitBox->SetGenerateOverlapEvents(false);
 	moduleHitBoxes.Add(hitBox);
 }
@@ -283,7 +283,7 @@ void AGPlayerCar::InitElectrician(const FObjectInitializer& objectInitializer)
 	hitBox->SetRelativeLocation(FVector(-30.0f, -1.0f, 85.0f));
 	hitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	hitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	hitBox->SetCollisionResponseToChannel(ECC_GameTraceChannel5, ECR_Block);
 	hitBox->SetGenerateOverlapEvents(false);
 	moduleHitBoxes.Add(hitBox);
 }
@@ -927,6 +927,11 @@ void AGPlayerCar::ApplyFlipInput(float inputValue)
 void AGPlayerCar::ExecFlipCar()
 {
 	SetActorRelativeRotation(FRotator(180.0f, 0.0f, 0.0f));
+}
+
+void AGPlayerCar::ExecDamageModule(const FName& moduleId, float damage)
+{
+	DamageModule(moduleId, damage);
 }
 
 void AGPlayerCar::InputSteeringReleased(const FInputActionValue& value)

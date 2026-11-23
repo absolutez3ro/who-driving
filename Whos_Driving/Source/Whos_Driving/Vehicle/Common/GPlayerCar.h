@@ -133,6 +133,9 @@ public:
 
 	UFUNCTION(Exec)
 	void ExecFlipCar();
+
+	UFUNCTION(Exec)
+	void ExecDamageModule(const FName& moduleId, float damage);
 public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Vehicle|Damage")
 	float currentCarHealth = 0;
@@ -146,6 +149,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGCarDataAsset> carData;
+
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Radio")
