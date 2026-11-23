@@ -209,6 +209,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Mapping Contexts")
 	TObjectPtr<UInputMappingContext> gameplayMappingContext;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Mapping Contexts")
+	TObjectPtr<UInputMappingContext> seatedCombatMappingContext;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
 	TObjectPtr<UInputAction> lookAction;
 
@@ -227,12 +230,6 @@ protected:
 	// Each action selects the weapon with the same index in UGVehicleCombatComponent::loadout.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
 	TArray<TObjectPtr<UInputAction>> weaponSelectActions;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
-	TObjectPtr<UInputAction> windowLeftAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
-	TObjectPtr<UInputAction> windowRightAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
 	TObjectPtr<UInputAction> fireAction;
@@ -254,6 +251,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
 	TObjectPtr<UInputAction> reviveAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input|Actions")
+	TObjectPtr<UInputAction> windowToggleAction;
+
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLookingOnModule = false;
@@ -292,10 +293,7 @@ private:
 	float lastSeatRequestTime = -1.0f;
 	float lastRepairRequestTime = -1.0f;
 	float lastCombatViewTime = -1.0f;
-	UPROPERTY()
-	TObjectPtr<UInputAction> windowToggleAction;
-	UPROPERTY()
-	TObjectPtr<UInputMappingContext> seatedCombatMappingContext;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UGInteractionFeedback> interactionFeedback;
 	TWeakObjectPtr<UGBoxComponent> lookedAtModule;
