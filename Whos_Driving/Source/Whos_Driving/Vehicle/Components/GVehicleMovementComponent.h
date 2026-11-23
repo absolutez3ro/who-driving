@@ -21,6 +21,7 @@ public:
 	UGVehicleMovementComponent();
 	void SubscribeOnDelegates();
 	bool UsesArcadePhysics() const;
+	float GetAppliedThrottle() const { return ThrottleInput; }
 	FGArcadeVehicleInput ReadArcadeInput(float deltaTime);
 	void SetUpgradeLevels(int32 accelerationLevel, int32 maxSpeedLevel);
 	float GetArcadeTorqueMultiplier() const;

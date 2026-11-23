@@ -100,6 +100,10 @@ struct FGArcadeWheelState
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Wheel")
 	float slipAngle = 0.0f;
 
+	// Relative speed between the tire tread and the road, in metres per second.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Wheel")
+	float slipSpeed = 0.0f;
+
 	// Newtons in the tire's forward direction.
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Wheel")
 	float longitudinalForce = 0.0f;
