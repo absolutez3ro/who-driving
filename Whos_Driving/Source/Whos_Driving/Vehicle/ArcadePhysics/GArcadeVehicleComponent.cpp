@@ -1,6 +1,8 @@
 #include "GArcadeVehicleComponent.h"
 #include "GArcadeTireModel.h"
 #include "GArcadeVehicleTuning.h"
+#include "GPlayerCar.h"
+#include "GVehicleMovementComponent.h"
 #include "ChaosVehicleMovementComponent.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
@@ -71,6 +73,12 @@ void UGArcadeVehicleComponent::BeginPlay()
 	{
 		UE_LOG(LogArcadeVehicle, Warning, TEXT("%s: no wheels are set up on the arcade vehicle."), *GetOwner()->GetName());
 	}
+	if (bUsePlayerCarControls)
+	{
+		playerCarMovement = GetOwner()->FindComponentByClass<UGVehicleMovementComponent>();
+		chassis->bReplicatePhysicsToAutonomousProxy = true;
+		chassis->SetSimulatePhysics(true);
+	}
 
 	drivetrain.Reset();
 	driftController.Reset();
@@ -85,6 +93,14 @@ void UGArcadeVehicleComponent::TickComponent(float deltaTime, ELevelTick tickTyp
 	if (wheelStates.Num() != wheelSetups.Num())
 	{
 		InitializeWheels();
+	}
+	if (playerCarMovement)
+	{
+		vehicleInput = playerCarMovement->ReadArcadeInput(deltaTime);
+		if (AGPlayerCar* car = Cast<AGPlayerCar>(GetOwner()); car && car->HasAuthority() && car->TryApplyFlipInput(vehicleInput.steering))
+		{
+			vehicleInput.steering = 0.0f;
+		}
 	}
 	if (!CanSimulate())
 	{
@@ -269,6 +285,10 @@ void UGArcadeVehicleComponent::ResolveWheelVisual(int32 wheelIndex)
 	{
 		UE_LOG(LogArcadeVehicle, Warning, TEXT("%s: wheel visual component '%s' was not found."), *GetOwner()->GetName(), *visualName.ToString());
 		return;
+	}
+	if (playerCarMovement)
+	{
+		visual->SetIsReplicated(true);
 	}
 
 	// Wheel meshes of the vehicle are modelled in chassis space, so the bounds centre is the hub and the
@@ -578,7 +598,8 @@ void UGArcadeVehicleComponent::UpdateDrift(const FGArcadeChassisFrame& frame)
 void UGArcadeVehicleComponent::UpdateSteering(const FGArcadeChassisFrame& frame)
 {
 	const FGArcadeSteeringSettings& steering = GetTuningData().Steering;
-	const float maxAngle = ComputeMaxSteerAngle(FMath::Abs(frame.forwardSpeed));
+	const float tunedAngle = ComputeMaxSteerAngle(FMath::Abs(frame.forwardSpeed));
+	const float maxAngle = playerCarMovement ? FMath::Min(tunedAngle, playerCarMovement->GetArcadeSteeringLimit()) : tunedAngle;
 	const float targetAngle = FMath::Clamp(vehicleInput.steering * maxAngle + ComputeCounterSteerAngle(frame), -maxAngle, maxAngle);
 
 	const bool bIsCrossingCentre = targetAngle * currentSteerAngle < 0.0f;
@@ -625,12 +646,19 @@ float UGArcadeVehicleComponent::ComputeMaxSteerAngle(float speed) const
 void UGArcadeVehicleComponent::UpdateDrivetrain(const FGArcadeChassisFrame& frame)
 {
 	const UGArcadeVehicleTuning& tuningData = GetTuningData();
+	FGArcadeEngineSettings engine = tuningData.Engine;
 
 	FGArcadeDrivetrainInput input;
 	input.throttle = vehicleInput.throttle;
 	input.brake = vehicleInput.brake;
 	input.forwardSpeed = frame.forwardSpeed;
 	input.torqueMultiplier = engineTorqueMultiplier;
+	if (playerCarMovement)
+	{
+		input.torqueMultiplier *= playerCarMovement->CanArcadeEngineDrive(speedKmh) ? playerCarMovement->GetArcadeTorqueMultiplier() : 0.0f;
+		const float upgradedRedline = engine.RedlineRpm * playerCarMovement->GetArcadeRedlineMultiplier();
+		engine.RedlineRpm = FMath::Max(upgradedRedline, engine.IdleRpm + 1.0f);
+	}
 	input.bHasGroundContact = frame.groundedWheelCount > 0;
 	float drivenWheelRadius = 0.0f;
 	for (int32 wheelIndex = 0; wheelIndex < wheelStates.Num(); ++wheelIndex)
@@ -641,7 +669,7 @@ void UGArcadeVehicleComponent::UpdateDrivetrain(const FGArcadeChassisFrame& fram
 	}
 	input.roadWheelAngularVelocity = frame.forwardSpeed / FMath::Max(drivenWheelRadius, UE_KINDA_SMALL_NUMBER);
 
-	drivetrain.Update(input, tuningData.Engine, tuningData.Transmission, frame.deltaTime);
+	drivetrain.Update(input, engine, tuningData.Transmission, frame.deltaTime);
 }
 
 float UGArcadeVehicleComponent::ComputeTractionScale() const
@@ -731,7 +759,7 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	const float lateralSpeed = FVector::DotProduct(runtime.contactVelocity, runtime.lateralDirection);
 
 	// Handbrake cornering loss comes from wheel slip; controlled drifts use a modest rear grip reduction.
-	const float grip = tires.FrictionCoefficient * state.surfaceFriction * runtime.gripMultiplier;
+	const float grip = tires.FrictionCoefficient * state.surfaceFriction * GetWheelGripMultiplier(wheelIndex);
 	const bool bIsRear = IsRearWheel(wheelIndex);
 	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && bIsRear;
 	const bool bUsePhysicalSlides = tuningData.Drift.bUsePhysicalSlides;
@@ -832,7 +860,7 @@ FVector UGArcadeVehicleComponent::ApplyStandstillHold(const FGArcadeChassisFrame
 		if (state.bHasContact)
 		{
 			groundNormal += state.contactNormal;
-			frictionLimit += tires.FrictionCoefficient * state.surfaceFriction * wheelRuntimes[wheelIndex].gripMultiplier * state.normalLoad;
+			frictionLimit += tires.FrictionCoefficient * state.surfaceFriction * GetWheelGripMultiplier(wheelIndex) * state.normalLoad;
 		}
 	}
 	groundNormal = groundNormal.IsNearlyZero() ? frame.up : groundNormal.GetSafeNormal();
@@ -869,6 +897,10 @@ void UGArcadeVehicleComponent::HoldWheel(int32 wheelIndex, const FGArcadeChassis
 
 float UGArcadeVehicleComponent::ComputeDriveTorque(int32 wheelIndex, float tractionScale) const
 {
+	if (playerCarMovement && playerCarMovement->IsArcadeWheelDisabled(wheelIndex))
+	{
+		return 0.0f;
+	}
 	// Disconnect the rear drive while the handbrake is held so engine torque cannot defeat the lock.
 	if (GetTuningData().Drift.bUsePhysicalSlides && vehicleInput.bHandbrake && IsRearWheel(wheelIndex))
 	{
@@ -880,6 +912,10 @@ float UGArcadeVehicleComponent::ComputeDriveTorque(int32 wheelIndex, float tract
 
 float UGArcadeVehicleComponent::ComputeBrakeTorque(int32 wheelIndex) const
 {
+	if (playerCarMovement && playerCarMovement->IsArcadeWheelDisabled(wheelIndex))
+	{
+		return 0.0f;
+	}
 	const UGArcadeVehicleTuning& tuningData = GetTuningData();
 	const FGArcadeBrakeSettings& brakes = tuningData.Brakes;
 	// Preserve the short brake tap that initiates a controlled drift. Handbrake turns keep full braking.
@@ -892,6 +928,12 @@ float UGArcadeVehicleComponent::ComputeBrakeTorque(int32 wheelIndex) const
 	const bool bIsHandbrakeWheel = vehicleInput.bHandbrake && IsRearWheel(wheelIndex);
 	const float handbrakeTorque = bIsHandbrakeWheel ? brakes.HandbrakeTorque : 0.0f;
 	return serviceBrakeTorque + handbrakeTorque;
+}
+
+float UGArcadeVehicleComponent::GetWheelGripMultiplier(int32 wheelIndex) const
+{
+	const float damageMultiplier = playerCarMovement ? playerCarMovement->GetArcadeWheelGripMultiplier(wheelIndex) : 1.0f;
+	return wheelRuntimes[wheelIndex].gripMultiplier * damageMultiplier;
 }
 
 FVector UGArcadeVehicleComponent::ComputeForceApplicationPoint(int32 wheelIndex, const FGArcadeChassisFrame& frame) const

@@ -8,6 +8,7 @@
 #include "GArcadeVehicleComponent.generated.h"
 
 class UGArcadeVehicleTuning;
+class UGVehicleMovementComponent;
 class UPrimitiveComponent;
 class USceneComponent;
 struct FCollisionQueryParams;
@@ -123,6 +124,7 @@ public:
 
 	// Falls back to the class defaults when no tuning asset is assigned.
 	const UGArcadeVehicleTuning& GetTuningData() const;
+	bool UsesPlayerCarControls() const { return bUsePlayerCarControls; }
 
 protected:
 	void BeginPlay() override;
@@ -132,6 +134,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vehicle|Arcade")
 	TArray<FGArcadeWheelSetup> wheelSetups;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle|Arcade")
+	bool bUsePlayerCarControls = false;
 
 	// Longest step simulated in one tick; slower frames run the simulation in slow motion instead of exploding.
 	UPROPERTY(EditAnywhere, Category = "Vehicle|Arcade", meta = (ClampMin = "0.001", Units = "s"))
@@ -203,9 +208,13 @@ private:
 	bool HasSteeringInput() const;
 	float GetWheelRadius(int32 wheelIndex) const;
 	float GetWheelInertia(int32 wheelIndex) const;
+	float GetWheelGripMultiplier(int32 wheelIndex) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> chassis;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGVehicleMovementComponent> playerCarMovement;
 
 	TArray<FGArcadeWheelRuntime> wheelRuntimes;
 	FGArcadeDrivetrain drivetrain;

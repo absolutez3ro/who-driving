@@ -96,6 +96,7 @@ public:
 	void OnWheelDestroyed(int32 wheelIndex);
 
 	void PublishModuleStates();
+	bool TryApplyFlipInput(float steering);
 	float GetSpeed();
 
 	UFUNCTION(BlueprintPure, Category = "Vehicle|Radio")
@@ -175,6 +176,8 @@ protected:
 	void InputSteeringReleased(const FInputActionValue& value);
 	void InputBrake(const FInputActionValue& value);
 	void InputBrakeReleased(const FInputActionValue& value);
+	void InputHandbrakePressed();
+	void InputHandbrakeReleased();
 	void InputRepair(const FInputActionValue& value);
 
 	void PossessedBy(AController* newController) override;
@@ -206,6 +209,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> brakeAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> handbrakeAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Driver")
 	TSubclassOf<AWhos_DrivingCharacter> driverCharacterClass;

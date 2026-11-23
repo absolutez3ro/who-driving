@@ -469,6 +469,7 @@ void AGPlayerCar::BeginPlay()
 		TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
 		if (gi)
 		{
+			movementComponent->SetUpgradeLevels(gi->carUpgradeData.AccelerationLevel, gi->carUpgradeData.maxSpeedLevel);
 			if (gi->GetCarData().moduleStates.Num() != 0) {
 				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, FString::Printf(TEXT("yes car info in gi, loading")));
 				moduleStates = gi->GetCarData().moduleStates;
@@ -478,8 +479,6 @@ void AGPlayerCar::BeginPlay()
 				}
 				currentCarHealth = gi->GetCarData().currentCarHealth;
 				baseCarHealth = gi->GetCarData().baseCarHealth;
-				movementComponent->currentAccelerationLevel = gi->carUpgradeData.AccelerationLevel;
-				movementComponent->currentMaxSpeedLevel = gi->carUpgradeData.maxSpeedLevel;
 			}
 			else
 			{
@@ -788,18 +787,27 @@ void AGPlayerCar::SetupPlayerInputComponent(UInputComponent* playerInputComponen
 	{
 		enhancedInputComponent->BindAction(throttleAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerCar::InputThrottle);
 		enhancedInputComponent->BindAction(throttleAction.Get(), ETriggerEvent::Completed, this, &AGPlayerCar::InputThrottleReleased);
+		enhancedInputComponent->BindAction(throttleAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerCar::InputThrottleReleased);
 	}
 
 	if (steeringAction) 
 	{
 		enhancedInputComponent->BindAction(steeringAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerCar::InputSteering);
 		enhancedInputComponent->BindAction(steeringAction.Get(), ETriggerEvent::Completed, this, &AGPlayerCar::InputSteeringReleased);
+		enhancedInputComponent->BindAction(steeringAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerCar::InputSteeringReleased);
 	}
 
 	if (brakeAction) 
 	{
 		enhancedInputComponent->BindAction(brakeAction.Get(), ETriggerEvent::Triggered, this, &AGPlayerCar::InputBrake);
 		enhancedInputComponent->BindAction(brakeAction.Get(), ETriggerEvent::Completed, this, &AGPlayerCar::InputBrakeReleased);
+		enhancedInputComponent->BindAction(brakeAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerCar::InputBrakeReleased);
+	}
+	if (handbrakeAction)
+	{
+		enhancedInputComponent->BindAction(handbrakeAction.Get(), ETriggerEvent::Started, this, &AGPlayerCar::InputHandbrakePressed);
+		enhancedInputComponent->BindAction(handbrakeAction.Get(), ETriggerEvent::Completed, this, &AGPlayerCar::InputHandbrakeReleased);
+		enhancedInputComponent->BindAction(handbrakeAction.Get(), ETriggerEvent::Canceled, this, &AGPlayerCar::InputHandbrakeReleased);
 	}
 }
 
@@ -811,7 +819,7 @@ void AGPlayerCar::InputThrottle(const FInputActionValue& value)
 	}
 	float throttle = value.Get<float>();
 	UGVehicleMovementComponent* movement = Cast<UGVehicleMovementComponent>(GetMovementComponent());
-	if (movement->IsEngineBroken())
+	if (!movement->UsesArcadePhysics() && movement->IsEngineBroken())
 	{
 		float speed = GetSpeed();
 		if (speed >= movement->GetBrokenEngineMaxSpeed())
@@ -833,18 +841,31 @@ void AGPlayerCar::InputThrottleReleased(const FInputActionValue& value)
 
 void AGPlayerCar::InputSteering(const FInputActionValue& value) 
 {
-	if (CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent())->IsWindowDrivingLocked()) 
+	UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	if (movement->IsWindowDrivingLocked())
 	{ 
 		return; 
 	}
 	const float steering = value.Get<float>();
-	if (bIsFlipped)
+	if (!movement->UsesArcadePhysics() && TryApplyFlipInput(steering))
 	{
-		ApplyFlipInput(steering);
 		return;
 	}
 
-	GetVehicleMovementComponent()->SetSteeringInput(steering);
+	movement->SetSteeringInput(steering);
+}
+
+bool AGPlayerCar::TryApplyFlipInput(float steering)
+{
+	if (!bIsFlipped)
+	{
+		return false;
+	}
+	if (!FMath::IsNearlyZero(steering))
+	{
+		ApplyFlipInput(steering);
+	}
+	return true;
 }
 
 void AGPlayerCar::ApplyFlipInput(float inputValue)
@@ -905,6 +926,20 @@ void AGPlayerCar::InputBrakeReleased(const FInputActionValue& value)
 		return; 
 	}
 	GetVehicleMovementComponent()->SetBrakeInput(0.0f);
+}
+
+void AGPlayerCar::InputHandbrakePressed()
+{
+	UGVehicleMovementComponent* movement = CastChecked<UGVehicleMovementComponent>(GetVehicleMovementComponent());
+	if (!movement->IsWindowDrivingLocked())
+	{
+		movement->SetHandbrakeInput(true);
+	}
+}
+
+void AGPlayerCar::InputHandbrakeReleased()
+{
+	GetVehicleMovementComponent()->SetHandbrakeInput(false);
 }
 
 float AGPlayerCar::TakeDamage(float damageAmount, const FDamageEvent& damageEvent, AController* eventInstigator, AActor* damageCauser)

@@ -3,6 +3,7 @@
 
 #include "GVehicleMovementComponent.h"
 #include "GCarDataAsset.h"
+#include "Vehicle/ArcadePhysics/GArcadeVehicleComponent.h"
 #include "GPlayerCar.h"
 #include "GVehicleEngineModule.h"
 #include "GVehicleSteeringWheelModule.h"
@@ -33,30 +34,142 @@ UGVehicleMovementComponent::UGVehicleMovementComponent()
 
 void UGVehicleMovementComponent::OnRep_MaxSpeedLevel()
 {
-	//UE_LOG(LogTemp, Log, TEXT("baseMaxRPM %f maxRPMPerLevel %f FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1 %d"), baseMaxRPM, maxRPMPerLevel, (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1));
-	float maxRPM = baseMaxRPM + maxRPMPerLevel * (FMath::Min(currentMaxSpeedLevel, maxMaxSpeedLevel) - 1);
-	EngineSetup.MaxRPM = maxRPM;
-	RecreatePhysicsState();
+	EngineSetup.MaxRPM = GetUpgradedMaxRPM();
+	if (!UsesArcadePhysics())
+	{
+		RecreatePhysicsState();
+	}
 }
 
 void UGVehicleMovementComponent::OnRep_AccelerationLevel()
 {
-	//UE_LOG(LogTemp, Log, TEXT("baseIdleRPM %f idleRPMPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseIdleRPM, idleRPMPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
-	float idleRPM = baseIdleRPM + idleRPMPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) -1);
-	//UE_LOG(LogTemp, Log, TEXT("baseRevUp %f revUpPerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseRevUp, revUpPerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
-	float revUp = baseRevUp + revUpPerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
-	//UE_LOG(LogTemp, Log, TEXT("baseMaxTorque %f maxTorquePerLevel %f FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1 %d"), baseMaxTorque, maxTorquePerLevel, (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1));
-	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
-	EngineSetup.EngineIdleRPM = idleRPM;
-	EngineSetup.EngineRevUpMOI = revUp;
-	SetMaxEngineTorque(maxTorque);
-	RecreatePhysicsState();
+	const int32 extraLevels = FMath::Clamp(currentAccelerationLevel, 1, FMath::Max(1, maxAccelerationLevel)) - 1;
+	EngineSetup.EngineIdleRPM = baseIdleRPM + idleRPMPerLevel * extraLevels;
+	EngineSetup.EngineRevUpMOI = baseRevUp + revUpPerLevel * extraLevels;
+	if (!UsesArcadePhysics())
+	{
+		SetMaxEngineTorque(GetUpgradedTorque() * (bEngineBroken ? brokenEngineTorqueMultiplier : 1.0f));
+		RecreatePhysicsState();
+	}
 }
 
+void UGVehicleMovementComponent::SetUpgradeLevels(int32 accelerationLevel, int32 maxSpeedLevel)
+{
+	if (accelerationLevel > 0 && currentAccelerationLevel != accelerationLevel)
+	{
+		currentAccelerationLevel = FMath::Min(accelerationLevel, FMath::Max(1, maxAccelerationLevel));
+		OnRep_AccelerationLevel();
+	}
+	if (maxSpeedLevel > 0 && currentMaxSpeedLevel != maxSpeedLevel)
+	{
+		currentMaxSpeedLevel = FMath::Min(maxSpeedLevel, FMath::Max(1, maxMaxSpeedLevel));
+		OnRep_MaxSpeedLevel();
+	}
+}
+
+float UGVehicleMovementComponent::GetUpgradedTorque() const
+{
+	return baseMaxTorque + maxTorquePerLevel * (FMath::Clamp(currentAccelerationLevel, 1, FMath::Max(1, maxAccelerationLevel)) - 1);
+}
+
+float UGVehicleMovementComponent::GetUpgradedMaxRPM() const
+{
+	return baseMaxRPM + maxRPMPerLevel * (FMath::Clamp(currentMaxSpeedLevel, 1, FMath::Max(1, maxMaxSpeedLevel)) - 1);
+}
+
+bool UGVehicleMovementComponent::UsesArcadePhysics() const
+{
+	const UGArcadeVehicleComponent* arcade = GetOwner() ? GetOwner()->FindComponentByClass<UGArcadeVehicleComponent>() : nullptr;
+	return arcade && arcade->UsesPlayerCarControls();
+}
+
+bool UGVehicleMovementComponent::CanCreateVehicle() const
+{
+	return !UsesArcadePhysics() && Super::CanCreateVehicle();
+}
+
+float UGVehicleMovementComponent::GetArcadeTorqueMultiplier() const
+{
+	const float upgradeMultiplier = baseMaxTorque > 0.0f ? GetUpgradedTorque() / baseMaxTorque : 1.0f;
+	return upgradeMultiplier * (bEngineBroken ? brokenEngineTorqueMultiplier : 1.0f);
+}
+
+float UGVehicleMovementComponent::GetArcadeRedlineMultiplier() const
+{
+	return baseMaxRPM > 0.0f ? GetUpgradedMaxRPM() / baseMaxRPM : 1.0f;
+}
+
+float UGVehicleMovementComponent::GetArcadeSteeringLimit() const
+{
+	return bSteeringBroken ? brokenSteeringWheelAngle : 90.0f;
+}
+
+float UGVehicleMovementComponent::GetArcadeWheelGripMultiplier(int32 wheelIndex) const
+{
+	return IsArcadeWheelDisabled(wheelIndex) ? brokenWheelFrictionMultiplier : 1.0f;
+}
+
+bool UGVehicleMovementComponent::IsArcadeWheelDisabled(int32 wheelIndex) const
+{
+	return brokenWheels.Contains(wheelIndex);
+}
+
+bool UGVehicleMovementComponent::CanArcadeEngineDrive(float speedKmh) const
+{
+	return !bEngineBroken || speedKmh < brokenEngineMaxSpeed;
+}
+
+FGArcadeVehicleInput UGVehicleMovementComponent::ReadArcadeInput(float deltaTime)
+{
+	VehicleState.CaptureState(GetBodyInstance(), GetGravityZ(), deltaTime);
+	FGArcadeVehicleInput input;
+	const AController* controller = GetController();
+	if (!controller)
+	{
+		input.bHandbrake = true;
+		return input;
+	}
+	if (bWindowDrivingLocked)
+	{
+		input.throttle = windowThrottle;
+		return input;
+	}
+	if (controller->IsLocalController())
+	{
+		input.throttle = FMath::Clamp(RawThrottleInput, 0.0f, 1.0f);
+		input.brake = FMath::Clamp(RawBrakeInput, 0.0f, 1.0f);
+		input.steering = RawSteeringInput;
+		input.bHandbrake = bRawHandbrakeInput;
+		if (!GetOwner()->HasAuthority() && (input.throttle != lastArcadeInputSent.throttle
+			|| input.brake != lastArcadeInputSent.brake || input.steering != lastArcadeInputSent.steering
+			|| input.bHandbrake != lastArcadeInputSent.bHandbrake))
+		{
+			ServerSetArcadeInput(input);
+			lastArcadeInputSent = input;
+		}
+		return input;
+	}
+	return remoteArcadeInput;
+}
+
+void UGVehicleMovementComponent::ServerSetArcadeInput_Implementation(const FGArcadeVehicleInput& input)
+{
+	if (GetController() && !bWindowDrivingLocked && UsesArcadePhysics())
+	{
+		remoteArcadeInput.throttle = FMath::IsFinite(input.throttle) ? FMath::Clamp(input.throttle, 0.0f, 1.0f) : 0.0f;
+		remoteArcadeInput.brake = FMath::IsFinite(input.brake) ? FMath::Clamp(input.brake, 0.0f, 1.0f) : 0.0f;
+		remoteArcadeInput.steering = FMath::IsFinite(input.steering) ? FMath::Clamp(input.steering, -1.0f, 1.0f) : 0.0f;
+		remoteArcadeInput.bHandbrake = input.bHandbrake;
+	}
+}
 
 void UGVehicleMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	if (UsesArcadePhysics() && IsPhysicsStateCreated())
+	{
+		RecreatePhysicsState();
+	}
 
 	if (carData)
 	{
@@ -73,11 +186,11 @@ void UGVehicleMovementComponent::BeginPlay()
 		baseRevUp = carData->baseRevUp;
 		revUpPerLevel = carData->revUpPerLevel;
 		// max speed level
-		maxMaxSpeedLevel = carData->maxMaxSpeedLevel;
-		currentMaxSpeedLevel = carData->startingMaxSpeedLevel;
+		maxMaxSpeedLevel = FMath::Max(1, carData->maxMaxSpeedLevel);
+		currentMaxSpeedLevel = FMath::Clamp(carData->startingMaxSpeedLevel, 1, maxMaxSpeedLevel);
 		// acceleration level
-		maxAccelerationLevel = carData->maxMaxSpeedLevel;
-		currentAccelerationLevel = carData->startingMaxSpeedLevel;
+		maxAccelerationLevel = FMath::Max(1, carData->maxAccelerationLevel);
+		currentAccelerationLevel = FMath::Clamp(carData->startingAccelerationLevel, 1, maxAccelerationLevel);
 		OnRep_MaxSpeedLevel();
 		OnRep_AccelerationLevel();
 		brokenWheelFrictionMultiplier = carData->BrokenWheelFrictionMultiplier;
@@ -89,6 +202,7 @@ void UGVehicleMovementComponent::BeginPlay()
 
 void UGVehicleMovementComponent::BreakWheel(int32 wheelIndex)
 {
+	brokenWheels.Add(wheelIndex);
 	if (!Wheels.IsValidIndex(wheelIndex))
 	{
 		return;
@@ -107,6 +221,7 @@ void UGVehicleMovementComponent::BreakWheel(int32 wheelIndex)
 
 void UGVehicleMovementComponent::RepairWheel(int32 wheelIndex)
 {
+	brokenWheels.Remove(wheelIndex);
 	if (!Wheels.IsValidIndex(wheelIndex))
 	{
 		return;
@@ -121,7 +236,8 @@ void UGVehicleMovementComponent::RepairWheel(int32 wheelIndex)
 
 void UGVehicleMovementComponent::BreakSteeringWheel()
 {
-	for (int i = 0; i < 4; ++i)
+	bSteeringBroken = true;
+	for (int i = 0; i < Wheels.Num(); ++i)
 	{
 		SetWheelMaxSteerAngle(i, brokenSteeringWheelAngle);
 	}
@@ -130,7 +246,8 @@ void UGVehicleMovementComponent::BreakSteeringWheel()
 
 void UGVehicleMovementComponent::RepairSteeringWheel()
 {
-	for (int i = 0; i < 4; ++i)
+	bSteeringBroken = false;
+	for (int i = 0; i < Wheels.Num(); ++i)
 	{
 		SetWheelMaxSteerAngle(i, 45.0f);
 	}
@@ -139,20 +256,26 @@ void UGVehicleMovementComponent::RepairSteeringWheel()
 void UGVehicleMovementComponent::BreakEngine()
 {
 	bEngineBroken = true;
-	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
-	SetMaxEngineTorque(maxTorque * brokenEngineTorqueMultiplier);
+	if (!UsesArcadePhysics())
+	{
+		SetMaxEngineTorque(GetUpgradedTorque() * brokenEngineTorqueMultiplier);
+	}
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.0f, FColor::Red, TEXT("The engine is broken"), true);
 }
 
 void UGVehicleMovementComponent::RepairEngine()
 {
 	bEngineBroken = false;
-	float maxTorque = baseMaxTorque + maxTorquePerLevel * (FMath::Min(currentAccelerationLevel, maxAccelerationLevel) - 1);
-	SetMaxEngineTorque(maxTorque);
+	if (!UsesArcadePhysics())
+	{
+		SetMaxEngineTorque(GetUpgradedTorque());
+	}
 }
 
 void UGVehicleMovementComponent::StopDrivingInput()
 {
+	lastArcadeInputSent = FGArcadeVehicleInput();
+	remoteArcadeInput = FGArcadeVehicleInput();
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
@@ -222,7 +345,9 @@ void UGVehicleMovementComponent::SetWindowDrivingLock(bool bLocked)
 	}
 	if (bLocked)
 	{
-		windowThrottle = FMath::Clamp(GetController() && GetController()->IsLocalController() ? GetThrottleInput() : ReplicatedState.ThrottleInput, 0.0f, 1.0f);
+		const bool bLocalDriver = GetController() && GetController()->IsLocalController();
+		const float remoteThrottle = UsesArcadePhysics() ? remoteArcadeInput.throttle : ReplicatedState.ThrottleInput;
+		windowThrottle = FMath::Clamp(bLocalDriver ? GetThrottleInput() : remoteThrottle, 0.0f, 1.0f);
 	}
 	bWindowDrivingLocked = bLocked;
 	OnRep_WindowDrivingLock();
@@ -239,6 +364,8 @@ void UGVehicleMovementComponent::OnRep_WindowDrivingLock()
 	}
 	// Releases received while outside must not leave a latched throttle on return.
 	ClearRawInput();
+	lastArcadeInputSent = FGArcadeVehicleInput();
+	remoteArcadeInput = FGArcadeVehicleInput();
 	if (GetController())
 	{
 		ThrottleInput = SteeringInput = BrakeInput = HandbrakeInput = 0.0f;

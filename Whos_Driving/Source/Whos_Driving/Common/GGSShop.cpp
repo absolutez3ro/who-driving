@@ -48,8 +48,7 @@ void AGGSShop::SpawnCar()
 		car->currentCarHealth = gi->GetCarData().currentCarHealth;
 		car->baseCarHealth = gi->GetCarData().baseCarHealth;
 		UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
-		movementComponent->currentAccelerationLevel = gi->carUpgradeData.AccelerationLevel;
-		movementComponent->currentMaxSpeedLevel = gi->carUpgradeData.maxSpeedLevel;
+		movementComponent->SetUpgradeLevels(gi->carUpgradeData.AccelerationLevel, gi->carUpgradeData.maxSpeedLevel);
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT(" ammo level pistol %i"), gi->characterUpgradeData.ammoLevelPistol));
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::White, FString::Printf(TEXT(" ammo level rifle %i"), gi->characterUpgradeData.ammoLevelRifle));
 		car->ApplyModuleStates();
@@ -238,7 +237,7 @@ void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice)
 {
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 	int32 level = movementComponent->currentMaxSpeedLevel;
-	if (level < movementComponent->maxAccelerationLevel)
+	if (level < movementComponent->maxMaxSpeedLevel)
 	{
 		int32 baseCost = dataAsset->baseUpgradePriceSpeed;
 		OutPrice = baseCost* pow(dataAsset->priceGrowthExpBase, level - 1);
@@ -270,7 +269,7 @@ void AGGSShop::UpgradeMaxSpeed()
 	int32 maxLevel = movementComponent->maxMaxSpeedLevel;
 	if (level < maxLevel)
 	{
-		movementComponent->currentMaxSpeedLevel++;
+		movementComponent->SetUpgradeLevels(movementComponent->currentAccelerationLevel, level + 1);
 		int32 baseCost = dataAsset->baseUpgradePriceSpeed;
 		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
 		money -= actualCost;
@@ -284,7 +283,7 @@ void AGGSShop::UpgradeAcceleration()
 	int32 maxLevel = movementComponent->maxAccelerationLevel;
 	if (level < maxLevel)
 	{
-		movementComponent->currentAccelerationLevel++;
+		movementComponent->SetUpgradeLevels(level + 1, movementComponent->currentMaxSpeedLevel);
 		int32 baseCost = dataAsset->baseUpgradePriceAcceleration;
 		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
 		money -= actualCost;

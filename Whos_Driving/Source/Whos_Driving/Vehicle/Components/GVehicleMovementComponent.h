@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Vehicle/ArcadePhysics/GArcadeVehicleTypes.h"
 #include "GVehicleModule.h"
 #include "GVehicleMovementComponent.generated.h"
 
@@ -19,6 +20,15 @@ class WHOS_DRIVING_API UGVehicleMovementComponent : public UChaosWheeledVehicleM
 public:
 	UGVehicleMovementComponent();
 	void SubscribeOnDelegates();
+	bool UsesArcadePhysics() const;
+	FGArcadeVehicleInput ReadArcadeInput(float deltaTime);
+	void SetUpgradeLevels(int32 accelerationLevel, int32 maxSpeedLevel);
+	float GetArcadeTorqueMultiplier() const;
+	float GetArcadeRedlineMultiplier() const;
+	float GetArcadeSteeringLimit() const;
+	float GetArcadeWheelGripMultiplier(int32 wheelIndex) const;
+	bool IsArcadeWheelDisabled(int32 wheelIndex) const;
+	bool CanArcadeEngineDrive(float speedKmh) const;
 
 	UFUNCTION()
 	void BreakWheel(int32 wheelIndex);
@@ -99,6 +109,7 @@ public:
 	float baseRevUp = 2;
 protected:
 	void BeginPlay() override;
+	bool CanCreateVehicle() const override;
 	void UpdateState(float deltaTime) override;
 	UPROPERTY(ReplicatedUsing = OnRep_WindowDrivingLock)
 	bool bWindowDrivingLocked = false;
@@ -130,6 +141,17 @@ protected:
 	float brokenEngineMaxSpeed;
 
 	bool bEngineBroken = false;
+	bool bSteeringBroken = false;
+	TSet<int32> brokenWheels;
+
+private:
+	UFUNCTION(Server, Reliable)
+	void ServerSetArcadeInput(const FGArcadeVehicleInput& input);
+
+	float GetUpgradedTorque() const;
+	float GetUpgradedMaxRPM() const;
+	FGArcadeVehicleInput lastArcadeInputSent;
+	FGArcadeVehicleInput remoteArcadeInput;
 
 
 };
