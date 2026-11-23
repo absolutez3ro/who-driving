@@ -84,7 +84,7 @@ UGBoxComponent* AGPlayerController::FindLookedAtModule() const
 		query.AddIgnoredComponent(seatedVehicle->GetMesh());
 	}
 	FHitResult hit;
-	GetWorld()->LineTraceSingleByChannel(hit, origin, origin + rotation.Vector() * 3000.0f, ECC_GameTraceChannel3, query);
+	GetWorld()->LineTraceSingleByChannel(hit, origin, origin + rotation.Vector() * 3000.0f, ECC_GameTraceChannel5, query);
 	return Cast<UGBoxComponent>(hit.GetComponent());
 }
 
