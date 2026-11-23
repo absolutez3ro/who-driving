@@ -25,6 +25,7 @@ class UGCarDataAsset;
 class UGVehicleRadioComponent;
 class UChildActorComponent;
 class UGArcadeVehicleComponent;
+class UGVehicleAudioComponent;
 
 USTRUCT(BlueprintType)
 struct FGVehicleModuleState
@@ -240,6 +241,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle")
 	TObjectPtr<UGVehicleModuleComponent> moduleComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vehicle|Audio", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UGVehicleAudioComponent> vehicleAudio;
 
 	UPROPERTY(EditAnywhere, Category = "Vehicle|Damage")
 	TArray<TObjectPtr<UGBoxComponent>> moduleHitBoxes;

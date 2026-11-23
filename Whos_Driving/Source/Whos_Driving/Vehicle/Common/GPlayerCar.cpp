@@ -5,6 +5,7 @@
 #include "GVehicleHologram.h"
 #include "GSteeringWheelAnimInstance.h"
 #include "Vehicle/ArcadePhysics/GArcadeVehicleComponent.h"
+#include "GVehicleAudioComponent.h"
 #include "GVehicleSeatComponent.h"
 #include "GVehicleRadioComponent.h"
 #include "GVehicleSeatingComponent.h"
@@ -50,6 +51,7 @@ AGPlayerCar::AGPlayerCar(const FObjectInitializer& objectInitializer) : Super(ob
 	(AWheeledVehiclePawn::VehicleMovementComponentName))
 {
 	moduleComponent = CreateDefaultSubobject<UGVehicleModuleComponent>(TEXT("VehicleModules"));
+	vehicleAudio = CreateDefaultSubobject<UGVehicleAudioComponent>(TEXT("VehicleAudio"));
 	driverSeat = CreateDefaultSubobject<USceneComponent>(TEXT("Driver seat"));
 	driverSeat->SetupAttachment(GetRootComponent());
 	hologramComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Hologram"));

@@ -124,6 +124,9 @@ public:
 
 	// Falls back to the class defaults when no tuning asset is assigned.
 	const UGArcadeVehicleTuning& GetTuningData() const;
+	const TArray<FGArcadeWheelState>& GetWheelTelemetry() const { return wheelStates; }
+	float GetEngineRedlineRpm() const;
+	float GetDriveDemand() const { return drivetrain.GetDriveDemand(); }
 	bool UsesPlayerCarControls() const { return bUsePlayerCarControls; }
 	float GetSteeringAngle() const { return currentSteerAngle; }
 

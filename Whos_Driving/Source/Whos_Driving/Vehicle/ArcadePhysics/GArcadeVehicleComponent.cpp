@@ -643,6 +643,14 @@ float UGArcadeVehicleComponent::ComputeMaxSteerAngle(float speed) const
 	return FMath::Lerp(steering.MaxAngleAtRest, steering.MaxAngleAtHighSpeed, falloff);
 }
 
+float UGArcadeVehicleComponent::GetEngineRedlineRpm() const
+{
+	const FGArcadeEngineSettings& engine = GetTuningData().Engine;
+	return playerCarMovement
+		? FMath::Max(engine.RedlineRpm * playerCarMovement->GetArcadeRedlineMultiplier(), engine.IdleRpm + 1.0f)
+		: engine.RedlineRpm;
+}
+
 void UGArcadeVehicleComponent::UpdateDrivetrain(const FGArcadeChassisFrame& frame)
 {
 	const UGArcadeVehicleTuning& tuningData = GetTuningData();
@@ -656,8 +664,7 @@ void UGArcadeVehicleComponent::UpdateDrivetrain(const FGArcadeChassisFrame& fram
 	if (playerCarMovement)
 	{
 		input.torqueMultiplier *= playerCarMovement->CanArcadeEngineDrive(speedKmh) ? playerCarMovement->GetArcadeTorqueMultiplier() : 0.0f;
-		const float upgradedRedline = engine.RedlineRpm * playerCarMovement->GetArcadeRedlineMultiplier();
-		engine.RedlineRpm = FMath::Max(upgradedRedline, engine.IdleRpm + 1.0f);
+		engine.RedlineRpm = GetEngineRedlineRpm();
 	}
 	input.bHasGroundContact = frame.groundedWheelCount > 0;
 	float drivenWheelRadius = 0.0f;
@@ -814,6 +821,7 @@ void UGArcadeVehicleComponent::UpdateGroundedWheel(int32 wheelIndex, const FGArc
 	const FGArcadeTireContactResult contact = FGArcadeTireModel::SolveContact(contactInput, tires.LongitudinalCurve);
 	state.angularVelocity = contact.angularVelocity;
 	state.slipRatio = FGArcadeTireModel::ComputeSlipRatio(state.angularVelocity * radius, longitudinalSpeed, tires.SlipReferenceSpeed);
+	state.slipSpeed = FVector2D(state.angularVelocity * radius - longitudinalSpeed, lateralSpeed).Size();
 	const FVector2D tireForce = contact.force;
 	const bool bIsPastLongitudinalPeak = FMath::Abs(state.slipRatio) > tires.LongitudinalCurve.PeakSlip;
 	const bool bIsPastLateralPeak = FMath::Abs(state.slipAngle) > tires.LateralCurve.PeakSlip;
@@ -843,6 +851,7 @@ void UGArcadeVehicleComponent::UpdateAirborneWheel(int32 wheelIndex, const FGArc
 
 	state.slipRatio = 0.0f;
 	state.slipAngle = 0.0f;
+	state.slipSpeed = 0.0f;
 	state.longitudinalForce = 0.0f;
 	state.lateralForce = 0.0f;
 	state.bIsSliding = false;
@@ -887,6 +896,7 @@ void UGArcadeVehicleComponent::HoldWheel(int32 wheelIndex, const FGArcadeChassis
 	state.angularVelocity = 0.0f;
 	state.slipRatio = 0.0f;
 	state.slipAngle = 0.0f;
+	state.slipSpeed = 0.0f;
 	state.longitudinalForce = FVector::DotProduct(wheelHoldForce, frame.forward);
 	state.lateralForce = FVector::DotProduct(wheelHoldForce, frame.right);
 	state.bIsSliding = false;
