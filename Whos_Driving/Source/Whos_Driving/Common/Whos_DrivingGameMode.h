@@ -46,6 +46,8 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Car")
 	TSubclassOf<AGPlayerCar> carClass;
+	UPROPERTY(EditDefaultsOnly, Category = "Travel")
+	TSoftObjectPtr<UWorld> shopLevel;
 	UFUNCTION()
 	void OnLevelEnd();
 protected:

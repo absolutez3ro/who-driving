@@ -109,7 +109,7 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 	RegisterParticipant(pc);
 }
 
-	void AWhos_DrivingGameMode::OnLevelEnd()
+void AWhos_DrivingGameMode::OnLevelEnd()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("Level ended traveling")));
 	GetGameState<AGGameState>()->OnPlayerFinish.RemoveDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
@@ -144,7 +144,8 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 
 	if (UWorld* World = GetWorld())
 	{
-		World->ServerTravel(TEXT("/Game/FirstPerson/levels/Lvl_Shop?listen"));
+		const FString url = shopLevel.GetLongPackageName() + TEXT("?listen");
+		World->ServerTravel(url);
 	}
 }
 void AWhos_DrivingGameMode::RegisterParticipant(AGPlayerController* pc)
