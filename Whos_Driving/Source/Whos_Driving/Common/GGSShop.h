@@ -92,16 +92,15 @@ public:
 
 	// data getters for ui
 	UFUNCTION(BlueprintCallable)
-	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices);
+	void GetRepairData(TArray<FName>& Names, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices, int32& playerMoney);
 	UFUNCTION(BlueprintCallable)
-	void GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices);
+	void GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices, int32& playerMoney);
 	UFUNCTION(BlueprintCallable)
-	void GetCharUpgradeData(TArray<int32>& OutPrices);
+	void GetCharUpgradeData(TArray<int32>& OutPrices, int32& playerMoney);
 	UFUNCTION(BlueprintCallable)
-	void GetMaxSpeedUpgradePrice(int32& OutPrice);
+	void GetMaxSpeedUpgradePrice(int32& OutPrice, int32& playerMoney);
 	UFUNCTION(BlueprintCallable)
-	void GetAccelerationUpgradePrice(int32& OutPrice);
-	//void GetUpgradeCarData(TMap<EGModuleType, int32>& OutPrices);
+	void GetAccelerationUpgradePrice(int32& OutPrice, int32& playerMoney);
 	void SpawnCar();
 	void BeginPlay();
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)

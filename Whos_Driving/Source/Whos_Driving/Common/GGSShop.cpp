@@ -18,7 +18,6 @@ void AGGSShop::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetime
 	DOREPLIFETIME(AGGSShop, car);
 	DOREPLIFETIME(AGGSShop, brokenModules);
 }
-
 void AGGSShop::SpawnCar()
 {
 	if (!HasAuthority()) 
@@ -92,7 +91,7 @@ void AGGSShop::BeginPlay()
 
 
 //REPAIR
-void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices)
+void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices, int32& playerMoney)
 {
 	if (GEngine)
 	{
@@ -144,7 +143,8 @@ void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDispla
 		else {
 			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, FString::Printf(TEXT("name: %s chp: %f mhp: %f"), *ModuleNames[module->moduleId], module->currentHP, module->maxHP));
 		}
-	} 
+	}
+	playerMoney = money;
 }
 void AGGSShop::RepairModule(const FName& ModuleName)
 {
@@ -202,23 +202,33 @@ void AGGSShop::UpgradeModuleHp(const EGModuleType& type)
 	{
 		if (moduleTypes[state.moduleId]==type)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("upgrading %s"), *ModuleNames[state.moduleId]));
-			state.moduleHpLevel++;
-			if (state.currentHP>0.01)
-			{
-				state.currentHP += state.HpIncreasePerLevel;
-			}
 			int32 basePrice = GetUpgradeCostFromDataAsset(moduleTypes[state.moduleId]);
 			actualPrice = basePrice * pow(dataAsset->priceGrowthExpBase, state.moduleHpLevel - 1);
+			break;
 		}
 	}
-	car->ApplyModuleStates();
-	car->PublishModuleStates();
-	money -= actualPrice;
-	OnRep_Money();
+	if (money >= actualPrice)
+	{
+		for (FGVehicleModuleState& state : car->moduleStates)
+		{
+			if (moduleTypes[state.moduleId] == type)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("upgrading %s"), *ModuleNames[state.moduleId]));
+				state.moduleHpLevel++;
+				if (state.currentHP > 0.01)
+				{
+					state.currentHP += state.HpIncreasePerLevel;
+				}
+			}
+			}
+		car->ApplyModuleStates();
+		car->PublishModuleStates();
+		money -= actualPrice;
+		OnRep_Money();
+	}
 
 }
-void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices)
+void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices, int32& playerMoney)
 {
 	for (TObjectPtr<UGVehicleModule> module : car->GetModuleComponent()->GetModules())
 	{
@@ -229,11 +239,12 @@ void AGGSShop::GetUpgradeHpData(TMap<EGModuleType, int32>& OutPrices)
 			OutPrices.Add(moduleTypes[module->moduleId], actualPrice);
 		}
 	}
+	playerMoney = money;
 }
 
 
-
-void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice)
+//getters for ui
+void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice, int32& playerMoney)
 {
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 	int32 level = movementComponent->currentMaxSpeedLevel;
@@ -246,8 +257,9 @@ void AGGSShop::GetMaxSpeedUpgradePrice(int32& OutPrice)
 	{
 		OutPrice = -1;
 	}
+	playerMoney = money;
 }
-void AGGSShop::GetAccelerationUpgradePrice(int32& OutPrice)
+void AGGSShop::GetAccelerationUpgradePrice(int32& OutPrice, int32& playerMoney)
 {
 	UGVehicleMovementComponent* movementComponent = Cast<UGVehicleMovementComponent>(car->GetVehicleMovementComponent());
 	int32 level = movementComponent->currentAccelerationLevel;
@@ -260,6 +272,24 @@ void AGGSShop::GetAccelerationUpgradePrice(int32& OutPrice)
 	{
 		OutPrice=-1;
 	}
+	playerMoney = money;
+}
+void AGGSShop::GetCharUpgradeData(TArray<int32>& OutPrices, int32& playerMoney)
+{
+	int32 basePricePistolDmg = dataAsset->baseUpgradePricePistolDamage;
+	int32 basePricePistolMag = dataAsset->baseUpgradePricePistolMagazineCapacity;
+	int32 basePriceRifleDmg = dataAsset->baseUpgradePriceRifleDamage;
+	int32 basePriceRifleMag = dataAsset->baseUpgradePriceRifleMagazineCapacity;
+
+	int32 actualPricePistolDmg = basePricePistolDmg * pow(dataAsset->priceGrowthExpBase, damageLevelPistol - 1);
+	int32 actualPricePistolMag = basePricePistolMag * pow(dataAsset->priceGrowthExpBase, magazineLevelPistol - 1);
+	int32 actualPriceRifleDmg = basePriceRifleDmg * pow(dataAsset->priceGrowthExpBase, damageLevelRifle - 1);
+	int32 actualPriceRifleMag = basePriceRifleMag * pow(dataAsset->priceGrowthExpBase, magazineLevelRifle - 1);
+	OutPrices.Add(actualPricePistolDmg);
+	OutPrices.Add(actualPricePistolMag);
+	OutPrices.Add(actualPriceRifleDmg);
+	OutPrices.Add(actualPriceRifleMag);
+	playerMoney = money;
 }
 // car performance upgrade
 void AGGSShop::UpgradeMaxSpeed()
@@ -269,11 +299,14 @@ void AGGSShop::UpgradeMaxSpeed()
 	int32 maxLevel = movementComponent->maxMaxSpeedLevel;
 	if (level < maxLevel)
 	{
-		movementComponent->SetUpgradeLevels(movementComponent->currentAccelerationLevel, level + 1);
 		int32 baseCost = dataAsset->baseUpgradePriceSpeed;
 		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
-		money -= actualCost;
-		OnRep_Money();
+		if (money >= actualCost)
+		{
+			money -= actualCost;
+			movementComponent->SetUpgradeLevels(movementComponent->currentAccelerationLevel, level + 1);
+			OnRep_Money();
+		}
 	}
 }
 void AGGSShop::UpgradeAcceleration()
@@ -286,8 +319,12 @@ void AGGSShop::UpgradeAcceleration()
 		movementComponent->SetUpgradeLevels(level + 1, movementComponent->currentMaxSpeedLevel);
 		int32 baseCost = dataAsset->baseUpgradePriceAcceleration;
 		int32 actualCost = baseCost*pow(dataAsset->priceGrowthExpBase, level - 1);
-		money -= actualCost;
-		OnRep_Money();
+		if (money >= actualCost)
+		{
+			money -= actualCost;
+			movementComponent->SetUpgradeLevels(level + 1, movementComponent->currentMaxSpeedLevel);
+			OnRep_Money();
+		}
 	}
 
 }
@@ -297,33 +334,45 @@ void AGGSShop::UpgradePistolDamage()
 {
 	int32 basePricePistolDmg = dataAsset->baseUpgradePricePistolDamage;
 	int32 actualPricePistolDmg = basePricePistolDmg * pow(dataAsset->priceGrowthExpBase, damageLevelPistol - 1);
-	damageLevelPistol++;
-	money -= actualPricePistolDmg;
-	OnRep_Money();
+	if (money >= actualPricePistolDmg)
+	{
+		damageLevelPistol++;
+		money -= actualPricePistolDmg;
+		OnRep_Money();
+	}
 }
 void AGGSShop::UpgradePistolMagazineCapacity()
 {
 	int32 basePricePistolMag = dataAsset->baseUpgradePricePistolMagazineCapacity;
 	int32 actualPricePistolMag = basePricePistolMag * pow(dataAsset->priceGrowthExpBase, magazineLevelPistol - 1);
-	magazineLevelPistol++;
-	money -= actualPricePistolMag;
-	OnRep_Money();
+	if (money >= actualPricePistolMag)
+	{
+		magazineLevelPistol++;
+		money -= actualPricePistolMag;
+		OnRep_Money();
+	}
 }
 void AGGSShop::UpgradeRifleDamage()
 {
 	int32 basePriceRifleDmg = dataAsset->baseUpgradePriceRifleDamage;
 	int32 actualPriceRifleDmg = basePriceRifleDmg * pow(dataAsset->priceGrowthExpBase, damageLevelRifle - 1);
-	damageLevelRifle++;
-	money -= actualPriceRifleDmg;
-	OnRep_Money();
+	if (money >= actualPriceRifleDmg)
+	{
+		damageLevelRifle++;
+		money -= actualPriceRifleDmg;
+		OnRep_Money();
+	}
 }
 void AGGSShop::UpgradeRifleMagazineCapacity()
 {
 	int32 basePriceRifleMag = dataAsset->baseUpgradePriceRifleMagazineCapacity;
 	int32 actualPriceRifleMag = basePriceRifleMag * pow(dataAsset->priceGrowthExpBase, magazineLevelRifle - 1);
-	magazineLevelRifle++;
-	money -= actualPriceRifleMag;
-	OnRep_Money();
+	if (money >= actualPriceRifleMag)
+	{
+		magazineLevelRifle++;
+		money -= actualPriceRifleMag;
+		OnRep_Money();
+	}
 }
 // Data Asset
 int32 AGGSShop::GetRepairCostFromDataAsset(FName moduleName)
@@ -361,22 +410,6 @@ int32 AGGSShop::GetUpgradeCostFromDataAsset(EGModuleType type)
 	default:
 		return dataAsset->mainHPBaseUpgradePrice;
 	}
-}
-void AGGSShop::GetCharUpgradeData(TArray<int32>& OutPrices)
-{
-	int32 basePricePistolDmg = dataAsset->baseUpgradePricePistolDamage;
-	int32 basePricePistolMag = dataAsset->baseUpgradePricePistolMagazineCapacity;
-	int32 basePriceRifleDmg = dataAsset->baseUpgradePriceRifleDamage;
-	int32 basePriceRifleMag = dataAsset->baseUpgradePriceRifleMagazineCapacity;
-
-	int32 actualPricePistolDmg = basePricePistolDmg * pow(dataAsset->priceGrowthExpBase, damageLevelPistol - 1);
-	int32 actualPricePistolMag = basePricePistolMag * pow(dataAsset->priceGrowthExpBase, magazineLevelPistol - 1);
-	int32 actualPriceRifleDmg = basePriceRifleDmg * pow(dataAsset->priceGrowthExpBase, damageLevelRifle - 1);
-	int32 actualPriceRifleMag = basePriceRifleMag * pow(dataAsset->priceGrowthExpBase, magazineLevelRifle - 1);
-	OutPrices.Add(actualPricePistolDmg);
-	OutPrices.Add(actualPricePistolMag);
-	OutPrices.Add(actualPriceRifleDmg);
-	OutPrices.Add(actualPriceRifleMag);
 }
 
 
