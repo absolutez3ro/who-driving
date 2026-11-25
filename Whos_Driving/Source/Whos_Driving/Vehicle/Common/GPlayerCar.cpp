@@ -779,6 +779,7 @@ void AGPlayerCar::SpawnDriver_Implementation(APlayerController* playerController
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("spawned driver, initializing"));
 		driverCharacter->SetReplicates(true);
 		seatingComponent->InitializeDriver(controller, driverCharacter, seatIndex);
+		driverCharacter->SetReplicateMovement(false);
 	}
 	else
 	{

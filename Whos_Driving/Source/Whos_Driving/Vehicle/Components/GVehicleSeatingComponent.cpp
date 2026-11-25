@@ -540,6 +540,7 @@ void UGVehicleSeatingComponent::ApplySeatStates()
 		character->bUseControllerRotationRoll = false;
 		movement->StopMovementImmediately();
 		movement->DisableMovement();
+		movement->SetComponentTickEnabled(false);
 		movement->GravityScale = 0.0f;
 		character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		character->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
