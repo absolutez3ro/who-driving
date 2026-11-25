@@ -12,6 +12,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
@@ -20,6 +21,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/DataValidation.h"
 #include "TimerManager.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {
@@ -323,6 +325,61 @@ bool FGWeaponDamageTest::RunTest(const FString& parameters)
 					target->Destroy();
 				}
 			}
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGPistolMagazineInitialReplicationTest,
+								 "WhosDriving.Combat.PistolMagazineInitialReplication",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGPistolMagazineInitialReplicationTest::RunTest(const FString& parameters)
+{
+	FGCombatTestScene scene;
+	if (!scene.Create(*this))
+	{
+		return false;
+	}
+	AGVehicleWeapon* pistol = scene.combat->GetWeapon(pistolIndex);
+	if (!TestNotNull(TEXT("Configured pistol"), pistol))
+	{
+		return false;
+	}
+	UGWeaponDefinition* definition = pistol->GetDefinition();
+	AGVehicleWeapon* replica = scene.world->SpawnActor<AGVehicleWeapon>(pistol->GetClass());
+	if (!TestNotNull(TEXT("Pistol replica"), replica))
+	{
+		return false;
+	}
+
+	// Deliver the definition RepNotify before the owner's actor reference has resolved.
+	const FObjectProperty* definitionProperty =
+		FindFProperty<FObjectProperty>(AGVehicleWeapon::StaticClass(), TEXT("definition"));
+	if (!TestNotNull(TEXT("Replicated weapon definition property"), definitionProperty))
+	{
+		return false;
+	}
+	definitionProperty->SetObjectPropertyValue_InContainer(replica, definition);
+	replica->ProcessEvent(replica->FindFunctionChecked(TEXT("OnRep_Definition")), nullptr);
+	TestNull(TEXT("Weapon owner is still unresolved"), replica->GetOwner());
+
+	for (USkeletalMeshComponent* weaponMesh : {replica->GetFirstPersonMesh(), replica->GetThirdPersonMesh()})
+	{
+		const UStaticMeshComponent* magazine = nullptr;
+		for (const USceneComponent* child : weaponMesh->GetAttachChildren())
+		{
+			const UStaticMeshComponent* mesh = Cast<UStaticMeshComponent>(child);
+			if (mesh && mesh->GetStaticMesh() == definition->MagazineMesh)
+			{
+				magazine = mesh;
+				break;
+			}
+		}
+		if (TestNotNull(TEXT("Pistol magazine has its mesh"), magazine))
+		{
+			TestEqual(TEXT("Pistol magazine is seated before the owner resolves"), magazine->GetAttachSocketName(),
+					  definition->MagazineSocket);
 		}
 	}
 	return true;

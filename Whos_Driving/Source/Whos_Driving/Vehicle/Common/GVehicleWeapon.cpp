@@ -87,10 +87,10 @@ void AGVehicleWeapon::ConfigureMeshes()
 		mesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		mesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	}
-	firstMagazine->SetStaticMesh(definition->MagazineMesh);
-	worldMagazine->SetStaticMesh(definition->MagazineMesh);
 	SetMagazineInHand(false, true, true);
 	SetMagazineInHand(false, true, false);
+	firstMagazine->SetStaticMesh(definition->MagazineMesh);
+	worldMagazine->SetStaticMesh(definition->MagazineMesh);
 	for (UStaticMeshComponent* mesh : attachmentMeshes)
 	{
 		if (mesh)
@@ -302,16 +302,24 @@ void AGVehicleWeapon::PlayEquip()
 
 void AGVehicleWeapon::SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson)
 {
-	AWhos_DrivingCharacter* character = GetCharacter();
-	if (!character || !definition)
+	if (!definition)
 	{
 		return;
 	}
+	// The definition can replicate before the owner resolves. Seating uses only the weapon mesh.
+	USkeletalMeshComponent* target = bFirstPerson ? GetFirstPersonMesh() : GetThirdPersonMesh();
+	FName socket = definition->MagazineSocket;
+	if (bInHand)
+	{
+		const AWhos_DrivingCharacter* character = GetCharacter();
+		if (!character)
+		{
+			return;
+		}
+		socket = bLeftHand ? definition->LeftHandMagazineSocket : definition->RightHandMagazineSocket;
+		target = character->GetWeaponAttachMesh(bFirstPerson, socket);
+	}
 	UStaticMeshComponent* magazine = bFirstPerson ? firstMagazine.Get() : worldMagazine.Get();
-	const FName handSocket = bLeftHand ? definition->LeftHandMagazineSocket : definition->RightHandMagazineSocket;
-	const FName socket = bInHand ? handSocket : definition->MagazineSocket;
-	USceneComponent* target = bInHand ? character->GetWeaponAttachMesh(bFirstPerson, handSocket)
-									  : (bFirstPerson ? GetFirstPersonMesh() : GetThirdPersonMesh());
 	magazine->AttachToComponent(target, FAttachmentTransformRules::SnapToTargetNotIncludingScale, socket);
 }
 
