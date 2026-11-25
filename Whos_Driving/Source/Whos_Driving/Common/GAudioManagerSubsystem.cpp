@@ -37,6 +37,11 @@ void UGAudioManagerSubsystem::SetMusicAssets(USoundBase* inMusic, USoundBase* in
 {
 	musicAsset = inMusic;
 	chaseMusicAsset = inChaseMusic;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AudioManager] MenuMusic = %s | ChaseMusic = %s"),
+		*GetNameSafe(musicAsset),
+		*GetNameSafe(chaseMusicAsset));
 }
 
 void UGAudioManagerSubsystem::ConfigureMixer(USoundMix* inSoundMix, USoundClass* inMasterClass, USoundClass* inMusicClass, USoundClass* inSFXClass)
@@ -51,21 +56,51 @@ void UGAudioManagerSubsystem::ConfigureMixer(USoundMix* inSoundMix, USoundClass*
 	musicSoundClass = inMusicClass;
 	SFXSoundClass = inSFXClass;
 
-	if (IsValid(soundMix))
+	if (!IsValid(soundMix))
 	{
-		UGameplayStatics::PushSoundMixModifier(this, soundMix);
-		ApplyMixerOverride(masterSoundClass, masterVolume);
-		ApplyMixerOverride(musicSoundClass, musicVolume);
-		ApplyMixerOverride(SFXSoundClass, SFXVolume);
+		return;
 	}
+
+	masterVolume = GetVolumeAdjuster(soundMix, masterSoundClass);
+	musicVolume = GetVolumeAdjuster(soundMix, musicSoundClass);
+	SFXVolume = GetVolumeAdjuster(soundMix, SFXSoundClass);
+
+	UGameplayStatics::PushSoundMixModifier(this, soundMix);
+
+	
 }
+
+float UGAudioManagerSubsystem::GetVolumeAdjuster(USoundMix* InSoundMix, USoundClass* InSoundClass)
+{
+	if (!IsValid(InSoundMix) || !IsValid(InSoundClass))
+	{
+		return 1.0f;
+	}
+
+	for (const FSoundClassAdjuster& Adjuster : InSoundMix->SoundClassEffects)
+	{
+		if (Adjuster.SoundClassObject == InSoundClass)
+		{
+			return Adjuster.VolumeAdjuster;
+		}
+	}
+
+	return 1.0f;
+}
+
 
 UAudioComponent* UGAudioManagerSubsystem::StartMusicComponent(USoundBase* sound, TObjectPtr<UAudioComponent>& component)
 {
 	if (!IsValid(sound))
 	{
+		UE_LOG(LogTemp, Error, TEXT("[AudioManager] StartMusicComponent: Sound is invalid!"));
 		return nullptr;
 	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AudioManager] Starting sound: %s | SoundClass: %s"),
+		*GetNameSafe(sound),
+		*GetNameSafe(sound->GetSoundClass()));
 
 	if (IsValid(component))
 	{
@@ -85,11 +120,12 @@ UAudioComponent* UGAudioManagerSubsystem::StartMusicComponent(USoundBase* sound,
 	if (IsValid(component))
 	{
 		component->bAutoDestroy = false;
-		if (!IsValid(musicSoundClass))
-		{
-			component->SetVolumeMultiplier(musicVolume);
-		}
+		component->SetVolumeMultiplier(musicVolume);
 		component->FadeIn(fadeDuration, 1.0f);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[AudioManager] Audio component created: %s | IsPlaying: %s"),
+			*GetNameSafe(component),
+			component->IsPlaying() ? TEXT("YES") : TEXT("NO"));
 	}
 	return component;
 }
@@ -118,6 +154,10 @@ void UGAudioManagerSubsystem::StopMusic()
 void UGAudioManagerSubsystem::PlayChaseMusic()
 {
 	bChaseMusicRequested = true;
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AudioManager] PlayChaseMusic called. Asset: %s | Radios: %d"),
+		*GetNameSafe(chaseMusicAsset),
+		activeRadios.Num());
 	if (activeRadios.Num() > 0)
 	{
 		return;
@@ -126,6 +166,11 @@ void UGAudioManagerSubsystem::PlayChaseMusic()
 	if (IsValid(chaseMusicAsset))
 	{
 		StartMusicComponent(chaseMusicAsset, chaseMusicComponent);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[AudioManager] ChaseMusicAsset is INVALID!"));
 	}
 }
 
@@ -144,15 +189,23 @@ void UGAudioManagerSubsystem::SetRadioActive(UObject* source, bool bActive)
 
 	if (bActive)
 	{
+		if (activeRadios.Contains(source))
+		{
+			return;
+		}
+		const bool bWasRadioActive = activeRadios.Num() > 0;
 		activeRadios.Add(source);
-		StopChaseMusic();
+		if (!bWasRadioActive && IsValid(chaseMusicComponent))
+		{
+			chaseMusicComponent->SetPaused(true);
+		}
 	}
 	else
 	{
 		activeRadios.Remove(source);
 		if (activeRadios.Num() == 0 && bChaseMusicRequested)
 		{
-			PlayChaseMusic();
+			chaseMusicComponent->SetPaused(false);
 		}
 	}
 }
@@ -162,7 +215,7 @@ void UGAudioManagerSubsystem::ApplyMixerOverride(USoundClass* soundClass, float 
 	if (IsValid(soundMix) && IsValid(soundClass))
 	{
 		UGameplayStatics::SetSoundMixClassOverride(
-			this, soundMix, soundClass, FMath::Clamp(volume, 0.0f, 1.0f),
+			this, soundMix, soundClass, FMath::Clamp(volume, 0.0f, 4.0f),
 			1.0f, 0.1f, true);
 	}
 }
@@ -170,31 +223,20 @@ void UGAudioManagerSubsystem::ApplyMixerOverride(USoundClass* soundClass, float 
 
 void UGAudioManagerSubsystem::SetMasterVolume(float newVolume)
 {
-	masterVolume = FMath::Clamp(newVolume, 0.0f, 1.0f);
+	masterVolume = FMath::Clamp(newVolume, 0.0f, 4.0f);
 	ApplyMixerOverride(masterSoundClass, masterVolume);
 }
 
 void UGAudioManagerSubsystem::SetMusicVolume(float NewVolume)
 {
-	musicVolume = FMath::Clamp(NewVolume, 0.0f, 1.0f);
+	musicVolume = FMath::Clamp(NewVolume, 0.0f, 4.0f);
 	ApplyMixerOverride(musicSoundClass, musicVolume);
-
-	if (!IsValid(musicSoundClass))
-	{
-		if (IsValid(musicComponent))
-		{
-			musicComponent->SetVolumeMultiplier(musicVolume);
-		}
-		if (IsValid(chaseMusicComponent))
-		{
-			chaseMusicComponent->SetVolumeMultiplier(musicVolume);
-		}
-	}
 }
 
 
 void UGAudioManagerSubsystem::SetSFXVolume(float newVolume)
 {
-	SFXVolume = FMath::Clamp(newVolume, 0.0f, 1.0f);
+	SFXVolume = FMath::Clamp(newVolume, 0.0f, 4.0f);
 	ApplyMixerOverride(SFXSoundClass, SFXVolume);
 }
+

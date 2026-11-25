@@ -100,6 +100,7 @@ void UGGIWhosDriving::Init()
 
 	if (UGAudioManagerSubsystem* audioManager = GetSubsystem<UGAudioManagerSubsystem>())
 	{
+		audioManager->ConfigureMixer(soundMix, masterClass, musicClass, SFXClass);
 		audioManager->SetMusicAssets(menuMusic, chaseMusic);
 	}
 }

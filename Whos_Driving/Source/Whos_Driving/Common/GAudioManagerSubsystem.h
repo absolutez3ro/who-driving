@@ -54,6 +54,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Audio|Radio")
 	bool IsAnyRadioActive() const { return activeRadios.Num() > 0; }
 
+	UFUNCTION(BlueprintCallable, Category = "Audio|Volume")
+	float GetVolumeAdjuster(USoundMix* InSoundMix, USoundClass* InSoundClass);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume", meta = (ClampMin = "0.0", ClampMax = "4.0"))
+	float masterVolume = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume", meta = (ClampMin = "0.0", ClampMax = "4.0"))
+	float musicVolume = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume", meta = (ClampMin = "0.0", ClampMax = "4.0"))
+	float SFXVolume = 1.0f;
+
+
 private:
 	UAudioComponent* StartMusicComponent(USoundBase* sound, TObjectPtr<UAudioComponent>& component);
 	void FadeOutComponent(UAudioComponent* component);
@@ -86,9 +97,6 @@ private:
 	UPROPERTY(Transient)
 	TSet<TWeakObjectPtr<UObject>> activeRadios;
 
-	float masterVolume = 1.0f;
-	float musicVolume = 1.0f;
-	float SFXVolume = 1.0f;
 	float fadeDuration = 0.35f;
 	bool bChaseMusicRequested = false;
 };

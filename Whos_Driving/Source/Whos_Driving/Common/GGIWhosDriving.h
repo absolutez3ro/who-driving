@@ -22,6 +22,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoneyChanged, int32, moneyCount);
 class UGEconomicDataAsset;
 class IInputProcessor;
 struct FGVehicleModuleState;
+class USoundMix;
+class USoundClass;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ESessionType : uint8
@@ -126,10 +129,24 @@ protected:
 	int32 moneyFromTotal = 0;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundMix> soundMix;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundClass> masterClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundClass> musicClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundClass> SFXClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
 	TObjectPtr<USoundBase> menuMusic;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Audio")
 	TObjectPtr<USoundBase> chaseMusic;
+
+	
 private:
 	TSharedPtr<IInputProcessor> returnToMenuInput;
 

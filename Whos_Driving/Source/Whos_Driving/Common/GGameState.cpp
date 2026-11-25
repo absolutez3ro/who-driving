@@ -19,9 +19,12 @@ void AGGameState::BeginPlay()
 	Super::BeginPlay();
 
 	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
-	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	if (GetNetMode() != NM_DedicatedServer)
 	{
-		audioManager->PlayChaseMusic();
+		if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			audioManager->PlayChaseMusic();
+		}
 	}
 }
 
