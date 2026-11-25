@@ -250,15 +250,18 @@ bool AGPlayerController::CanRepairCurrentModule() const
 
 void AGPlayerController::ExecSetMasterVolume(float newVolume)
 {
-
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGAudioManagerSubsystem* AudioManager =
+			GI->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			AudioManager->SetMasterVolume(newVolume);
+		}
+	}
 }
 
 void AGPlayerController::ExecSetMusicVolume(float newVolume)
 {
-	UE_LOG(LogTemp, Warning,
-		TEXT("[Mixer] Console command received: %.2f"),
-		newVolume);
-
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UGAudioManagerSubsystem* AudioManager =
@@ -271,7 +274,14 @@ void AGPlayerController::ExecSetMusicVolume(float newVolume)
 
 void AGPlayerController::ExecSetSFXVolume(float newVolume)
 {
-
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGAudioManagerSubsystem* AudioManager =
+			GI->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			AudioManager->SetSFXVolume(newVolume);
+		}
+	}
 }
 
 void AGPlayerController::StartSkillCheck()
