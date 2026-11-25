@@ -24,6 +24,7 @@
 #include "GSkillCheckDataAsset.h"
 #include "Whos_DrivingGameMode.h"
 #include "UObject/ConstructorHelpers.h"
+#include "GAudioManagerSubsystem.h"
 
 AGPlayerController::AGPlayerController()
 {
@@ -245,6 +246,32 @@ bool AGPlayerController::CanRepairCurrentModule() const
 		}
 	}
 	return false;
+}
+
+void AGPlayerController::ExecSetMasterVolume(float newVolume)
+{
+
+}
+
+void AGPlayerController::ExecSetMusicVolume(float newVolume)
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Mixer] Console command received: %.2f"),
+		newVolume);
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UGAudioManagerSubsystem* AudioManager =
+			GI->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			AudioManager->SetMusicVolume(newVolume);
+		}
+	}
+}
+
+void AGPlayerController::ExecSetSFXVolume(float newVolume)
+{
+
 }
 
 void AGPlayerController::StartSkillCheck()

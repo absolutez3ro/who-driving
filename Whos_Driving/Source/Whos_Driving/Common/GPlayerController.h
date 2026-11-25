@@ -144,6 +144,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat|UI")
 	FGOnPlayerHealthChanged OnHealthChanged;
 
+	UFUNCTION(Exec)
+	void ExecSetMasterVolume(float newVolume);
+	UFUNCTION(Exec)
+	void ExecSetMusicVolume(float newVolume);
+	UFUNCTION(Exec)
+	void ExecSetSFXVolume(float newVolume);
+
 protected:
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type endPlayReason) override;

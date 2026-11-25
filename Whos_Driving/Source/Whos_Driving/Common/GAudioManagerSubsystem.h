@@ -44,10 +44,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Volume")
 	void SetMasterVolume(float NewVolume);
-
 	UFUNCTION(BlueprintCallable, Category = "Audio|Volume")
 	void SetMusicVolume(float NewVolume);
-
 	UFUNCTION(BlueprintCallable, Category = "Audio|Volume")
 	void SetSFXVolume(float NewVolume);
 
