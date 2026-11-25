@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/AudioComponent.h"
+#include "Common/GGameState.h"
 #include "Sound/SoundBase.h"
 #include "AIController.h"
 #include "GAIControllerCommonCar.generated.h"

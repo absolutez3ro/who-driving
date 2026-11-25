@@ -48,8 +48,9 @@ public:
 	TSubclassOf<AGPlayerCar> carClass;
 	UPROPERTY(EditDefaultsOnly, Category = "Travel")
 	TSoftObjectPtr<UWorld> shopLevel;
-	UFUNCTION()
 	void OnLevelEnd();
+	UFUNCTION()
+	void OnRaceFinished();
 protected:
 	void Logout(AController* exitingController) override;
 	void RestartCurrentLevel();

@@ -20,6 +20,8 @@ class WHOS_DRIVING_API AGGameState : public AGameStateBase
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(Replicated)
+	bool RaceFinished = false;
 	AGGameState();
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	int32 GetRepairParts() const;

@@ -16,7 +16,7 @@ AGGameState::AGGameState()
 void AGGameState::BeginPlay()
 {
 	Super::BeginPlay();
-
+	RaceFinished = false;
 	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
 }
 
@@ -54,7 +54,7 @@ void AGGameState::Multicast_OnPlayerFinish_Implementation()
 {
 	UGGIWhosDriving* gameInstance = GetGameInstance<UGGIWhosDriving>();
 	gameInstance->CalculateMoneyOnFinish();
-
+	RaceFinished = true;
 	OnPlayerFinish.Broadcast();
 }
 

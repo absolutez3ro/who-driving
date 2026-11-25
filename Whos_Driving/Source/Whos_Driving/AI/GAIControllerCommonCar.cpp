@@ -147,7 +147,18 @@ void AGAIControllerCommonCar::StartShootDelay()
 void AGAIControllerCommonCar::Shoot_Implementation()
 {
 	UE_LOG(LogTemp, Log, TEXT("Trying to shoot"));
+	AGGameState* gs = GetWorld()->GetGameState<AGGameState>();
+	if (!(gs))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::Printf(TEXT("NO GS IN ENEMY AI")));
+		return;
+	}
+	if (gs->RaceFinished)
+	{
 
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::Printf(TEXT("SHOT ABORTED RACE FINISHED")));
+		return;
+	}
 	TArray<AActor*> availableTargets;
 
 	if (IsValid(playerCarRef))

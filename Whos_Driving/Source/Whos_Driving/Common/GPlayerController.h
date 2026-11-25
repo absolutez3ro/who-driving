@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetSerialization.h"
+#include "Whos_DrivingGameMode.h"
 #include "GVehicleRadioComponent.h"
 #include "GVehicleModule.h"
 
@@ -87,6 +88,9 @@ public:
 	void ServerRequestRevive(AWhos_DrivingCharacter* targetPlayer);
 	UFUNCTION(Server, Reliable)
 	void ServerCancelRevive();
+
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "RPC's")
+	void RequestLevelEnd();
 	UFUNCTION()
 	void CompleteRevive();
 
