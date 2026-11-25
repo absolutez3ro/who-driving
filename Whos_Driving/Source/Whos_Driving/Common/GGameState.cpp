@@ -4,7 +4,7 @@
 #include "Common/GGameState.h"
 #include "Net/UnrealNetwork.h"
 #include "GGIWhosDriving.h"
-#include "GLevelsDataAsset.h"
+#include "GEconomicDataAsset.h"
 #include "GameFramework/GameStateBase.h"
 
 AGGameState::AGGameState()
@@ -17,7 +17,52 @@ void AGGameState::BeginPlay()
 {
 	Super::BeginPlay();
 
-	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
+	if (!GetWorld() || !levelsData)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("GameState: World or EconomicData is nullptr"));
+		return;
+	}
+
+	FString CurrentLevelPath = GetWorld()->GetOutermost()->GetName();
+
+	CurrentLevelPath = UWorld::RemovePIEPrefix(CurrentLevelPath);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Current Level Path: %s"),
+		*CurrentLevelPath);
+
+	bool bLevelFound = false;
+
+	for (const auto& LevelData : levelsData->LevelsTimers)
+	{
+		const FString DataAssetLevelPath =
+			LevelData.Key.ToSoftObjectPath().GetLongPackageName();
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Checking Level: %s"),
+			*DataAssetLevelPath);
+
+		if (DataAssetLevelPath == CurrentLevelPath)
+		{
+			timeBonusThreshold = LevelData.Value;
+			bLevelFound = true;
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("FOUND TIMER! Level: %s, Time: %.2f"),
+				*CurrentLevelPath,
+				timeBonusThreshold);
+
+			break;
+		}
+	}
+
+	if (!bLevelFound)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("TIMER NOT FOUND for level: %s"),
+			*CurrentLevelPath);
+	}
 }
 
 void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

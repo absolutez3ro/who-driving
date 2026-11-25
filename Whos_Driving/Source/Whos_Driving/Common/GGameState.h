@@ -12,7 +12,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerFinish);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRaceFailed, EGRaceFailureReason, reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRaceFailedCleared);
 
-class UGLevelsDataAsset;
+class UGEconomicDataAsset;
 
 UCLASS()
 class WHOS_DRIVING_API AGGameState : public AGameStateBase
@@ -78,7 +78,7 @@ public:
 	FText GetRemainingTimeText() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UGLevelsDataAsset> levelsData;
+	TObjectPtr<UGEconomicDataAsset> levelsData;
 
 protected:
 	void BeginPlay() override;
