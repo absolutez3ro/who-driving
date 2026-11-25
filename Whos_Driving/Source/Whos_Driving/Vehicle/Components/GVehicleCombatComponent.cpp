@@ -508,28 +508,21 @@ void UGVehicleCombatComponent::TryFire()
 	const FVector direction = FMath::VRandCone(
 		FVector(aimDirection),
 		FMath::DegreesToRadians(definition->SpreadDegrees * (bAiming ? definition->AimSpreadMultiplier : 1.0f)));
-	FHitResult viewHit;
 	const FVector end = origin + direction * FMath::Clamp(definition->Range, 1.0f, 100000.0f);
-	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(viewHit, origin, end, ECC_GameTraceChannel3, query);
-	const FVector target = bViewHit ? viewHit.ImpactPoint : end;
-	const FVector muzzle = weapon->GetShotOrigin();
-	FHitResult muzzleHit;
-	const bool bMuzzleHit = GetWorld()->LineTraceSingleByChannel(muzzleHit, muzzle, target + direction * 2.0f,
-																 ECC_GameTraceChannel3, query);
-	const FHitResult& hit = bMuzzleHit ? muzzleHit : viewHit;
-	const bool bHit = bMuzzleHit || bViewHit;
-	UE_LOG(LogVehicleCombat, Verbose, TEXT("Shot %s camera=%s muzzle=%s aim=%s viewHit=%s:%s finalHit=%s:%s"),
-		   *GetNameSafe(GetCharacter()), *origin.ToString(), *muzzle.ToString(), *FVector(aimDirection).ToString(),
-		   *GetNameSafe(viewHit.GetActor()), *GetNameSafe(viewHit.GetComponent()), *GetNameSafe(hit.GetActor()),
-		   *GetNameSafe(hit.GetComponent()));
+	// The server uses the crosshair for hit detection. Animated muzzle sockets are used for effects.
+	FHitResult hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(hit, origin, end, ECC_GameTraceChannel3, query);
+	UE_LOG(LogVehicleCombat, Verbose, TEXT("Shot %s weapon=%s camera=%s direction=%s hit=%s:%s"),
+		   *GetNameSafe(GetCharacter()), *GetNameSafe(definition), *origin.ToString(), *direction.ToString(),
+		   *GetNameSafe(hit.GetActor()), *GetNameSafe(hit.GetComponent()));
 	if (bHit && hit.GetActor())
 	{
 		UGameplayStatics::ApplyPointDamage(hit.GetActor(), FMath::Max(0.0f, definition->Damage),
-										   (target - muzzle).GetSafeNormal(), hit, GetPlayerController(), weapon,
+										   direction, hit, GetPlayerController(), weapon,
 										   definition->DamageType);
 	}
 	++confirmedShots;
-	weapon->MulticastShot(bHit ? hit.ImpactPoint : target, bHit);
+	weapon->MulticastShot(bHit ? hit.ImpactPoint : end, bHit);
 	GetOwner()->ForceNetUpdate();
 	if (weapon->GetFireMode() == EGWeaponFireMode::Auto ||
 		(weapon->GetFireMode() == EGWeaponFireMode::Burst && --burstRemaining > 0))

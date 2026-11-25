@@ -35,8 +35,6 @@ public:
 	}
 	void SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson);
 	void PlayEquip();
-	// Shots start from the animated skeleton, so the result does not depend on how a visible mesh is retargeted.
-	FVector GetShotOrigin() const;
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	UGWeaponDefinition* GetDefinition() const

@@ -1,5 +1,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "AI/GBaseEnemyCar.h"
+#include "AI/GEnemyBaseDataAsset.h"
 #include "GPlayerCar.h"
 #include "GPlayerController.h"
 #include "GVehicleCombatComponent.h"
@@ -7,6 +9,10 @@
 #include "GVehicleWeapon.h"
 #include "GWeaponDefinition.h"
 #include "Whos_DrivingCharacter.h"
+#include "Camera/CameraComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
@@ -242,6 +248,83 @@ bool FGWeaponAmmoDataTest::RunTest(const FString& parameters)
 
 	scene.car->GetSeatingComponent()->RemovePlayer(scene.driver, false);
 	TestEqual(TEXT("Hidden on foot"), hudAmmo(), FString(TEXT("hidden")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGWeaponDamageTest, "WhosDriving.Combat.WeaponDamage",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGWeaponDamageTest::RunTest(const FString& parameters)
+{
+	FGCombatTestScene scene;
+	if (!scene.Create(*this))
+	{
+		return false;
+	}
+
+	const FVector origin(0.0, 0.0, 2000.0);
+	scene.avatar->GetFirstPersonCameraComponent()->SetWorldLocation(origin);
+	// This obstacle is below the crosshair but crosses the former shot path from the weapon mesh.
+	AActor* obstruction = scene.world->SpawnActor<AActor>();
+	UBoxComponent* cover = NewObject<UBoxComponent>(obstruction);
+	obstruction->SetRootComponent(cover);
+	cover->InitBoxExtent(FVector(100.0, 500.0, 950.0));
+	cover->SetWorldLocation(FVector(500.0, 0.0, 950.0));
+	cover->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	cover->SetCollisionResponseToAllChannels(ECR_Ignore);
+	cover->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+	cover->RegisterComponent();
+
+	constexpr float damage = 200.0f;
+	for (const int32 weaponIndex : {pistolIndex, rifleIndex})
+	{
+		if (weaponIndex == rifleIndex && !TestTrue(TEXT("Driver leans out to use the rifle"), scene.combat->RequestWindow(true)))
+		{
+			return false;
+		}
+		if (!TestTrue(TEXT("Weapon selected"), scene.combat->SelectWeapon(weaponIndex)))
+		{
+			return false;
+		}
+		UGWeaponDefinition* definition = scene.combat->GetCurrentWeapon()->GetDefinition();
+		const TGuardValue<float> damageSetting(definition->Damage, damage);
+		const TGuardValue<float> spreadSetting(definition->SpreadDegrees, 0.0f);
+		for (const double distance : {1000.0, 25000.0})
+		{
+			const FString label = FString::Printf(TEXT("%s at %.0f m"), *definition->GetName(), distance / 100.0);
+			const FTransform targetTransform(origin + FVector::ForwardVector * distance);
+			AGBaseEnemyCar* target = scene.world->SpawnActorDeferred<AGBaseEnemyCar>(
+				AGBaseEnemyCar::StaticClass(), targetTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			USkeletalMeshComponent* mesh = NewObject<USkeletalMeshComponent>(target);
+			target->SetRootComponent(mesh);
+			mesh->SetWorldTransform(targetTransform);
+			mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			mesh->RegisterComponent();
+			UBoxComponent* hitbox = NewObject<UBoxComponent>(target);
+			hitbox->SetupAttachment(mesh);
+			hitbox->InitBoxExtent(FVector(50.0));
+			hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+			hitbox->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Block);
+			hitbox->RegisterComponent();
+			target->baseData = NewObject<UGEnemyBaseDataAsset>(target);
+			target->baseData->Mesh = scene.car->GetMesh()->GetSkeletalMeshAsset();
+			target->baseData->MaxHp = damage + 0.25f;
+			UGameplayStatics::FinishSpawningActor(target, targetTransform);
+
+			scene.AdvanceTime(definition->EquipTime + definition->FireInterval + 0.1f);
+			TestTrue(label + TEXT(" fires"), scene.combat->SetTrigger(true, FVector::ForwardVector));
+			scene.combat->SetTrigger(false, FVector::ForwardVector);
+			if (TestTrue(label + TEXT(" survives with a quarter HP"), IsValid(target)))
+			{
+				target->TakeDamage(0.25f, FDamageEvent(), scene.driver, nullptr);
+				if (!TestFalse(label + TEXT(" received the full 200 damage"), IsValid(target)))
+				{
+					target->Destroy();
+				}
+			}
+		}
+	}
 	return true;
 }
 

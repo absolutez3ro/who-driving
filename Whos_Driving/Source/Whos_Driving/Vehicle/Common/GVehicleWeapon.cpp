@@ -300,13 +300,6 @@ void AGVehicleWeapon::PlayEquip()
 	}
 }
 
-FVector AGVehicleWeapon::GetShotOrigin() const
-{
-	const FTransform grip = definition->GripOffset * GetCharacter()->GetMesh()->GetSocketTransform(definition->GripSocket);
-	return grip.TransformPosition(
-		GetThirdPersonMesh()->GetSocketTransform(definition->MuzzleSocket, RTS_Component).GetLocation());
-}
-
 void AGVehicleWeapon::SetMagazineInHand(bool bInHand, bool bLeftHand, bool bFirstPerson)
 {
 	AWhos_DrivingCharacter* character = GetCharacter();

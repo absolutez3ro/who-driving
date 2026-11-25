@@ -80,6 +80,7 @@ public:
 	FName LeftHandMagazineSocket = TEXT("M8_Magazine_L");
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Sockets")
 	FName RightHandMagazineSocket = TEXT("M8_Magazine_R");
+	// Damage applied per hit at any distance within Range.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0"))
 	float Damage = 20.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
