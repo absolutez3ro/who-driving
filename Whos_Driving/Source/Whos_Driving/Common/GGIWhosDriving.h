@@ -124,6 +124,12 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Economic")
 	int32 moneyFromTotal = 0;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundBase> menuMusic;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	TObjectPtr<USoundBase> chaseMusic;
 private:
 	TSharedPtr<IInputProcessor> returnToMenuInput;
 

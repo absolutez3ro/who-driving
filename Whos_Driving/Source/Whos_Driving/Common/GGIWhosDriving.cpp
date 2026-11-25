@@ -14,6 +14,7 @@
 #include "Interfaces/OnlineExternalUIInterface.h"
 #include "GVehicleModuleComponent.h"
 #include "Widgets/SViewport.h"
+#include "GAudioManagerSubsystem.h"
 
 namespace
 {
@@ -95,6 +96,11 @@ void UGGIWhosDriving::Init()
 	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("WARNING. No online subsystem steam found. You CAN'T accept invites/host steam sessions.")));
+	}
+
+	if (UGAudioManagerSubsystem* audioManager = GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->SetMusicAssets(menuMusic, chaseMusic);
 	}
 }
 

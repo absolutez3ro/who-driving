@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Sound/SoundWave.h"
 #include "TimerManager.h"
+#include "GAudioManagerSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVehicleRadio, Log, All);
 
@@ -60,6 +61,14 @@ void UGVehicleRadioComponent::BeginPlay()
 
 void UGVehicleRadioComponent::EndPlay(const EEndPlayReason::Type endPlayReason)
 {
+	if (UGameInstance* gameInstance = GetWorld()->GetGameInstance())
+	{
+		if (UGAudioManagerSubsystem* audioManager = gameInstance->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			audioManager->SetRadioActive(this, false);
+		}
+	}
+
 	if (UWorld* world = GetWorld())
 	{
 		world->GetTimerManager().ClearTimer(trackTimer);
@@ -186,6 +195,14 @@ void UGVehicleRadioComponent::OnRep_RadioState()
 
 void UGVehicleRadioComponent::ApplyState()
 {
+	if (UGameInstance* gameInstance = GetWorld()->GetGameInstance())
+	{
+		if (UGAudioManagerSubsystem* audioManager = gameInstance->GetSubsystem<UGAudioManagerSubsystem>())
+		{
+			audioManager->SetRadioActive(this, radioState.bEnabled && !radioState.track.IsNull());
+		}
+	}
+	
 	GetWorld()->GetTimerManager().ClearTimer(trackTimer);
 	GetWorld()->GetTimerManager().ClearTimer(playbackTimer);
 	GetWorld()->GetTimerManager().ClearTimer(clockRetryTimer);

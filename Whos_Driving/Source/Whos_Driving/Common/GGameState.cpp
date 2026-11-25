@@ -6,6 +6,7 @@
 #include "GGIWhosDriving.h"
 #include "GLevelsDataAsset.h"
 #include "GameFramework/GameStateBase.h"
+#include "GAudioManagerSubsystem.h"
 
 AGGameState::AGGameState()
 {
@@ -18,6 +19,10 @@ void AGGameState::BeginPlay()
 	Super::BeginPlay();
 
 	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
+	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->PlayChaseMusic();
+	}
 }
 
 void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
