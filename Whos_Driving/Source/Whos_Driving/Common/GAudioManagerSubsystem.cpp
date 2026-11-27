@@ -66,10 +66,6 @@ void UGAudioManagerSubsystem::ConfigureMixer(USoundMix* inSoundMix, USoundClass*
 	SFXVolume = GetVolumeAdjuster(soundMix, SFXSoundClass);
 
 	UGameplayStatics::PushSoundMixModifier(this, soundMix);
-
-	ApplyMixerOverride(masterSoundClass, masterVolume);
-	ApplyMixerOverride(musicSoundClass, musicVolume);
-	ApplyMixerOverride(SFXSoundClass, SFXVolume);
 }
 
 float UGAudioManagerSubsystem::GetVolumeAdjuster(USoundMix* InSoundMix, USoundClass* InSoundClass)
@@ -111,9 +107,8 @@ UAudioComponent* UGAudioManagerSubsystem::StartMusicComponent(USoundBase* sound,
 		component->FadeOut(fadeDuration, 0.0f);
 		component = nullptr;
 	}
-
 	component = UGameplayStatics::SpawnSound2D(this, sound, 1.0f, 1.0f, 0.0f, nullptr, true, false);
-
+	//component->SoundClassOverride = musicSoundClass;
 	if (IsValid(component))
 	{
 		component->bAutoDestroy = false;
@@ -200,7 +195,7 @@ void UGAudioManagerSubsystem::ApplyMixerOverride(USoundClass* soundClass, float 
 	if (IsValid(soundMix) && IsValid(soundClass))
 	{
 		UGameplayStatics::SetSoundMixClassOverride(
-			this, soundMix, soundClass, FMath::Clamp(volume, 0.0f, 4.0f),
+			this, soundMix, soundClass, volume,
 			1.0f, 0.0f, true);
 
 		UGameplayStatics::PushSoundMixModifier(this, soundMix);

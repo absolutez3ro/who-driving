@@ -1,0 +1,223 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "GAudioManagerSubsystem.h"
+
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
+
+void UGAudioManagerSubsystem::Deinitialize()
+{
+	activeRadios.Empty();
+	if (IsValid(musicComponent))
+	{
+		musicComponent->Stop();
+		musicComponent->DestroyComponent();
+		musicComponent = nullptr;
+	}
+
+	if (IsValid(chaseMusicComponent))
+	{
+		chaseMusicComponent->Stop();
+		chaseMusicComponent->DestroyComponent();
+		chaseMusicComponent = nullptr;
+	}
+
+	if (IsValid(soundMix))
+	{
+		UGameplayStatics::PopSoundMixModifier(this, soundMix);
+	}
+	Super::Deinitialize();
+}
+
+void UGAudioManagerSubsystem::SetMusicAssets(USoundBase* inMusic, USoundBase* inChaseMusic)
+{
+	musicAsset = inMusic;
+	chaseMusicAsset = inChaseMusic;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AudioManager] MenuMusic = %s | ChaseMusic = %s"),
+		*GetNameSafe(musicAsset),
+		*GetNameSafe(chaseMusicAsset));
+}
+
+void UGAudioManagerSubsystem::ConfigureMixer(USoundMix* inSoundMix, USoundClass* inMasterClass, USoundClass* inMusicClass, USoundClass* inSFXClass)
+{
+	if (IsValid(soundMix))
+	{
+		UGameplayStatics::PopSoundMixModifier(this, soundMix);
+	}
+
+	soundMix = inSoundMix;
+	masterSoundClass = inMasterClass;
+	musicSoundClass = inMusicClass;
+	SFXSoundClass = inSFXClass;
+
+	if (!IsValid(soundMix))
+	{
+		return;
+	}
+
+	masterVolume = GetVolumeAdjuster(soundMix, masterSoundClass);
+	musicVolume = GetVolumeAdjuster(soundMix, musicSoundClass);
+	SFXVolume = GetVolumeAdjuster(soundMix, SFXSoundClass);
+
+	UGameplayStatics::PushSoundMixModifier(this, soundMix);
+}
+
+float UGAudioManagerSubsystem::GetVolumeAdjuster(USoundMix* InSoundMix, USoundClass* InSoundClass)
+{
+	if (!IsValid(InSoundMix) || !IsValid(InSoundClass))
+	{
+		return 1.0f;
+	}
+
+	for (const FSoundClassAdjuster& Adjuster : InSoundMix->SoundClassEffects)
+	{
+		if (Adjuster.SoundClassObject == InSoundClass)
+		{
+			return Adjuster.VolumeAdjuster;
+		}
+	}
+
+	return 1.0f;
+}
+
+
+UAudioComponent* UGAudioManagerSubsystem::StartMusicComponent(USoundBase* sound, TObjectPtr<UAudioComponent>& component)
+{
+	if (!IsValid(sound))
+	{
+		return nullptr;
+	}
+
+	if (IsValid(component))
+	{
+		if (component->Sound == sound)
+		{
+			if (component->bIsPaused)
+			{
+				component->SetPaused(false);
+			}
+			return component;
+		}
+		component->FadeOut(fadeDuration, 0.0f);
+		component = nullptr;
+	}
+	component = UGameplayStatics::SpawnSound2D(this, sound, 1.0f, 1.0f, 0.0f, nullptr, true, false);
+	//component->SoundClassOverride = musicSoundClass;
+	if (IsValid(component))
+	{
+		component->bAutoDestroy = false;
+		component->FadeIn(fadeDuration, 1.0f);
+	}
+	return component;
+}
+
+void UGAudioManagerSubsystem::FadeOutComponent(UAudioComponent* component)
+{
+	if (IsValid(component) && component->IsPlaying())
+	{
+		component->FadeOut(fadeDuration, 0.0f);
+	}
+}
+
+void UGAudioManagerSubsystem::PlayMusic()
+{
+	if (IsValid(musicAsset))
+	{
+		StartMusicComponent(musicAsset, musicComponent);
+	}
+}
+
+void UGAudioManagerSubsystem::StopMusic()
+{
+	FadeOutComponent(musicComponent);
+	musicComponent = nullptr;
+}
+
+void UGAudioManagerSubsystem::PlayChaseMusic()
+{
+	bChaseMusicRequested = true;
+	if (activeRadios.Num() > 0)
+	{
+		return;
+	}
+
+	if (IsValid(chaseMusicAsset))
+	{
+		StartMusicComponent(chaseMusicAsset, chaseMusicComponent);
+	}
+}
+
+void UGAudioManagerSubsystem::StopChaseMusic()
+{
+	bChaseMusicRequested = false;
+	FadeOutComponent(chaseMusicComponent);
+	chaseMusicComponent = nullptr;
+}
+
+void UGAudioManagerSubsystem::SetRadioActive(UObject* source, bool bActive)
+{
+	if (!IsValid(source))
+	{
+		return;
+	}
+
+	if (bActive)
+	{
+		if (activeRadios.Contains(source))
+		{
+			return;
+		}
+		const bool bWasRadioActive = activeRadios.Num() > 0;
+		activeRadios.Add(source);
+		if (!bWasRadioActive && IsValid(chaseMusicComponent))
+		{
+			chaseMusicComponent->SetPaused(true);
+		}
+	}
+	else
+	{
+		activeRadios.Remove(source);
+		if (activeRadios.Num() == 0 && bChaseMusicRequested)
+		{
+			chaseMusicComponent->SetPaused(false);
+		}
+	}
+}
+
+void UGAudioManagerSubsystem::ApplyMixerOverride(USoundClass* soundClass, float volume)
+{
+	if (IsValid(soundMix) && IsValid(soundClass))
+	{
+		UGameplayStatics::SetSoundMixClassOverride(
+			this, soundMix, soundClass, volume,
+			1.0f, 0.0f, true);
+
+		UGameplayStatics::PushSoundMixModifier(this, soundMix);
+	}
+}
+
+
+void UGAudioManagerSubsystem::SetMasterVolume(float newVolume)
+{
+	masterVolume = FMath::Clamp(newVolume, 0.0f, 4.0f);
+	ApplyMixerOverride(masterSoundClass, masterVolume);
+}
+
+void UGAudioManagerSubsystem::SetMusicVolume(float NewVolume)
+{
+	musicVolume = FMath::Clamp(NewVolume, 0.0f, 4.0f);
+	ApplyMixerOverride(musicSoundClass, musicVolume);
+}
+
+void UGAudioManagerSubsystem::SetSFXVolume(float newVolume)
+{
+	SFXVolume = FMath::Clamp(newVolume, 0.0f, 4.0f);
+	ApplyMixerOverride(SFXSoundClass, SFXVolume);
+}
+
