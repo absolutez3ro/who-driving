@@ -141,6 +141,7 @@ void UGAudioManagerSubsystem::PlayMusic()
 void UGAudioManagerSubsystem::StopMusic()
 {
 	FadeOutComponent(musicComponent);
+	musicComponent = nullptr;
 }
 
 void UGAudioManagerSubsystem::PlayChaseMusic()
@@ -161,6 +162,7 @@ void UGAudioManagerSubsystem::StopChaseMusic()
 {
 	bChaseMusicRequested = false;
 	FadeOutComponent(chaseMusicComponent);
+	chaseMusicComponent = nullptr;
 }
 
 void UGAudioManagerSubsystem::SetRadioActive(UObject* source, bool bActive)

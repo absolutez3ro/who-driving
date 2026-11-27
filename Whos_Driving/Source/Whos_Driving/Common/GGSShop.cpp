@@ -1,14 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Common/GGSShop.h"
-
 #include "Net/UnrealNetwork.h" 
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "GameFramework/PlayerState.h"
-
 #include "GVehicleModuleComponent.h"
+#include "GAudioManagerSubsystem.h"
 
 void AGGSShop::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -86,9 +82,22 @@ void AGGSShop::BeginPlay()
 		damageLevelRifle = gi->characterUpgradeData.damageLevelRifle;
 	}
 	SpawnCar();
+	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->PlayMusic();
+	}
 	Super::BeginPlay();
 }
 
+
+void AGGSShop::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->StopMusic();
+	}
+	Super::EndPlay(EndPlayReason);
+}
 
 //REPAIR
 void AGGSShop::GetRepairData(TArray<FName>& OutNames, TArray<FString>& OutDisplayNames, TArray<float>& OutCurrentHp, TArray<float>& OutMaxHp, TArray<int32>& OutPrices, int32& playerMoney)

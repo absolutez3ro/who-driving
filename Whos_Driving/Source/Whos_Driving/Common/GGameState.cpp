@@ -28,6 +28,15 @@ void AGGameState::BeginPlay()
 	}
 }
 
+void AGGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->StopChaseMusic();
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
 void AGGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

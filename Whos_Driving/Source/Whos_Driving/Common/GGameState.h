@@ -82,6 +82,7 @@ public:
 
 protected:
 	void BeginPlay() override;
+	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	void Tick(float deltaTime) override;
 
 	UFUNCTION()

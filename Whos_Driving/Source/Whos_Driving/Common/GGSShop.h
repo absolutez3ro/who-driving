@@ -102,7 +102,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GetAccelerationUpgradePrice(int32& OutPrice, int32& playerMoney);
 	void SpawnCar();
-	void BeginPlay();
+	void BeginPlay() override;
+	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable)
 	void RepairModule(const FName& ModuleName);
 
