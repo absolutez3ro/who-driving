@@ -57,7 +57,14 @@ void AGGameState::BeginPlay()
 			*CurrentLevelPath);
 	}
 	RaceFinished = false;
+
+	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+	{
+		audioManager->PlayChaseMusic();
+	}
 }
+
+
 void AGGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
