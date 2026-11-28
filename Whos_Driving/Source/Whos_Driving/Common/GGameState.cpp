@@ -4,7 +4,7 @@
 #include "Common/GGameState.h"
 #include "Net/UnrealNetwork.h"
 #include "GGIWhosDriving.h"
-#include "GLevelsDataAsset.h"
+#include "GEconomicDataAsset.h"
 #include "GameFramework/GameStateBase.h"
 #include "GAudioManagerSubsystem.h"
 
@@ -17,17 +17,46 @@ AGGameState::AGGameState()
 void AGGameState::BeginPlay()
 {
 	Super::BeginPlay();
-
-	timeBonusThreshold = levelsData->FirstLevelTimerThreshold;
-	if (GetNetMode() != NM_DedicatedServer)
+	if (!GetWorld() || !levelsData)
 	{
-		if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())
+		UE_LOG(LogTemp, Error,
+		TEXT("GameState: World or EconomicData is nullptr"));
+		return;
+	}
+	FString CurrentLevelPath = GetWorld()->GetOutermost()->GetName();
+	CurrentLevelPath = UWorld::RemovePIEPrefix(CurrentLevelPath);
+	UE_LOG(LogTemp, Warning,TEXT("Current Level Path: %s"),*CurrentLevelPath);
+	bool bLevelFound = false;
+	for (const auto& LevelData : levelsData->LevelsTimers)
+	{
+		const FString DataAssetLevelPath =
+			LevelData.Key.ToSoftObjectPath().GetLongPackageName();
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("Checking Level: %s"),
+			*DataAssetLevelPath);
+
+		if (DataAssetLevelPath == CurrentLevelPath)
 		{
-			audioManager->PlayChaseMusic();
+			timeBonusThreshold = LevelData.Value;
+			bLevelFound = true;
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("FOUND TIMER! Level: %s, Time: %.2f"),
+				*CurrentLevelPath,
+				timeBonusThreshold);
+
+			break;
 		}
 	}
-}
 
+	if (!bLevelFound)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("TIMER NOT FOUND for level: %s"),
+			*CurrentLevelPath);
+	}
+}
 void AGGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (UGAudioManagerSubsystem* audioManager = GetGameInstance()->GetSubsystem<UGAudioManagerSubsystem>())

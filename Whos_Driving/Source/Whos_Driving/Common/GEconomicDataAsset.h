@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/World.h"
 #include "GEconomicDataAsset.generated.h"
 
 /**
@@ -21,6 +22,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economic")
 	int32 PartsToMoneyConversionRate = 100;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economic")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economic|Race Timer")
 	float TimeBonusMultiplier = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economic|Race Timer")
+	TMap<TSoftObjectPtr<UWorld>, float> LevelsTimers;
 };
