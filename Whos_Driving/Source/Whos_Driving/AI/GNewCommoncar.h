@@ -31,10 +31,10 @@ public:
 	void HandleDeath();
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void PlayShotSound();
+	void PlayShotSound(USoundBase* HitSound);
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void PlayMissSound();
+	void PlayMissSound(USoundBase* MissSound);
 
 	// Cosmetic side of a shot (muzzle flash, sound, tracer); damage is applied by the AI controller
 	//UFUNCTION(NetMulticast, Unreliable)
@@ -42,12 +42,6 @@ public:
 
 	//UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
 	//void OnShotFired(FVector target, bool bHit);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<USoundBase> hitSound;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<USoundBase> missSound;
 
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
 	FGOnDeath OnDeath;

@@ -55,11 +55,11 @@ void AGNewCommoncar::Tick(float deltaTime)
 
 }
 
-void AGNewCommoncar::PlayShotSound_Implementation()
+void AGNewCommoncar::PlayShotSound_Implementation(USoundBase* HitSound)
 {
-	if (hitSound)
+	if (HitSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, hitSound, GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
 	}
 	else
 	{
@@ -67,11 +67,11 @@ void AGNewCommoncar::PlayShotSound_Implementation()
 	}
 }
 
-void AGNewCommoncar::PlayMissSound_Implementation()
+void AGNewCommoncar::PlayMissSound_Implementation(USoundBase* MissSound)
 {
-	if (missSound)
+	if (MissSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, missSound, GetActorLocation());
+		UGameplayStatics::PlaySoundAtLocation(this, MissSound, GetActorLocation());
 	}
 	else
 	{

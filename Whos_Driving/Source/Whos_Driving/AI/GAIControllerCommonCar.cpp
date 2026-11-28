@@ -215,7 +215,7 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 
 		if (AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn()))
 		{
-			enemyCar->PlayMissSound_Implementation();
+			enemyCar->PlayMissSound_Implementation(missSound);
 		}
 
 		StartShootDelay();
@@ -328,7 +328,7 @@ void AGAIControllerCommonCar::Shoot_Implementation()
 
 	if (AGNewCommoncar* enemyCar = Cast<AGNewCommoncar>(GetPawn()))
 	{
-		enemyCar->PlayShotSound_Implementation();
+		enemyCar->PlayShotSound_Implementation(hitSound);
 	}
 
 	StartShootDelay();
