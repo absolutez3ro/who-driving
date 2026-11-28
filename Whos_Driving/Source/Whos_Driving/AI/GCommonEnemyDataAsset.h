@@ -27,19 +27,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float cornerSlowdown = 0.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float throttleGain = 0.002f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float brakeGain = 0.002f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float laneOffset = 100.f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float stopDistance = 500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	float roadWidth = 5.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
-	float catchUpModificator = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "movement")
 	bool followPlayer = false;

@@ -43,12 +43,8 @@ void AGAIControllerCommonCar::BeginPlay()
 		maxSteerAngle = commonCarData->maxSteerAngle;
 		steerInterpSpeed = commonCarData->steerInterpSpeed;
 		cornerSlowdown = commonCarData->cornerSlowdown;
-		throttleGain = commonCarData->throttleGain;
-		brakeGain = commonCarData->brakeGain;
-		laneOffset = commonCarData->laneOffset;
 		stopDistance = commonCarData->stopDistance;
 		roadWidth = commonCarData->roadWidth;
-		catchUpModificator = commonCarData->catchUpModificator;
 		playerSpeedThershhold = commonCarData->playerSpeedThershhold;
 		allowedDistanceFromPlayer = commonCarData->allowedDistanceFromPlayer;
 		//combat
@@ -436,28 +432,19 @@ void AGAIControllerCommonCar::DriveAlongSpline(float DeltaSeconds)
 
 	}
 	// 5. speed control
-	// calculating catch up multiplier
-	float catchUp = 0;
-	if ((playerDist - currentDist) <= 1.f || !followPlayer) {
-		catchUp = 1.0f;
-	}
-	else
-	{
-		catchUp = catchUpModificator * (playerDist - currentDist);
-	}
-	const float DesiredSpeed = targetSpeed * (1.f - cornerSlowdown * FMath::Abs(currentSteer)) *catchUp;
+	const float DesiredSpeed = targetSpeed * (1.f - cornerSlowdown * FMath::Abs(currentSteer));
 	const float SpeedError = DesiredSpeed - Speed;
 	//UE_LOG(LogTemp, Error, TEXT("catchUp %f"), catchUp);
 	//UE_LOG(LogTemp, Error, TEXT("SpeedError %f"), SpeedError);
 	//UE_LOG(LogTemp, Error, TEXT("playerMovement->GetForwardSpeed() %f"), playerMovement->GetForwardSpeed());
 	if (SpeedError >= 0.f)
 	{
-		Movement->SetThrottleInput(FMath::Clamp(SpeedError * throttleGain, 0.f, 1.f));
+		Movement->SetThrottleInput(FMath::Clamp(SpeedError, 0.f, 1.f));
 		Movement->SetBrakeInput(0.f);
 	}
 	else
 	{
 		Movement->SetThrottleInput(0.f);
-		Movement->SetBrakeInput(FMath::Clamp(-SpeedError * brakeGain, 0.f, 1.f));
+		Movement->SetBrakeInput(FMath::Clamp(-SpeedError, 0.f, 1.f));
 	}
 }

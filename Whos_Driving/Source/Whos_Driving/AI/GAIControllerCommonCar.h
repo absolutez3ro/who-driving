@@ -67,10 +67,6 @@ private:
 	float steerInterpSpeed = 15.f;
 	// 0..1, how much to slow down at full steering lock
 	float cornerSlowdown = 0.5f;
-	float throttleGain = 0.002f;
-	float brakeGain = 0.002f;
-	// Sideways offset from the spline (cm), positive = right
-	float laneOffset = 100.f;
 	// On an open spline, start stopping this far before the end (cm)
 	float stopDistance = 500.f;
 	float currentSteer = 0.f;

@@ -62,7 +62,6 @@ namespace
 		TWeakObjectPtr<UGGIWhosDriving> gameInstance;
 	};
 }
-
 void UGGIWhosDriving::Init()
 {
 	Super::Init();
@@ -89,13 +88,16 @@ void UGGIWhosDriving::Init()
 		}
 		else
 		{
+			useSteam = false;
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("SESSION INTERFACE INVALID")));
 		}
 	}
 	else
 	{
+		useSteam = false;
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("WARNING. No online subsystem steam found. You CAN'T accept invites/host steam sessions.")));
 	}
+	ConfigureGameNetDriver();
 }
 
 void UGGIWhosDriving::Shutdown()
@@ -135,6 +137,28 @@ void UGGIWhosDriving::ReturnToMainMenu()
 	UGameplayStatics::OpenLevel(this, mainMenuLevel, true, bSteamAvailable ? TEXT("listen") : TEXT(""));
 }
 
+
+// configuration bullsh
+
+void UGGIWhosDriving::ConfigureGameNetDriver()
+{
+	if (!GEngine || useSteam)
+	{
+		return; // keep Steam Sockets from the ini
+	}
+
+	static const FName ipDriverClass(TEXT("/Script/OnlineSubsystemUtils.IpNetDriver"));
+
+	for (FNetDriverDefinition& definition : GEngine->NetDriverDefinitions)
+	{
+		if (definition.DefName == NAME_GameNetDriver)
+		{
+			definition.DriverClassName = ipDriverClass;
+			definition.DriverClassNameFallback = ipDriverClass;
+			UE_LOG(LogTemp, Warning, TEXT("No Steam: GameNetDriver switched to IpNetDriver"));
+		}
+	}
+}
 
 void UGGIWhosDriving::PrintNetDriver()
 {
@@ -862,3 +886,4 @@ void UGGIWhosDriving::FetchCarData() {
 		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("FAILED TO FIND CAR IN GI")));
 	}
 }
+
