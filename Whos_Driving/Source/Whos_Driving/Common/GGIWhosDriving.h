@@ -83,7 +83,8 @@ public:
 
 	UFUNCTION()
 	void HandleRaceFinish();
-
+	UFUNCTION(BlueprintCallable)
+	bool GetUseSteam() { return useSteam; };
 	int32 GetMoneyFromTotal() const;
 	int32 GetMoneyFromKills() const;
 	int32 GetMoneyFromRepairParts() const;
@@ -148,8 +149,9 @@ protected:
 
 	
 private:
+	bool useSteam=true;
 	TSharedPtr<IInputProcessor> returnToMenuInput;
-
+	void ConfigureGameNetDriver();
 	//destroy func needs to know if player destroy while joining by invitation or on his own
 	bool currentlyJoining = false;
 	bool openUIAfterHosting = false;

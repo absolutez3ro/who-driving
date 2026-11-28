@@ -1060,3 +1060,11 @@ void AGPlayerController::ClientSetupLobbyInput_Implementation()
 	this->bShowMouseCursor = false;
 	this->SetInputMode(inputMode);
 }
+
+void AGPlayerController::RequestLevelEnd_Implementation()
+{
+	if (AWhos_DrivingGameMode* gm = GetWorld()->GetAuthGameMode<AWhos_DrivingGameMode>())
+	{
+		gm->OnLevelEnd();
+	}
+}

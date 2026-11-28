@@ -75,7 +75,7 @@ void AWhos_DrivingGameMode::BeginPlay()
 	TObjectPtr<AGGameState> GS =GetGameState<AGGameState>();
 	if (GS)
 	{
-		GS->OnPlayerFinish.AddDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
+		GS->OnPlayerFinish.AddDynamic(this, &AWhos_DrivingGameMode::OnRaceFinished);
 	}
 	else
 	{
@@ -108,11 +108,9 @@ void AWhos_DrivingGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 	AGPlayerController* pc = Cast<AGPlayerController>(newPlayer);
 	RegisterParticipant(pc);
 }
-
-void AWhos_DrivingGameMode::OnLevelEnd()
+void AWhos_DrivingGameMode::OnRaceFinished()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("Level ended traveling")));
-	GetGameState<AGGameState>()->OnPlayerFinish.RemoveDynamic(this, &AWhos_DrivingGameMode::OnLevelEnd);
+	GetGameState<AGGameState>()->OnPlayerFinish.RemoveDynamic(this, &AWhos_DrivingGameMode::OnRaceFinished);
 	TObjectPtr<UGGIWhosDriving> gi = GetGameInstance<UGGIWhosDriving>();
 	if (gi)
 	{
@@ -122,7 +120,7 @@ void AWhos_DrivingGameMode::OnLevelEnd()
 		gi->carUpgradeData.maxSpeedLevel = movementComponent->currentMaxSpeedLevel;
 		//idgaf which they have same upgrades
 		TObjectPtr<AWhos_DrivingCharacter> character = Cast<AWhos_DrivingCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), AWhos_DrivingCharacter::StaticClass()));
-		for(TObjectPtr<AGVehicleWeapon> weapon : character->GetCombatComponent()->GetWeapons())
+		for (TObjectPtr<AGVehicleWeapon> weapon : character->GetCombatComponent()->GetWeapons())
 		{
 			if (weapon->GetDefinition()->bUsableByDriverInCabin) {
 				gi->characterUpgradeData.ammoLevelPistol = weapon->GetMagazineSizeLevel();
@@ -142,6 +140,11 @@ void AWhos_DrivingGameMode::OnLevelEnd()
 	}
 	GetGameInstance<UGGIWhosDriving>()->FetchCarData();
 
+}
+
+void AWhos_DrivingGameMode::OnLevelEnd()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString::Printf(TEXT("Level ended traveling")));
 	if (UWorld* World = GetWorld())
 	{
 		const FString url = shopLevel.GetLongPackageName() + TEXT("?listen");

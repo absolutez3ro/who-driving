@@ -56,6 +56,7 @@ void AGGameState::BeginPlay()
 			TEXT("TIMER NOT FOUND for level: %s"),
 			*CurrentLevelPath);
 	}
+	RaceFinished = false;
 }
 void AGGameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -100,7 +101,7 @@ void AGGameState::Multicast_OnPlayerFinish_Implementation()
 {
 	UGGIWhosDriving* gameInstance = GetGameInstance<UGGIWhosDriving>();
 	gameInstance->CalculateMoneyOnFinish();
-
+	RaceFinished = true;
 	OnPlayerFinish.Broadcast();
 }
 
